@@ -1,0 +1,10 @@
+schema: spec-driven
+
+# Project context
+context: |
+  Color Hurry is a cooperative two-player game on Adafruit Circuit Playground
+  Bluefruit boards (nRF52840, Rust, no_std); a Picker sends a color over BLE
+  advertising, a Receiver must get it before its countdown runs out.
+  Use the domain language from the Event Storming in specs: Picker, Receiver,
+  channel, Skip, ActivateColor, ColorReceived, TaskCompleted, CountdownExpired.
+  Write all artifacts in English.
