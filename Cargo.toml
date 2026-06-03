@@ -1,0 +1,36 @@
+[package]
+name = "color-hurry-cpb"
+version = "0.1.0"
+edition = "2021"
+authors = ["Marcel"]
+description = "Color Hurry für Adafruit Circuit Playground Bluefruit (Rust / Embassy)"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["sd-v7"]
+sd-v6 = []
+sd-v7 = []
+
+[dependencies]
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+nrf-pac = { version = "0.3", features = ["nrf52840"] }
+panic-halt = "0.2"
+
+embassy-executor = { version = "0.7", features = ["arch-cortex-m", "executor-thread"] }
+embassy-futures = "0.1"
+nrf-softdevice = { version = "0.1", features = [
+    "nrf52840",
+    "s140",
+    "ble-peripheral",
+    "critical-section-impl",
+] }
+nrf-softdevice-s140 = "0.1"
+
+[profile.release]
+debug = 2
+lto = true
+opt-level = "s"
+
+[profile.dev]
+opt-level = 1
