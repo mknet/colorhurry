@@ -1,0 +1,10 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+# USB / UF2 — wie `just flash` (convert + auf CPLAYBTBOOT kopieren)
+runner = "./scripts/cargo-uf2-runner.sh"
+
+[build]
+target = "thumbv7em-none-eabihf"
+target-dir = "target"
+
+[env]
+DEFMT_LOG = "info"

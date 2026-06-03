@@ -1,0 +1,10 @@
+{"sessionId":"55c9bc","timestamp":1780443830000,"hypothesisId":"H1","location":"debug-host-log.sh","message":"elf_load_address","data":{"layout":"v6","vector_vma":"0x00026000","entry":"0x26401","expected":"0x26000","match":true},"runId":"pre-flash"}
+{"sessionId":"55c9bc","timestamp":1780443830000,"hypothesisId":"H7","location":"debug-host-log.sh","message":"vector_initial_sp","data":{"initial_sp":"0x20040000","expected_sp":"0x20040000","stack_ok":true},"runId":"pre-flash"}
+{"sessionId":"55c9bc","timestamp":1780443830000,"hypothesisId":"H5","location":"debug-host-log.sh","message":"flash_base_from_elf","data":{"layout":"v6","flash_base":"0x00026000"},"runId":"pre-flash"}
+{"sessionId":"55c9bc","timestamp":1780443830000,"hypothesisId":"H2","location":"debug-host-log.sh","message":"bootloader_volume","data":{"state":"CPLAYBTBOOT_mounted","info_uf2":""},"runId":"pre-flash"}
+{"sessionId":"55c9bc","timestamp":1780443830000,"hypothesisId":"H0","location":"debug-host-log.sh","message":"phase_complete","data":{"phase":"pre-flash","layout":"v6"},"runId":"pre-flash"}
+{"sessionId":"55c9bc","timestamp":1780443841000,"hypothesisId":"H1","location":"debug-host-log.sh","message":"elf_load_address","data":{"layout":"v6","vector_vma":"0x00026000","entry":"0x26401","expected":"0x26000","match":true},"runId":"post-flash"}
+{"sessionId":"55c9bc","timestamp":1780443841000,"hypothesisId":"H7","location":"debug-host-log.sh","message":"vector_initial_sp","data":{"initial_sp":"0x20040000","expected_sp":"0x20040000","stack_ok":true},"runId":"post-flash"}
+{"sessionId":"55c9bc","timestamp":1780443841000,"hypothesisId":"H5","location":"debug-host-log.sh","message":"flash_base_from_elf","data":{"layout":"v6","flash_base":"0x00026000"},"runId":"post-flash"}
+{"sessionId":"55c9bc","timestamp":1780443841000,"hypothesisId":"H2","location":"debug-host-log.sh","message":"bootloader_volume","data":{"state":"CPLAYBTBOOT_mounted","info_uf2":""},"runId":"post-flash"}
+{"sessionId":"55c9bc","timestamp":1780443841000,"hypothesisId":"H0","location":"debug-host-log.sh","message":"phase_complete","data":{"phase":"post-flash","layout":"v6"},"runId":"post-flash"}
