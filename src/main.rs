@@ -1,4 +1,4 @@
-//! Color Hurry CPB — Color Picker + BLE-Broadcast.
+//! Color Hurry CPB — Moduswahl, Color Picker oder Empfänger-Countdown + BLE.
 
 #![no_std]
 #![no_main]
@@ -9,9 +9,13 @@ use panic_halt as _;
 mod ble_broadcast;
 mod buttons;
 mod color_picker;
+mod countdown;
 mod debug_led;
-mod demo_chase;
+mod game;
+mod mode_select;
 mod neopixel_pwm;
+mod palette;
+mod receiver;
 mod speaker;
 #[cfg(feature = "speaker-demo")]
 mod speaker_demo;
@@ -25,8 +29,8 @@ async fn softdevice_task(sd: &'static Softdevice) -> ! {
 }
 
 #[embassy_executor::task]
-async fn color_picker_task() -> ! {
-    color_picker::run().await
+async fn game_task() -> ! {
+    game::run().await
 }
 
 #[cfg(feature = "speaker-demo")]
@@ -35,10 +39,8 @@ async fn speaker_demo_task() -> ! {
     speaker_demo::run().await
 }
 
-/// SoftDevice + Advertising (Color Picker läuft bereits parallel).
 #[embassy_executor::task]
 async fn ble_system(spawner: Spawner) -> ! {
-    // Color Picker soll HFCLK/Timer zuerst nutzen können.
     embassy_futures::yield_now().await;
     embassy_futures::yield_now().await;
 
@@ -58,8 +60,7 @@ async fn main(spawner: Spawner) {
     debug_led::init();
     debug_led::show_flash_layout();
 
-    // UI zuerst — läuft auch wenn BLE scheitert (Panic in enable ausgenommen).
-    spawner.spawn(color_picker_task()).unwrap();
+    spawner.spawn(game_task()).unwrap();
     #[cfg(feature = "speaker-demo")]
     spawner.spawn(speaker_demo_task()).unwrap();
     spawner.spawn(ble_system(spawner)).unwrap();

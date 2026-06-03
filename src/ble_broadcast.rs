@@ -26,6 +26,9 @@ pub mod protocol {
     pub const CMD_READY: u8 = 0x02;
     /// Aktuelle Farbe (Palette-Werte 0–255, vor NeoPixel-Dimming).
     pub const CMD_COLOR: u8 = 0x03;
+    /// Geplant v3: Kanal-ID des Pickers (unabhängig von Empfänger-Zufallsfarbe).
+    #[allow(dead_code)]
+    pub const CMD_COLOR_CHANNEL: u8 = 0x04;
 }
 
 /// Manufacturer-Payload: Magic, Version, Opcode, R, G, B.
@@ -128,6 +131,15 @@ pub fn enable() -> &'static Softdevice {
     };
 
     Softdevice::enable(&config)
+}
+
+/// Empfänger-Modus: Farbe vom Picker-Broadcast (Central-Scan) — noch nicht implementiert.
+///
+/// Der Empfänger nutzt aktuell eine **lokale Zufallsfarbe**; Setup-Kanalfarben
+/// dienen nur der Modus-/Identitätswahl. Siehe `docs/RECEIVER.md`.
+#[allow(dead_code)]
+pub async fn receiver_wait_color() -> crate::neopixel_pwm::Rgb {
+    crate::neopixel_pwm::Rgb::OFF
 }
 
 /// Endlos: scannbares Advertising (~30 ms Intervall, Payload alle ~50 ms neu).

@@ -20,6 +20,16 @@ Implementierung: `speaker::play_skip()` / `speaker::play_apply()` in `color_pick
 
 Konstanten in `src/speaker.rs` anpassen.
 
+## Empfänger-Countdown (Standard im Empfänger-Modus)
+
+Pro Sekunde ein absteigender Ton, synchron zum CCW-Ausschalten der NeoPixels:
+
+| Sekunde | Ton (ca.) |
+|---------|-----------|
+| 1–10 | 680 → 200 Hz (`src/countdown.rs`) |
+
+Implementierung: `countdown::run_once` nach Anzeige der Zufallsfarbe (`src/receiver.rs`).
+
 ## 12-Sekunden-Demo (aufgehoben)
 
 Die Test-Sequenz (Gitarren-Reset → 10 absteigende Töne → Explosion) liegt in **`src/speaker_demo.rs`** und ist standardmäßig **aus**.
