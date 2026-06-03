@@ -10,6 +10,8 @@ license = "MIT OR Apache-2.0"
 default = ["sd-v7"]
 sd-v6 = []
 sd-v7 = []
+# 12-Sekunden-Sequenz (Gitarren-Reset, Tonleiter, Explosion) — nur zum Testen
+speaker-demo = []
 
 [dependencies]
 cortex-m = "0.7"

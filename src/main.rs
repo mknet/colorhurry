@@ -13,6 +13,8 @@ mod debug_led;
 mod demo_chase;
 mod neopixel_pwm;
 mod speaker;
+#[cfg(feature = "speaker-demo")]
+mod speaker_demo;
 mod time;
 
 use nrf_softdevice::Softdevice;
@@ -27,9 +29,10 @@ async fn color_picker_task() -> ! {
     color_picker::run().await
 }
 
+#[cfg(feature = "speaker-demo")]
 #[embassy_executor::task]
-async fn speaker_task() -> ! {
-    speaker::run_demo().await
+async fn speaker_demo_task() -> ! {
+    speaker_demo::run().await
 }
 
 /// SoftDevice + Advertising (Color Picker läuft bereits parallel).
@@ -57,6 +60,7 @@ async fn main(spawner: Spawner) {
 
     // UI zuerst — läuft auch wenn BLE scheitert (Panic in enable ausgenommen).
     spawner.spawn(color_picker_task()).unwrap();
-    spawner.spawn(speaker_task()).unwrap();
+    #[cfg(feature = "speaker-demo")]
+    spawner.spawn(speaker_demo_task()).unwrap();
     spawner.spawn(ble_system(spawner)).unwrap();
 }

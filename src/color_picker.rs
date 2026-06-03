@@ -42,25 +42,30 @@ impl ColorPicker {
     /// Endlosschleife: Farbauswahl + Übernahme (async Task neben BLE).
     pub async fn run(mut self) -> ! {
         Buttons::init();
+        crate::speaker::init();
         self.sync_ble();
         self.render();
         loop {
-            self.tick();
+            self.update_blink();
+
+            match self.buttons.poll() {
+                Event::Left => {
+                    if self.on_left() {
+                        crate::speaker::play_skip().await;
+                    }
+                }
+                Event::Right => {
+                    if self.on_right() {
+                        crate::speaker::play_apply().await;
+                    }
+                }
+                Event::None => {}
+            }
+
+            self.sync_ble();
+            self.render();
             time::delay_ms_async(TICK_MS).await;
         }
-    }
-
-    fn tick(&mut self) {
-        self.update_blink();
-
-        match self.buttons.poll() {
-            Event::Left => self.on_left(),
-            Event::Right => self.on_right(),
-            Event::None => {}
-        }
-
-        self.sync_ble();
-        self.render();
     }
 
     /// Farbe der LED an `selected` — die blinkende Position in der Auswahl.
@@ -77,28 +82,32 @@ impl ColorPicker {
         crate::ble_broadcast::set_color(self.blinking_led_color());
     }
 
-    fn on_left(&mut self) {
+    fn on_left(&mut self) -> bool {
         match self.phase {
             Phase::Selecting => {
                 self.selected = (self.selected + 1) % NUM_LEDS;
-                // Neue Auswahl sofort sichtbar + BLE = Farbe dieser LED
-                self.blink_on = true;
+                // Neu gewählte LED sofort aus → schnelles Skippen gut sichtbar.
+                self.blink_on = false;
                 self.blink_counter = 0;
+                true
             }
             Phase::Applied => {
                 self.phase = Phase::Selecting;
+                false
             }
         }
     }
 
-    fn on_right(&mut self) {
+    fn on_right(&mut self) -> bool {
         match self.phase {
             Phase::Selecting => {
                 self.applied = self.spectrum[self.selected];
                 self.phase = Phase::Applied;
+                true
             }
             Phase::Applied => {
                 self.phase = Phase::Selecting;
+                false
             }
         }
     }

@@ -28,6 +28,8 @@ Ausführlich: [docs/BLE.md](docs/BLE.md), Troubleshooting: [docs/ERKENNTNISSE-BL
 
 Ohne BLE (nur Color Picker): `just restore-and-flash` + `just flash` (6.1.1 @ 0x26000).
 
+Audio (Skip/Apply-Töne): [docs/AUDIO.md](docs/AUDIO.md). Demo-Sequenz: Feature `speaker-demo`.
+
 **Dauerhaft grün** = Bootloader, App läuft nicht → [docs/RECOVERY.md](docs/RECOVERY.md)
 
 **macOS: kein Zugriff auf CPLAYBTBOOT** → [docs/FLASH-MACOS.md](docs/FLASH-MACOS.md) (`just flash-serial`)
