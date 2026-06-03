@@ -37,8 +37,14 @@ Ohne BLE (nur Color Picker, wie früher): weiterhin `just restore-and-flash` + `
 | Task | Modul | Aufgabe |
 |------|-------|---------|
 | SoftDevice | `main.rs` | `sd.run()` — Radio-Stack |
-| BLE | `ble_broadcast.rs` | Advertising mit Kommando-Payload |
-| UI | `color_picker.rs` | Farbauswahl, Buttons A/B |
+| BLE | `ble_broadcast.rs` | Advertising mit Kommando-Payload (Picker) |
+| UI | `game.rs` | Moduswahl → Picker oder Empfänger |
+
+### Picker vs. Empfänger
+
+- **Picker:** `color_picker.rs` → `set_color()` im Advertising (wie bisher).
+- **Empfänger:** lokale Zufallsfarbe + Countdown — **kein** Scan yet. Stub: `receiver_wait_color()`. Roadmap: [RECEIVER.md](RECEIVER.md).
+- Setup-Kanalfarben haben **keinen** Einfluss auf die Empfänger-Zufallsfarbe.
 
 ## Gerätename
 
@@ -52,7 +58,7 @@ Company ID: **Adafruit `0x239A`**, danach:
 |--------|------|------|
 | 0 | Magic | `'S'` (`0x53`) |
 | 1 | Version | `0x02` |
-| 2 | Opcode | `0x03` = CMD_COLOR |
+| 2 | Opcode | `0x03` = CMD_COLOR, `0x04` = CMD_COLOR_CHANNEL (geplant v3) |
 | 3 | Rot | 0–255 (Palette, ungedimmt) |
 | 4 | Grün | 0–255 |
 | 5 | Blau | 0–255 |

@@ -1,24 +1,21 @@
-//! Button A (links): nächste Farbe. Button B (rechts): Farbe übernehmen.
-
-use crate::neopixel_pwm::{Rgb, NUM_LEDS};
+//! Button A: nächste Farbe (10 LEDs). Button B: übernehmen → alle LEDs + BLE.
 
 use crate::buttons::{Buttons, Event};
+use crate::neopixel_pwm::{Rgb, NUM_LEDS};
+use crate::palette;
 use crate::time;
 
 const TICK_MS: u32 = 50;
-const BLINK_TICKS: u32 = 6; // ~300 ms
+const BLINK_TICKS: u32 = 6;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Phase {
-    /// Spektrum sichtbar, `selected` blinkt.
     Selecting,
-    /// Alle LEDs zeigen die gewählte Farbe.
     Applied,
 }
 
 pub struct ColorPicker {
     phase: Phase,
-    spectrum: [Rgb; NUM_LEDS],
     selected: usize,
     applied: Rgb,
     blink_on: bool,
@@ -27,11 +24,10 @@ pub struct ColorPicker {
 }
 
 impl ColorPicker {
-    pub fn new() -> Self {
+    pub fn new(channel: usize) -> Self {
         Self {
             phase: Phase::Selecting,
-            spectrum: build_spectrum(),
-            selected: 0,
+            selected: channel.min(NUM_LEDS - 1),
             applied: Rgb::OFF,
             blink_on: true,
             blink_counter: 0,
@@ -39,7 +35,6 @@ impl ColorPicker {
         }
     }
 
-    /// Endlosschleife: Farbauswahl + Übernahme (async Task neben BLE).
     pub async fn run(mut self) -> ! {
         Buttons::init();
         crate::speaker::init();
@@ -68,16 +63,13 @@ impl ColorPicker {
         }
     }
 
-    /// Farbe der LED an `selected` — die blinkende Position in der Auswahl.
-    /// Immer volle Palette-Werte (nicht „aus“ während der Blink-Pause).
     fn blinking_led_color(&self) -> Rgb {
         match self.phase {
-            Phase::Selecting => self.spectrum[self.selected],
+            Phase::Selecting => palette::spectrum_color(self.selected),
             Phase::Applied => self.applied,
         }
     }
 
-    /// Ausgewählte bzw. übernommene Farbe per BLE mitsenden.
     fn sync_ble(&self) {
         crate::ble_broadcast::set_color(self.blinking_led_color());
     }
@@ -86,7 +78,6 @@ impl ColorPicker {
         match self.phase {
             Phase::Selecting => {
                 self.selected = (self.selected + 1) % NUM_LEDS;
-                // Neu gewählte LED sofort aus → schnelles Skippen gut sichtbar.
                 self.blink_on = false;
                 self.blink_counter = 0;
                 true
@@ -101,7 +92,7 @@ impl ColorPicker {
     fn on_right(&mut self) -> bool {
         match self.phase {
             Phase::Selecting => {
-                self.applied = self.spectrum[self.selected];
+                self.applied = palette::spectrum_color(self.selected);
                 self.phase = Phase::Applied;
                 true
             }
@@ -126,7 +117,7 @@ impl ColorPicker {
     fn render(&self) {
         match self.phase {
             Phase::Selecting => {
-                let mut colors = self.spectrum;
+                let mut colors = palette::spectrum_array();
                 if !self.blink_on {
                     colors[self.selected] = Rgb::OFF;
                 }
@@ -139,23 +130,6 @@ impl ColorPicker {
     }
 }
 
-/// Öffentlicher Einstieg — startet die Farbauswahl als Embassy-Task.
-pub async fn run() -> ! {
-    ColorPicker::new().run().await
-}
-
-/// Zehn klar unterscheidbare Farben (Helligkeit via `show_pixels`, max. Kanal 8).
-fn build_spectrum() -> [Rgb; NUM_LEDS] {
-    [
-        Rgb::from_rgb(255, 0, 0),
-        Rgb::from_rgb(255, 120, 0),
-        Rgb::from_rgb(255, 220, 0),
-        Rgb::from_rgb(160, 255, 0),
-        Rgb::from_rgb(0, 255, 60),
-        Rgb::from_rgb(0, 255, 255),
-        Rgb::from_rgb(0, 100, 255),
-        Rgb::from_rgb(120, 0, 255),
-        Rgb::from_rgb(255, 0, 200),
-        Rgb::from_rgb(255, 80, 120),
-    ]
+pub async fn run(channel: usize) -> ! {
+    ColorPicker::new(channel).run().await
 }
