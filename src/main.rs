@@ -1,4 +1,4 @@
-//! Color Hurry CPB — Moduswahl, Color Picker oder Empfänger-Countdown + BLE.
+//! Color Hurry — Moduswahl, Color Picker oder Empfänger-Countdown + BLE.
 
 #![no_std]
 #![no_main]

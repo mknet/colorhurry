@@ -24,7 +24,7 @@ Alle **10** LEDs = `palette::SPECTRUM` (weiß … rosa), gewählte blinkt aus �
 | Taste | Aktion |
 |-------|--------|
 | **A** | Nächste Farbe (10 Spektrumfarben am Ring) |
-| **B** | Farbe übernehmen → **alle 10** LEDs + BLE `CMD_COLOR` |
+| **B** | Farbe übernehmen → **alle 10** LEDs; BLE sendet `CMD_COLOR` (nur dann) |
 
 Töne: `speaker::play_skip` / `play_apply`.
 
