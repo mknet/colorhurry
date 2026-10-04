@@ -1,0 +1,32 @@
+[package]
+name = "color-hurry-cpb"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Color Hurry shell for Adafruit Circuit Playground Bluefruit"
+license.workspace = true
+
+[features]
+default = ["sd-v7"]
+sd-v6 = []
+sd-v7 = []
+speaker-demo = []
+
+[dependencies]
+color-hurry-core = { path = "../core" }
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+nrf-pac = { version = "0.3", features = ["nrf52840"] }
+panic-halt = "0.2"
+
+embassy-executor = { version = "0.7", features = ["arch-cortex-m", "executor-thread"] }
+embassy-futures = "0.1"
+nrf-softdevice = { version = "0.1", features = [
+    "nrf52840",
+    "s140",
+    "ble-central",
+    "ble-peripheral",
+    "critical-section-impl",
+] }
+critical-section = "1.2"
+nrf-softdevice-s140 = "0.1"

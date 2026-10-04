@@ -12,8 +12,9 @@ use nrf_softdevice::ble::central::{self, ScanConfig, ScanError};
 use nrf_softdevice::ble::peripheral::{self, AdvertiseError};
 use nrf_softdevice::{raw, Softdevice};
 
+use color_hurry_core::CHANNELS;
+
 use crate::neopixel_pwm::Rgb;
-use crate::palette;
 
 /// Sichtbarer BLE-Gerätename (Scan Response + GAP).
 pub const DEVICE_NAME: &str = "ColorHurry-CPB";
@@ -106,7 +107,7 @@ pub fn set_radio_off() {
 
 /// Picker: Advertising nur wenn `set_picker_broadcast(Some(..))`.
 pub fn set_radio_picker(channel: usize) {
-    let ch = channel.min(palette::CHANNELS - 1);
+    let ch = channel.min(CHANNELS - 1);
     with_ble(|s| {
         s.mode = RadioMode::Picker;
         s.picker_channel = ch;
@@ -126,7 +127,7 @@ pub fn set_picker_broadcast(color: Option<Rgb>) {
 
 /// Empfänger: scannt nach `CMD_COLOR` auf gleichem Kanal == Ziel-Farbe.
 pub fn set_radio_receiver(target: Rgb, channel: usize) {
-    let ch = channel.min(palette::CHANNELS - 1);
+    let ch = channel.min(CHANNELS - 1);
     with_ble(|s| {
         s.mode = RadioMode::Receiver;
         s.receiver_target = Some(target);
@@ -150,7 +151,7 @@ pub fn take_color_match() -> bool {
 
 /// Aktuelle Farbe für den nächsten Advertising-Zyklus (volle Palette-Werte).
 pub fn set_color(color: Rgb, channel: usize) {
-    let ch = (channel.min(palette::CHANNELS - 1)) as u8;
+    let ch = (channel.min(CHANNELS - 1)) as u8;
     unsafe {
         CMD_PAYLOAD[2] = protocol::CMD_COLOR;
         CMD_PAYLOAD[3] = ch;
@@ -206,7 +207,7 @@ pub fn parse_color_from_adv(data: &[u8]) -> Option<(usize, Rgb)> {
                     && payload[2] == protocol::CMD_COLOR
                 {
                     let channel = payload[3] as usize;
-                    if channel >= palette::CHANNELS {
+                    if channel >= CHANNELS {
                         return None;
                     }
                     return Some((
