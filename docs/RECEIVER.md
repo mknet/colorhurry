@@ -8,23 +8,21 @@ Die **Kanalfarbe** dient nur der Identität im Setup — sie bestimmt **nicht** 
 
 ## Laufzeit
 
-1. **Zufallsfarbe** aus dem gleichen 10er-Spektrum wie die Auswahl (`palette::random_spectrum_color()`).
-2. Kurz alle LEDs in dieser Farbe.
-3. **10-Sekunden-Countdown** (`countdown::run_once`): pro Sekunde eine LED CCW aus + absteigender Ton (680 → 200 Hz).
-4. Schleife: neue Zufallsfarbe.
+1. **Zufallsfarbe** aus dem 10er-Spektrum, alle LEDs an.
+2. Sofort **10-Sekunden-Countdown** (LEDs CCW aus + absteigender Ton).
+3. Während des Countdowns: BLE-Scan auf passenden Picker-`CMD_COLOR`.
+   - **Treffer:** Countdown bricht ab → **keine** Explosion → neue Zufallsfarbe.
+   - **Kein Treffer:** nach Countdown **Explosion** (Sweep 180→45 Hz) → neue Zufallsfarbe.
+4. Button **A** bricht den Countdown ab (wie Treffer, ohne Explosion).
 
-## BLE (geplant)
+## BLE
 
-| Heute | Geplant |
-|-------|---------|
-| Picker **advertised** `CMD_COLOR` | Empfänger **scannt** Picker-Broadcast |
-| Empfänger ignoriert Setup-Kanal für Farbe | `ble_broadcast::receiver_wait_color()` (Stub) |
-
-Protokoll-Erweiterung v3: Kanal-ID optional — siehe `protocol::CMD_COLOR_CHANNEL` in `ble_broadcast.rs`.
+Empfänger scannt während des Countdowns. Picker sendet `CMD_COLOR` erst nach Farbbestätigung (Button B). **Kanal** im Payload muss zum Setup passen (z. B. beide „blau“ = Kanal 3); sonst wird das Paket ignoriert. RGB muss exakt zur aktuellen Zufallsfarbe passen.
 
 ## Dateien
 
 | Datei | Rolle |
 |-------|--------|
-| `src/receiver.rs` | Zufallsfarbe + Schleife |
-| `src/countdown.rs` | LED + Ton synchron |
+| `src/receiver.rs` | Schleife + Explosion |
+| `src/countdown.rs` | LED + Ton, Abbruch per Callback |
+| `src/speaker.rs` | `play_explosion()` |

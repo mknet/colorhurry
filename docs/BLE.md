@@ -42,9 +42,9 @@ Ohne BLE (nur Color Picker, wie früher): weiterhin `just restore-and-flash` + `
 
 ### Picker vs. Empfänger
 
-- **Picker:** `color_picker.rs` → `set_color()` im Advertising (wie bisher).
-- **Empfänger:** lokale Zufallsfarbe + Countdown — **kein** Scan yet. Stub: `receiver_wait_color()`. Roadmap: [RECEIVER.md](RECEIVER.md).
-- Setup-Kanalfarben haben **keinen** Einfluss auf die Empfänger-Zufallsfarbe.
+- **Picker:** sendet `CMD_COLOR` nur nach **Button B** (alle LEDs in der Farbe), nicht während der Auswahl.
+- **Empfänger:** zeigt Zufallsfarbe, **scannt** nach passendem `CMD_COLOR`, bei Treffer Countdown → neue Zufallsfarbe.
+- **Kanal** (0–4, Setup-Farbe links): Picker sendet Kanal im Payload; Empfänger ignoriert andere Kanäle.
 
 ## Gerätename
 
@@ -57,21 +57,20 @@ Company ID: **Adafruit `0x239A`**, danach:
 | Offset | Feld | Wert |
 |--------|------|------|
 | 0 | Magic | `'S'` (`0x53`) |
-| 1 | Version | `0x02` |
-| 2 | Opcode | `0x03` = CMD_COLOR, `0x04` = CMD_COLOR_CHANNEL (geplant v3) |
-| 3 | Rot | 0–255 (Palette, ungedimmt) |
-| 4 | Grün | 0–255 |
-| 5 | Blau | 0–255 |
+| 1 | Version | `0x03` |
+| 2 | Opcode | `0x03` = CMD_COLOR |
+| 3 | Kanal | 0–4 (wie `palette::CHANNEL_COLORS` im Setup) |
+| 4 | Rot | 0–255 (Palette, ungedimmt) |
+| 5 | Grün | 0–255 |
+| 6 | Blau | 0–255 |
 
-Beispiel Rot: `53 02 03 FF 00 00`. Die Farbe folgt der **aktuellen Auswahl** im Color Picker (beim Blinken weiterhin die gewählte Farbe, nicht „aus“).
+Beispiel Kanal 2 (grün), Farbe Rot: `53 03 03 02 FF 00 00`. Gesendet wird nur die **bestätigte** Farbe (Picker, Phase „Applied“).
 
 ### Firmware
 
 ```rust
-ble_broadcast::set_color(Rgb { r: 255, g: 120, b: 0 });
+ble_broadcast::set_picker_broadcast(Some(Rgb { r: 255, g: 120, b: 0 }));
 ```
-
-Der Color Picker ruft das automatisch in `sync_ble()` auf.
 
 **Live-Updates beim Skippen:** Advertising wird alle **~50 ms** neu gestartet (`config.timeout = 5`), damit `set_color()` auch wirklich im Funk ankommt. Ohne Timeout bliebe die Manufacturer Data beim Startwert (Rot).
 
@@ -97,7 +96,7 @@ NeoPixels (Color Picker) können **gleichzeitig** blinken — das ist normal.
 
 1. `just setup-ble` (einmalig) oder nach SD-Upgrade: `just flash-v7`
 2. Scanner → **`ColorHurry-CPB`** oder **`ColHurry`**
-3. Manufacturer data: **`0x239A`**, Payload z. B. **`53 02 03 FF 00 00`** (Rot) — ändert sich beim Skippen im Color Picker
+3. Manufacturer data: **`0x239A`**, Payload z. B. **`53 03 03 00 FF 00 00`** (Kanal 0, Rot) — ändert sich beim Skippen im Color Picker
 
 ## Fehler: „Device not configured“ beim Upgrade
 
