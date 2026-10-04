@@ -50,7 +50,7 @@ async fn ble_system(spawner: Spawner) -> ! {
     debug_led::signal_softdevice_ok_async().await;
 
     spawner.spawn(softdevice_task(sd)).unwrap();
-    ble_broadcast::advertise_loop(sd).await
+    ble_broadcast::radio_loop(sd).await
 }
 
 #[embassy_executor::main]

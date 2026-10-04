@@ -24,6 +24,7 @@ pub struct Buttons {
     right_down: bool,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum Event {
     None,
     Left,
