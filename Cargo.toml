@@ -24,9 +24,11 @@ embassy-futures = "0.1"
 nrf-softdevice = { version = "0.1", features = [
     "nrf52840",
     "s140",
+    "ble-central",
     "ble-peripheral",
     "critical-section-impl",
 ] }
+critical-section = "1.2"
 nrf-softdevice-s140 = "0.1"
 
 [profile.release]

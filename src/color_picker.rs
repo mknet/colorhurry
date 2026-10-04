@@ -64,15 +64,15 @@ impl ColorPicker {
         }
     }
 
-    fn blinking_led_color(&self) -> Rgb {
-        match self.phase {
-            Phase::Selecting => palette::spectrum_color(self.selected),
-            Phase::Applied => self.applied,
-        }
-    }
-
     fn sync_ble(&self) {
-        crate::ble_broadcast::set_color(self.blinking_led_color());
+        match self.phase {
+            Phase::Applied => {
+                crate::ble_broadcast::set_picker_broadcast(Some(self.applied));
+            }
+            Phase::Selecting => {
+                crate::ble_broadcast::set_picker_broadcast(None);
+            }
+        }
     }
 
     fn on_left(&mut self) -> bool {

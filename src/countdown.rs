@@ -30,21 +30,43 @@ async fn play_beat(freq_hz: u32) {
 pub async fn run(color: Rgb) -> ! {
     speaker::init();
     loop {
-        run_once(color).await;
+        let _ = run_once(color, &mut || false).await;
     }
 }
 
-/// Einmaliger Countdown: Anzeige und Ton zum gleichen Schritt (inkl. letzte LED aus).
-pub async fn run_once(color: Rgb) {
+/// Countdown mit Abbruch-Prüfung zwischen den Schritten.
+///
+/// `should_abort` nach jedem LED-Schritt und Beat — z. B. BLE-Farb-Treffer.
+/// Gibt `true` zurück, wenn abgebrochen (Treffer während Countdown).
+pub async fn run_once<F>(color: Rgb, should_abort: &mut F) -> bool
+where
+    F: FnMut() -> bool,
+{
     speaker::init();
 
-    // Sekunde 1: alle an
     show_with_n_off(color, 0);
+    if should_abort() {
+        speaker::stop_tone();
+        return true;
+    }
     play_beat(DESCENDING_HZ[0]).await;
+    if should_abort() {
+        speaker::stop_tone();
+        return true;
+    }
 
-    // Sekunden 2–11: LED-Zustand, dann Ton zu diesem Stand (HZ[off-1], nicht HZ[off])
     for off in 1..=NUM_LEDS {
         show_with_n_off(color, off);
+        if should_abort() {
+            speaker::stop_tone();
+            return true;
+        }
         play_beat(DESCENDING_HZ[off - 1]).await;
+        if should_abort() {
+            speaker::stop_tone();
+            return true;
+        }
     }
+
+    false
 }
