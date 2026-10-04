@@ -42,10 +42,17 @@ pub fn show_flash_layout() {
     delay_ms(300);
 }
 
-/// SoftDevice aktiv — 1 langer Blink.
+/// SoftDevice aktiv — 1 langer Blink (blockiert den Executor — nur vor Task-Start).
 pub fn signal_softdevice_ok() {
     on();
     delay_ms(500);
+    off();
+}
+
+/// Wie oben, ohne andere Embassy-Tasks zu blockieren.
+pub async fn signal_softdevice_ok_async() {
+    on();
+    crate::time::delay_ms_async(500).await;
     off();
 }
 

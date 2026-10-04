@@ -1,6 +1,7 @@
 //! BLE-Broadcast: Kommando in Manufacturer-Data (Scan Response + Name im Adv).
 
 use core::mem;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use nrf_softdevice::ble::advertisement_builder::{
     AdvertisementDataType, Flag, LegacyAdvertisementBuilder, LegacyAdvertisementPayload,
@@ -10,6 +11,19 @@ use nrf_softdevice::{raw, Softdevice};
 
 /// Sichtbarer BLE-Gerätename (Scan Response + GAP).
 pub const DEVICE_NAME: &str = "ColorHurry-CPB";
+
+static BLE_STACK_READY: AtomicBool = AtomicBool::new(false);
+
+/// SoftDevice + `sd.run()`-Task laufen — Picker/Empfänger erst danach starten.
+pub fn mark_stack_ready() {
+    BLE_STACK_READY.store(true, Ordering::Release);
+}
+
+pub async fn wait_until_ready() {
+    while !BLE_STACK_READY.load(Ordering::Acquire) {
+        embassy_futures::yield_now().await;
+    }
+}
 
 /// Adafruit Company ID (Bluetooth SIG).
 pub const COMPANY_ID: u16 = 0x239A;
