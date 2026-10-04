@@ -21,7 +21,7 @@ pub async fn run(spawner: Spawner) -> ! {
 
     match role {
         Role::Picker { channel } => {
-            ble_broadcast::set_radio_picker();
+            ble_broadcast::set_radio_picker(channel);
             color_picker::run(channel).await
         }
         Role::Receiver { channel } => receiver::run(channel).await,

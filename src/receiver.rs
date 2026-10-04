@@ -8,14 +8,14 @@ use crate::neopixel_pwm::NUM_LEDS;
 use crate::palette;
 use crate::speaker;
 
-pub async fn run(_channel: usize) -> ! {
+pub async fn run(channel: usize) -> ! {
     speaker::stop_tone();
     Buttons::init();
     let mut buttons = Buttons::new();
 
     loop {
         let color = palette::random_spectrum_color();
-        ble_broadcast::set_radio_receiver(color);
+        ble_broadcast::set_radio_receiver(color, channel);
         crate::neopixel_pwm::show_pixels(&[color; NUM_LEDS]);
 
         let matched_during = countdown::run_once(color, &mut || {

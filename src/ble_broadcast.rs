@@ -13,6 +13,7 @@ use nrf_softdevice::ble::peripheral::{self, AdvertiseError};
 use nrf_softdevice::{raw, Softdevice};
 
 use crate::neopixel_pwm::Rgb;
+use crate::palette;
 
 /// Sichtbarer BLE-Gerätename (Scan Response + GAP).
 pub const DEVICE_NAME: &str = "ColorHurry-CPB";
@@ -38,8 +39,8 @@ const AD_TYPE_MANUFACTURER: u8 = 0xFF;
 /// Broadcast-Protokoll (Manufacturer-Data nach Company ID).
 pub mod protocol {
     pub const MAGIC: u8 = b'S';
-    /// Payload: `[opcode, r, g, b]`
-    pub const VERSION: u8 = 2;
+    /// Payload: `[opcode, channel, r, g, b]`
+    pub const VERSION: u8 = 3;
 
     #[allow(dead_code)]
     pub const CMD_PING: u8 = 0x01;
@@ -49,11 +50,12 @@ pub mod protocol {
     pub const CMD_COLOR: u8 = 0x03;
 }
 
-/// Manufacturer-Payload: Magic, Version, Opcode, R, G, B.
-static mut CMD_PAYLOAD: [u8; 6] = [
+/// Manufacturer-Payload: Magic, Version, Opcode, Kanal, R, G, B.
+static mut CMD_PAYLOAD: [u8; 7] = [
     protocol::MAGIC,
     protocol::VERSION,
     protocol::CMD_COLOR,
+    0,
     255,
     0,
     0,
@@ -70,14 +72,18 @@ struct BleShared {
     mode: RadioMode,
     /// `Some` = Picker sendet diese Farbe; `None` = nicht senden (Auswahl).
     picker_color: Option<Rgb>,
+    picker_channel: usize,
     receiver_target: Option<Rgb>,
+    receiver_channel: usize,
     matched: bool,
 }
 
 static BLE: Mutex<RefCell<BleShared>> = Mutex::new(RefCell::new(BleShared {
     mode: RadioMode::Off,
     picker_color: None,
+    picker_channel: 0,
     receiver_target: None,
+    receiver_channel: 0,
     matched: false,
 }));
 
@@ -99,9 +105,11 @@ pub fn set_radio_off() {
 }
 
 /// Picker: Advertising nur wenn `set_picker_broadcast(Some(..))`.
-pub fn set_radio_picker() {
+pub fn set_radio_picker(channel: usize) {
+    let ch = channel.min(palette::CHANNELS - 1);
     with_ble(|s| {
         s.mode = RadioMode::Picker;
+        s.picker_channel = ch;
         s.receiver_target = None;
         s.matched = false;
     });
@@ -110,16 +118,19 @@ pub fn set_radio_picker() {
 
 pub fn set_picker_broadcast(color: Option<Rgb>) {
     if let Some(c) = color {
-        set_color(c);
+        let ch = with_ble(|s| s.picker_channel);
+        set_color(c, ch);
     }
     with_ble(|s| s.picker_color = color);
 }
 
-/// Empfänger: scannt nach `CMD_COLOR` == Ziel-Farbe.
-pub fn set_radio_receiver(target: Rgb) {
+/// Empfänger: scannt nach `CMD_COLOR` auf gleichem Kanal == Ziel-Farbe.
+pub fn set_radio_receiver(target: Rgb, channel: usize) {
+    let ch = channel.min(palette::CHANNELS - 1);
     with_ble(|s| {
         s.mode = RadioMode::Receiver;
         s.receiver_target = Some(target);
+        s.receiver_channel = ch;
         s.picker_color = None;
         s.matched = false;
     });
@@ -138,21 +149,23 @@ pub fn take_color_match() -> bool {
 }
 
 /// Aktuelle Farbe für den nächsten Advertising-Zyklus (volle Palette-Werte).
-pub fn set_color(color: Rgb) {
+pub fn set_color(color: Rgb, channel: usize) {
+    let ch = (channel.min(palette::CHANNELS - 1)) as u8;
     unsafe {
         CMD_PAYLOAD[2] = protocol::CMD_COLOR;
-        CMD_PAYLOAD[3] = color.r;
-        CMD_PAYLOAD[4] = color.g;
-        CMD_PAYLOAD[5] = color.b;
+        CMD_PAYLOAD[3] = ch;
+        CMD_PAYLOAD[4] = color.r;
+        CMD_PAYLOAD[5] = color.g;
+        CMD_PAYLOAD[6] = color.b;
     }
 }
 
-fn manufacturer_bytes() -> [u8; 8] {
-    let mut mfg = [0u8; 8];
+fn manufacturer_bytes() -> [u8; 9] {
+    let mut mfg = [0u8; 9];
     mfg[0] = (COMPANY_ID & 0xFF) as u8;
     mfg[1] = (COMPANY_ID >> 8) as u8;
     let payload = unsafe { CMD_PAYLOAD };
-    mfg[2..8].copy_from_slice(&payload);
+    mfg[2..9].copy_from_slice(&payload);
     mfg
 }
 
@@ -171,8 +184,8 @@ fn scan_data() -> LegacyAdvertisementPayload {
         .build()
 }
 
-/// Parst `CMD_COLOR` aus Advertising- oder Scan-Response-Daten.
-pub fn parse_color_from_adv(data: &[u8]) -> Option<Rgb> {
+/// Parst `CMD_COLOR` (Kanal + RGB) aus Advertising- oder Scan-Response-Daten.
+pub fn parse_color_from_adv(data: &[u8]) -> Option<(usize, Rgb)> {
     let mut i = 0;
     while i < data.len() {
         let len = data[i] as usize;
@@ -183,20 +196,27 @@ pub fn parse_color_from_adv(data: &[u8]) -> Option<Rgb> {
             break;
         }
         let typ = data[i + 1];
-        if typ == AD_TYPE_MANUFACTURER && len >= 8 {
+        if typ == AD_TYPE_MANUFACTURER && len >= 9 {
             let ad = &data[i + 2..i + 1 + len];
-            if ad.len() >= 8 && u16::from_le_bytes([ad[0], ad[1]]) == COMPANY_ID {
+            if ad.len() >= 9 && u16::from_le_bytes([ad[0], ad[1]]) == COMPANY_ID {
                 let payload = &ad[2..];
-                if payload.len() >= 6
+                if payload.len() >= 7
                     && payload[0] == protocol::MAGIC
                     && payload[1] == protocol::VERSION
                     && payload[2] == protocol::CMD_COLOR
                 {
-                    return Some(Rgb {
-                        r: payload[3],
-                        g: payload[4],
-                        b: payload[5],
-                    });
+                    let channel = payload[3] as usize;
+                    if channel >= palette::CHANNELS {
+                        return None;
+                    }
+                    return Some((
+                        channel,
+                        Rgb {
+                            r: payload[4],
+                            g: payload[5],
+                            b: payload[6],
+                        },
+                    ));
                 }
             }
         }
@@ -210,20 +230,24 @@ fn on_adv_report(report: &raw::ble_gap_evt_adv_report_t) -> Option<()> {
         return None;
     }
 
-    let target = with_ble(|s| {
+    let (target, want_channel) = with_ble(|s| {
         if s.mode == RadioMode::Receiver {
-            s.receiver_target
+            (s.receiver_target, s.receiver_channel)
         } else {
-            None
+            (None, 0)
         }
-    })?;
+    });
+    let target = target?;
 
     let len = report.data.len as usize;
     if len == 0 {
         return None;
     }
     let data = unsafe { core::slice::from_raw_parts(report.data.p_data, len) };
-    let received = parse_color_from_adv(data)?;
+    let (channel, received) = parse_color_from_adv(data)?;
+    if channel != want_channel {
+        return None;
+    }
 
     if received.r == target.r && received.g == target.g && received.b == target.b {
         with_ble(|s| s.matched = true);
