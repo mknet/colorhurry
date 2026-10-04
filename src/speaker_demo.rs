@@ -15,10 +15,6 @@ const DESCENDING_STEPS: usize = 10;
 const DESCENDING_HZ: [u32; DESCENDING_STEPS] =
     [680, 620, 560, 500, 450, 400, 350, 300, 250, 200];
 
-const EXPLOSION_START_HZ: u32 = 180;
-const EXPLOSION_END_HZ: u32 = 45;
-const EXPLOSION_STEPS: u32 = 10;
-
 pub async fn run() -> ! {
     speaker::init();
     loop {
@@ -26,7 +22,7 @@ pub async fn run() -> ! {
         for i in 0..DESCENDING_STEPS {
             play_beat(DESCENDING_HZ[i]).await;
         }
-        play_explosion().await;
+        speaker::play_explosion().await;
     }
 }
 
@@ -48,11 +44,3 @@ async fn play_beat(freq_hz: u32) {
     time::delay_ms_async(BEAT_MS.saturating_sub(TONE_MS)).await;
 }
 
-async fn play_explosion() {
-    let step_ms = BEAT_MS / EXPLOSION_STEPS;
-    for i in 0..EXPLOSION_STEPS {
-        let span = EXPLOSION_START_HZ - EXPLOSION_END_HZ;
-        let freq = EXPLOSION_START_HZ - span * i / (EXPLOSION_STEPS - 1).max(1);
-        speaker::play_tone(freq, step_ms, None).await;
-    }
-}

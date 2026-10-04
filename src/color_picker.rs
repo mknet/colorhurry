@@ -37,21 +37,21 @@ impl ColorPicker {
 
     pub async fn run(mut self) -> ! {
         Buttons::init();
-        crate::speaker::init();
         self.sync_ble();
         self.render();
         loop {
             self.update_blink();
+            crate::speaker::tone_service();
 
             match self.buttons.poll() {
                 Event::Left => {
                     if self.on_left() {
-                        crate::speaker::play_skip().await;
+                        crate::speaker::play_skip();
                     }
                 }
                 Event::Right => {
                     if self.on_right() {
-                        crate::speaker::play_apply().await;
+                        crate::speaker::play_apply();
                     }
                 }
                 Event::None => {}
@@ -59,6 +59,7 @@ impl ColorPicker {
 
             self.sync_ble();
             self.render();
+            crate::speaker::tone_service();
             time::delay_ms_async(TICK_MS).await;
         }
     }

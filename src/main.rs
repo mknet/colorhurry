@@ -59,6 +59,7 @@ async fn main(spawner: Spawner) {
     neopixel_pwm::init();
     debug_led::init();
     debug_led::show_flash_layout();
+    speaker::init();
 
     spawner.spawn(game_task()).unwrap();
     #[cfg(feature = "speaker-demo")]
