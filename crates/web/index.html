@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Color Hurry</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --panel: #1a222c;
+        --text: #e8eef4;
+        --muted: #8b9aab;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: radial-gradient(1200px 600px at 20% 0%, #1b2a3a, var(--bg));
+        color: var(--text);
+        min-height: 100vh;
+      }
+      header {
+        padding: 1.5rem 1.5rem 0.5rem;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        letter-spacing: 0.02em;
+      }
+      header p {
+        margin: 0.35rem 0 0;
+        color: var(--muted);
+      }
+      .boards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        padding: 1rem 1.5rem 2rem;
+      }
+      @media (max-width: 800px) {
+        .boards { grid-template-columns: 1fr; }
+      }
+      .board {
+        background: var(--panel);
+        border-radius: 16px;
+        padding: 1rem 1.25rem 1.25rem;
+        border: 1px solid #2a3542;
+      }
+      .board h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1.1rem;
+      }
+      .ring {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.4rem;
+        margin: 0.75rem 0 1rem;
+      }
+      .led {
+        aspect-ratio: 1;
+        border-radius: 50%;
+        border: 1px solid #314050;
+        background: #111;
+      }
+      .meta {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 0.75rem;
+      }
+      .actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 10px;
+        padding: 0.55rem 0.9rem;
+        background: #3d7ea6;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary { background: #45566a; }
+      button:active { transform: translateY(1px); }
+    </style>
+    <link data-trunk rel="rust" href="Cargo.toml" data-wasm-opt="z" />
+  </head>
+  <body></body>
+</html>
