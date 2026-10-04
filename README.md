@@ -1,15 +1,22 @@
-# Color Hurry — Circuit Playground Bluefruit (Rust)
+# Color Hurry
 
-Kooperatives 2-Spieler-Spiel für zwei **Adafruit Circuit Playground Bluefruit** (nRF52840) mit Embassy, NeoPixels, BLE-Broadcast und PWM-Audio.
+Kooperatives 2-Spieler-Spiel: geteilte Logik in `crates/core` (Crux-ähnliche API), Shells für **Circuit Playground Bluefruit** und **Browser (WASM)**.
+
+```text
+crates/core   — Event / Model / Effect / update / view  (no_std)
+crates/cpb    — Hardware-Shell (Embassy, SoftDevice, NeoPixels, Audio)
+crates/web    — Browser-Shell (zwei Boards, simuliertes BLE)
+```
 
 ## Voraussetzungen
 
-- [Rust](https://rustup.rs/) (stable) mit Target `thumbv7em-none-eabihf`
-- [just](https://github.com/casey/just) (`cargo install just`)
-- [elf2flash](https://crates.io/crates/elf2flash) für Flashen per USB/UF2 (`just install-tools`)
+- [Rust](https://rustup.rs/) (stable)
+- Target `thumbv7em-none-eabihf` (Board) und `wasm32-unknown-unknown` (Web)
+- [just](https://github.com/casey/just), [trunk](https://trunkrs.dev/) (`brew install trunk` oder `cargo install trunk`)
+- [elf2flash](https://crates.io/crates/elf2flash) für Flashen (`just install-tools`)
 
 ```bash
-rustup target add thumbv7em-none-eabihf
+rustup target add thumbv7em-none-eabihf wasm32-unknown-unknown
 just install-tools   # einmalig
 ```
 
@@ -22,6 +29,8 @@ Standard-Build: Feature **`sd-v7`**, App @ **0x27000**. Adafruit Restore liefert
 ```bash
 just setup-ble    # SD 6.1.1 → 7.0.1 + App flashen
 just flash-v7     # danach nur noch App
+cargo test -p color-hurry-core
+just web-serve    # Browser: http://127.0.0.1:8080
 ```
 
 Ausführlich: [docs/BLE.md](docs/BLE.md), Troubleshooting: [docs/ERKENNTNISSE-BLE-FIX.md](docs/ERKENNTNISSE-BLE-FIX.md)
