@@ -33,28 +33,43 @@ impl ModeSelect {
 
     pub async fn run(mut self) -> Role {
         Buttons::init();
-        crate::speaker::init();
         self.render();
 
         loop {
             self.update_blink();
+            crate::speaker::tone_service();
 
-            match self.buttons.poll() {
-                Event::Left => {
-                    self.step = (self.step + 1) % NUM_LEDS;
-                    self.blink_on = false;
-                    self.blink_counter = 0;
-                    crate::speaker::play_skip().await;
-                }
-                Event::Right => {
-                    crate::speaker::play_apply().await;
-                    return self.role_for_step();
-                }
-                Event::None => {}
+            let ev = self.buttons.poll();
+            if let Some(role) = self.handle_button(ev) {
+                return role;
             }
 
             self.render();
+
+            let ev = self.buttons.poll();
+            if let Some(role) = self.handle_button(ev) {
+                return role;
+            }
+
             time::delay_ms_async(TICK_MS).await;
+        }
+    }
+
+    fn handle_button(&mut self, ev: Event) -> Option<Role> {
+        match ev {
+            Event::Left => {
+                self.step = (self.step + 1) % NUM_LEDS;
+                self.blink_on = false;
+                self.blink_counter = 0;
+                crate::speaker::play_skip();
+                None
+            }
+            Event::Right => {
+                crate::speaker::play_apply();
+                crate::speaker::tone_service();
+                Some(self.role_for_step())
+            }
+            Event::None => None,
         }
     }
 
