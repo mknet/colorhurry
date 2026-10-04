@@ -12,6 +12,16 @@ board   := "circuit_playground_bluefruit"
 
 default: flash-v7
 
+# Browser shell (WASM) — http://127.0.0.1:8080
+web-serve:
+    cd crates/web && NO_COLOR=false trunk serve --open
+
+web-build:
+    cd crates/web && NO_COLOR=false trunk build --release
+
+# Host unit tests for shared game logic
+test-core:
+    cargo test -p color-hurry-core
 
 # Serial-DFU v7 (S140 7.x @ 0x27000) — für BLE / nrf-softdevice
 flash-v7:
