@@ -13,15 +13,33 @@ The board SHALL advertise non-connectable under the name `ColorHurry-CPB` and SH
 - **THEN** it lists `ColorHurry-CPB` with manufacturer data for company `0x239A`
 
 ### Requirement: Color payload
-The manufacturer payload after the company ID SHALL be `[magic 'S', version 0x02, opcode CMD_COLOR 0x03, r, g, b]` with undimmed palette RGB values.
+The manufacturer payload after the company ID SHALL be `[magic 'S', version 0x03, opcode CMD_COLOR 0x03, channel, r, g, b]` with channel 0 to 4 and undimmed palette RGB values.
 
 #### Scenario: Red on the wire
-- **WHEN** the selected color is red
-- **THEN** the payload is `53 02 03 FF 00 00`
+- **WHEN** the Picker on channel 2 applies Red
+- **THEN** the payload is `53 03 03 02 FF 00 00`
 
-### Requirement: Advertised color follows the selection
-The board SHALL advertise the currently selected picker color and SHALL refresh the advertising data within about 50 ms of a change.
+### Requirement: Radio starts after mode select
+The board SHALL keep the radio off during mode select and SHALL start advertising (Picker) or scanning (Receiver) only after a role is chosen.
 
-#### Scenario: Skip updates the advertisement
-- **WHEN** the player presses Skip
-- **THEN** a scanner sees the RGB of the new selection within about 50 ms
+#### Scenario: No advertising during setup
+- **WHEN** the board is in mode select
+- **THEN** no Color Hurry advertisement is sent
+
+### Requirement: Picker broadcasts only the applied color
+The Picker SHALL advertise a color only after ActivateColor and SHALL withdraw it on the next Skip or ActivateColor.
+
+#### Scenario: Apply starts the broadcast
+- **WHEN** the Picker applies Red on channel 0
+- **THEN** a scanner sees the Red payload for channel 0
+
+#### Scenario: Skip after apply withdraws it
+- **WHEN** the Picker presses Skip after applying a color
+- **THEN** no color payload is advertised any more
+
+### Requirement: Receiver listens on its channel
+During a countdown the Receiver SHALL scan for Color Hurry payloads and SHALL treat only payloads on its own channel as ColorReceived.
+
+#### Scenario: Other channel is ignored
+- **WHEN** a Receiver on channel 0 hears a payload for channel 1
+- **THEN** the payload has no effect on the round
