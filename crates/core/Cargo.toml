@@ -1,0 +1,11 @@
+[package]
+name = "color-hurry-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Color Hurry game logic (platform-free, Crux-like API)"
+license.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
