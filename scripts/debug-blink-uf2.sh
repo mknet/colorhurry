@@ -14,7 +14,7 @@ uf2="$root/target/thumbv7em-none-eabihf/release/color-hurry-cpb-blink-${layout}.
 echo "→ Layout: $layout (Endlos-D13-Blink in pre_init)"
 CPB_MEMORY="$layout" "$root/scripts/debug-host-log.sh" "blink-pre"
 
-(cd "$root" && cargo build --release --no-default-features --features "$features")
+(cd "$root" && cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --no-default-features --features "$features")
 
 CPB_MEMORY="$layout" "$root/scripts/debug-host-log.sh" "blink-post-build"
 

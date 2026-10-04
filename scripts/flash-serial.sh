@@ -138,8 +138,8 @@ fi
 mkdir -p "$root/target"
 echo "$layout" > "$stamp"
 
-echo "→ cargo build --release --features $features"
-(cd "$root" && cargo build --release --features "$features")
+echo "→ cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --features $features"
+(cd "$root" && cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --features "$features")
 
 echo "→ ELF-Sektionen (Vector-Tabelle soll bei $flash_base beginnen):"
 arm-none-eabi-objdump -h "$elf" 2>/dev/null | grep -E "vector|Idx" || llvm-objdump -h "$elf" | grep -E "vector|Idx"

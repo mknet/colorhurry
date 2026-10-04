@@ -1,0 +1,10 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+runner = "../../scripts/cargo-uf2-runner.sh"
+
+[build]
+target = "thumbv7em-none-eabihf"
+# Workspace-root target so flash scripts keep working
+target-dir = "../../target"
+
+[env]
+DEFMT_LOG = "info"

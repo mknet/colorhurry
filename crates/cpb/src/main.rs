@@ -1,4 +1,4 @@
-//! Color Hurry — Moduswahl, Color Picker oder Empfänger-Countdown + BLE.
+//! Color Hurry — CPB shell (hardware + SoftDevice) over `color-hurry-core`.
 
 #![no_std]
 #![no_main]
@@ -8,14 +8,10 @@ use panic_halt as _;
 
 mod ble_broadcast;
 mod buttons;
-mod color_picker;
-mod countdown;
 mod debug_led;
 mod game;
-mod mode_select;
 mod neopixel_pwm;
-mod palette;
-mod receiver;
+mod shell;
 mod speaker;
 #[cfg(feature = "speaker-demo")]
 mod speaker_demo;

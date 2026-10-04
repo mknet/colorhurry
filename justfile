@@ -12,6 +12,7 @@ board   := "circuit_playground_bluefruit"
 
 default: flash-v7
 
+
 # Serial-DFU v7 (S140 7.x @ 0x27000) — für BLE / nrf-softdevice
 flash-v7:
     DFU_MANUAL=1 CPB_MEMORY=v7 ./scripts/flash-serial.sh
@@ -32,7 +33,7 @@ flash-clean:
     just flash
 
 rebuild:
-    cargo build --release
+    cargo build --release -p color-hurry-cpb --target {{target}} --features sd-v7
     @arm-none-eabi-objdump -h {{elf}} 2>/dev/null | grep vector || true
 
 # --- UF2 (nur wenn CPLAYBTBOOT wieder mountet) ---
@@ -54,7 +55,7 @@ boot-check:
 
 # Nur bauen
 build:
-    cargo build --{{profile}}
+    cargo build --{{profile}} -p color-hurry-cpb --target {{target}} --features sd-v7
 
 # ELF → UF2 (ohne Flashen)
 uf2: build
@@ -130,7 +131,7 @@ debug-flash-v7:
 # UF2 statt Serial-DFU (Hypothese H11: direkter Flash funktioniert)
 debug-uf2-v7:
     CPB_MEMORY=v7 ./scripts/debug-host-log.sh pre-build
-    cargo build --release --no-default-features --features sd-v7
+    cargo build --release -p color-hurry-cpb --target {{target}} --no-default-features --features sd-v7
     CPB_MEMORY=v7 ./scripts/debug-host-log.sh pre-uf2
     elf2flash convert --board circuit_playground_bluefruit target/thumbv7em-none-eabihf/release/color-hurry-cpb target/thumbv7em-none-eabihf/release/color-hurry-cpb.uf2
     @open -R target/thumbv7em-none-eabihf/release/color-hurry-cpb.uf2
