@@ -1,4 +1,6 @@
-//! Browser shell: two boards, in-memory simulated radio.
+//! Browser shell: two boards (sim radio) + experimental live BLE receive for Receiver.
+
+mod ble;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -123,6 +125,18 @@ impl SimBus {
         peer.paint();
     }
 
+    fn ingest_live_ble(&mut self, channel: u8, color: Rgb) {
+        let event = Event::BleColorReceived { channel, color };
+        {
+            let SimBus { left, right } = self;
+            Self::dispatch(left, right, event);
+        }
+        {
+            let SimBus { left, right } = self;
+            Self::dispatch(right, left, event);
+        }
+    }
+
     fn ui_ticks(&mut self) {
         if matches!(self.left.model.screen, Screen::ModeSelect | Screen::Picker) {
             let SimBus { left, right } = self;
@@ -206,6 +220,29 @@ fn play_tone(kind: ToneKind) {
     })();
 }
 
+struct LiveBleUi {
+    scan: Option<ble::LiveScan>,
+    /// Keep closures alive while listening.
+    _listeners: Vec<Closure<dyn FnMut(web_sys::Event)>>,
+    status: Element,
+    button: HtmlButtonElement,
+}
+
+impl LiveBleUi {
+    fn set_status(&self, text: &str) {
+        self.status.set_text_content(Some(text));
+    }
+
+    fn set_idle(&mut self) {
+        if let Some(scan) = self.scan.take() {
+            scan.stop();
+        }
+        self._listeners.clear();
+        self.button.set_inner_text("Live BLE scan");
+        self.button.set_disabled(false);
+    }
+}
+
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
@@ -216,9 +253,26 @@ pub fn start() -> Result<(), JsValue> {
 
     let header = doc.create_element("header")?;
     header.set_inner_html(
-        "<h1>Color Hurry</h1><p>Two boards in one tab — left and right share a simulated radio.</p>",
+        "<h1>Color Hurry</h1>\
+         <p>Two boards share a simulated radio. Optional: listen for real CPB picker ads (Receiver).</p>",
     );
     body.append_child(&header)?;
+
+    let ble_bar = doc.create_element("div")?;
+    ble_bar.set_class_name("ble-bar");
+    let ble_btn = doc
+        .create_element("button")?
+        .dyn_into::<HtmlButtonElement>()?;
+    ble_btn.set_id("ble-scan");
+    ble_btn.set_inner_text("Live BLE scan");
+    let ble_status = doc.create_element("div")?;
+    ble_status.set_class_name("ble-status");
+    ble_status.set_text_content(Some(
+        "Chrome/Edge + chrome://flags/#enable-experimental-web-platform-features · Receiver only",
+    ));
+    ble_bar.append_child(&ble_btn)?;
+    ble_bar.append_child(&ble_status)?;
+    body.append_child(&ble_bar)?;
 
     let boards = doc.create_element("div")?;
     boards.set_class_name("boards");
@@ -227,6 +281,12 @@ pub fn start() -> Result<(), JsValue> {
     let left = BoardState::new(&doc, &boards, "Board A", 0x1111_2222)?;
     let right = BoardState::new(&doc, &boards, "Board B", 0x3333_4444)?;
     let bus = Rc::new(RefCell::new(SimBus { left, right }));
+    let live = Rc::new(RefCell::new(LiveBleUi {
+        scan: None,
+        _listeners: Vec::new(),
+        status: ble_status,
+        button: ble_btn.clone(),
+    }));
 
     {
         let mut b = bus.borrow_mut();
@@ -258,6 +318,69 @@ pub fn start() -> Result<(), JsValue> {
         let bus = bus.clone();
         move || bus.borrow_mut().dispatch_right(Event::ButtonRight)
     })?;
+
+    {
+        let bus = bus.clone();
+        let live = live.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            let already = live.borrow().scan.is_some();
+            if already {
+                live.borrow_mut().set_idle();
+                live.borrow().set_status("Scan stopped.");
+                return;
+            }
+            live.borrow().button.set_disabled(true);
+            live.borrow().set_status("Requesting Bluetooth permission…");
+            let bus = bus.clone();
+            let live = live.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                match ble::start_listening().await {
+                    Ok(scan) => {
+                        let label = scan.mode_label();
+                        let targets = scan.event_targets();
+                        let mut listeners = Vec::new();
+                        for target in targets {
+                            let bus = bus.clone();
+                            let live_cb = live.clone();
+                            match ble::attach_advertisement_listener(&target, move |adv| {
+                                if let Some((ch, color)) = ble::color_from_advertisement(&adv) {
+                                    live_cb.borrow().set_status(&format!(
+                                        "Live: ch{} rgb({},{},{}) via {}",
+                                        ch, color.r, color.g, color.b, label
+                                    ));
+                                    bus.borrow_mut().ingest_live_ble(ch, color);
+                                }
+                            }) {
+                                Ok(c) => listeners.push(c),
+                                Err(e) => {
+                                    live.borrow().set_status(&format!("Listener error: {e:?}"));
+                                }
+                            }
+                        }
+                        {
+                            let mut ui = live.borrow_mut();
+                            ui.scan = Some(scan);
+                            ui._listeners = listeners;
+                            ui.button.set_inner_text("Stop BLE scan");
+                            ui.button.set_disabled(false);
+                            ui.set_status(&format!(
+                                "Listening ({label}). Put a board in Receiver mode; CPB picker must broadcast."
+                            ));
+                        }
+                    }
+                    Err(e) => {
+                        let mut ui = live.borrow_mut();
+                        ui.set_idle();
+                        ui.set_status(&format!(
+                            "BLE start failed: {e:?}. Flag + user gesture required."
+                        ));
+                    }
+                }
+            });
+        }) as Box<dyn FnMut()>);
+        ble_btn.set_onclick(Some(closure.as_ref().unchecked_ref()));
+        closure.forget();
+    }
 
     let bus_ui = bus.clone();
     let ui_cb = Closure::wrap(Box::new(move || {

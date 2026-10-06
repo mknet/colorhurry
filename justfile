@@ -13,11 +13,12 @@ board   := "circuit_playground_bluefruit"
 default: flash-v7
 
 # Browser shell (WASM) — http://127.0.0.1:8080
+# Needs --cfg=web_sys_unstable_apis for Web Bluetooth (also in crates/web/.cargo/config.toml).
 web-serve:
-    cd crates/web && NO_COLOR=false trunk serve --open
+    cd crates/web && RUSTFLAGS='--cfg=web_sys_unstable_apis' NO_COLOR=false trunk serve --open
 
 web-build:
-    cd crates/web && NO_COLOR=false trunk build --release
+    cd crates/web && RUSTFLAGS='--cfg=web_sys_unstable_apis' NO_COLOR=false trunk build --release
 
 # Host unit tests for shared game logic
 test-core:

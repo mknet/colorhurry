@@ -15,6 +15,7 @@ path = "src/lib.rs"
 color-hurry-core = { path = "../core" }
 console_error_panic_hook = "0.1"
 wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
     "Document",
@@ -23,6 +24,9 @@ web-sys = { version = "0.3", features = [
     "HtmlButtonElement",
     "Node",
     "Window",
+    "Navigator",
+    "Event",
+    "EventTarget",
     "CssStyleDeclaration",
     "AudioContext",
     "OscillatorNode",
@@ -31,4 +35,11 @@ web-sys = { version = "0.3", features = [
     "AudioNode",
     "BaseAudioContext",
     "AudioDestinationNode",
+    "console",
+    "Bluetooth",
+    "BluetoothDevice",
+    "BluetoothAdvertisingEvent",
+    "BluetoothManufacturerDataMap",
+    "BluetoothLeScanFilterInit",
+    "RequestDeviceOptions",
 ] }
