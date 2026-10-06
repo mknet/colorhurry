@@ -5,7 +5,7 @@ Kooperatives 2-Spieler-Spiel: geteilte Logik in `crates/core` (Crux-ähnliche AP
 ```text
 crates/core   — Event / Model / Effect / update / view  (no_std)
 crates/cpb    — Hardware-Shell (Embassy, SoftDevice, NeoPixels, Audio)
-crates/web    — Browser-Shell (zwei Boards, simuliertes BLE)
+crates/web    — Browser-Shell (zwei Boards, sim-BLE + experimenteller Live-Receiver)
 ```
 
 ## Voraussetzungen
@@ -32,6 +32,10 @@ just flash-v7     # danach nur noch App
 cargo test -p color-hurry-core
 just web-serve    # Browser: http://127.0.0.1:8080
 ```
+
+Browser **Live BLE** (unstable POC, Receiver only): Chrome/Edge, Flag
+`chrome://flags/#enable-experimental-web-platform-features`, dann „Live BLE scan“.
+Picker-Advertise aus dem Tab ist nicht möglich — nur Ads von echten CPBs empfangen.
 
 Ausführlich: [docs/BLE.md](docs/BLE.md), Troubleshooting: [docs/ERKENNTNISSE-BLE-FIX.md](docs/ERKENNTNISSE-BLE-FIX.md)
 
