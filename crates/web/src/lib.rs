@@ -1,4 +1,4 @@
-//! Browser shell: two boards (sim radio) + experimental live BLE receive for Receiver.
+//! Browser shell: single Receiver board + experimental live BLE receive.
 
 mod ble;
 
@@ -6,59 +6,67 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use color_hurry_core::{
-    update, view as core_view, Effect as CoreEffect, Event, Model, Rgb, Screen, ToneKind,
+    update, view as core_view, Effect as CoreEffect, Event, Model, Rgb, Screen, ToneKind, NUM_LEDS,
 };
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlButtonElement, HtmlElement};
 
-struct BoardState {
+struct Shell {
     model: Model,
-    broadcast: Option<(u8, Rgb)>,
     entropy: u32,
     meta: Element,
     leds: Vec<Element>,
 }
 
-impl BoardState {
-    fn new(doc: &Document, parent: &Element, title: &str, entropy: u32) -> Result<Self, JsValue> {
+impl Shell {
+    fn new(doc: &Document, parent: &Element) -> Result<Self, JsValue> {
         let root = doc.create_element("div")?;
         root.set_class_name("board");
 
         let h2 = doc.create_element("h2")?;
-        h2.set_text_content(Some(title));
+        h2.set_text_content(Some("Receiver"));
         root.append_child(&h2)?;
 
         let meta = doc.create_element("div")?;
         meta.set_class_name("meta");
         root.append_child(&meta)?;
 
+        let face = doc.create_element("div")?;
+        face.set_class_name("board-face");
         let ring = doc.create_element("div")?;
         ring.set_class_name("ring");
-        let mut leds = Vec::with_capacity(10);
-        for _ in 0..10 {
+        let mut leds = Vec::with_capacity(NUM_LEDS);
+        for i in 0..NUM_LEDS {
             let led = doc.create_element("div")?;
             led.set_class_name("led");
+            // CPB-style: index 0 at top, then clockwise (36° steps).
+            let angle = -90.0 + (i as f64) * 36.0;
+            if let Ok(html) = led.clone().dyn_into::<HtmlElement>() {
+                let _ = html.style().set_property(
+                    "transform",
+                    &format!("rotate({angle}deg) translateY(var(--led-radius))"),
+                );
+            }
             ring.append_child(&led)?;
             leds.push(led);
         }
-        root.append_child(&ring)?;
+        face.append_child(&ring)?;
+        root.append_child(&face)?;
 
         let actions = doc.create_element("div")?;
         actions.set_class_name("actions");
 
-        let id_a = format!("{title}-a");
-        let id_b = format!("{title}-b");
         let btn_a = doc
             .create_element("button")?
             .dyn_into::<HtmlButtonElement>()?;
-        btn_a.set_id(&id_a);
+        btn_a.set_id("btn-a");
         btn_a.set_class_name("secondary");
         btn_a.set_inner_text("Button A (skip)");
         let btn_b = doc
             .create_element("button")?
             .dyn_into::<HtmlButtonElement>()?;
-        btn_b.set_id(&id_b);
+        btn_b.set_id("btn-b");
         btn_b.set_inner_text("Button B (apply)");
         actions.append_child(&btn_a)?;
         actions.append_child(&btn_b)?;
@@ -67,8 +75,7 @@ impl BoardState {
 
         Ok(Self {
             model: Model::new(),
-            broadcast: None,
-            entropy,
+            entropy: 0xC0FF_EE42,
             meta,
             leds,
         })
@@ -96,101 +103,49 @@ impl BoardState {
             }
         }
     }
-}
 
-struct SimBus {
-    left: BoardState,
-    right: BoardState,
-}
-
-impl SimBus {
-    fn dispatch_left(&mut self, event: Event) {
-        Self::dispatch(&mut self.left, &mut self.right, event);
-    }
-
-    fn dispatch_right(&mut self, event: Event) {
-        Self::dispatch(&mut self.right, &mut self.left, event);
-    }
-
-    fn dispatch(me: &mut BoardState, peer: &mut BoardState, event: Event) {
-        let effects = update(event, &mut me.model);
+    fn dispatch(&mut self, event: Event) {
+        let effects = update(event, &mut self.model);
         for effect in effects.iter() {
-            apply_effect(me, peer, effect);
+            apply_effect(&effect);
         }
-        if me.model.awaiting_entropy && me.model.screen == Screen::Receiver {
-            let byte = me.next_entropy();
-            Self::dispatch(me, peer, Event::Entropy(byte));
+        if self.model.awaiting_entropy && self.model.screen == Screen::Receiver {
+            let byte = self.next_entropy();
+            self.dispatch(Event::Entropy(byte));
+            return;
         }
-        me.paint();
-        peer.paint();
+        self.paint();
     }
 
     fn ingest_live_ble(&mut self, channel: u8, color: Rgb) {
-        let event = Event::BleColorReceived { channel, color };
-        {
-            let SimBus { left, right } = self;
-            Self::dispatch(left, right, event);
-        }
-        {
-            let SimBus { left, right } = self;
-            Self::dispatch(right, left, event);
-        }
+        self.dispatch(Event::BleColorReceived { channel, color });
     }
 
     fn ui_ticks(&mut self) {
-        if matches!(self.left.model.screen, Screen::ModeSelect | Screen::Picker) {
-            let SimBus { left, right } = self;
-            Self::dispatch(left, right, Event::Tick);
+        if matches!(self.model.screen, Screen::ModeSelect | Screen::Picker) {
+            self.dispatch(Event::Tick);
+        } else {
+            self.paint();
         }
-        if matches!(self.right.model.screen, Screen::ModeSelect | Screen::Picker) {
-            let SimBus { left, right } = self;
-            Self::dispatch(right, left, Event::Tick);
-        }
-        self.left.paint();
-        self.right.paint();
     }
 
     fn countdown_ticks(&mut self) {
-        if self.left.model.screen == Screen::Receiver && self.left.model.countdown_active {
-            let SimBus { left, right } = self;
-            Self::dispatch(left, right, Event::Tick);
+        if self.model.screen == Screen::Receiver && self.model.countdown_active {
+            self.dispatch(Event::Tick);
+        } else {
+            self.paint();
         }
-        if self.right.model.screen == Screen::Receiver && self.right.model.countdown_active {
-            let SimBus { left, right } = self;
-            Self::dispatch(right, left, Event::Tick);
-        }
-        self.left.paint();
-        self.right.paint();
     }
 }
 
-fn apply_effect(me: &mut BoardState, peer: &mut BoardState, effect: CoreEffect) {
+fn apply_effect(effect: &CoreEffect) {
     match effect {
-        CoreEffect::Render => {}
-        CoreEffect::PlayTone(kind) => play_tone(kind),
-        CoreEffect::SetBlePicker { .. } => {
-            me.broadcast = None;
-        }
-        CoreEffect::SetPickerBroadcast { color } => {
-            let ch = me.model.channel();
-            me.broadcast = color.map(|c| (ch, c));
-            if let Some((ch, c)) = me.broadcast {
-                let effects = update(
-                    Event::BleColorReceived {
-                        channel: ch,
-                        color: c,
-                    },
-                    &mut peer.model,
-                );
-                for e in effects.iter() {
-                    apply_effect(peer, me, e);
-                }
-            }
-        }
-        CoreEffect::SetBleReceiver { .. } => {}
-        CoreEffect::ClearBle => {
-            me.broadcast = None;
-        }
+        CoreEffect::Render
+        | CoreEffect::SetBlePicker { .. }
+        | CoreEffect::SetPickerBroadcast { .. }
+        | CoreEffect::SetBleReceiver { .. }
+        | CoreEffect::ClearBle => {}
+        CoreEffect::PlayTone(kind) => play_tone(*kind),
     }
 }
 
@@ -222,7 +177,6 @@ fn play_tone(kind: ToneKind) {
 
 struct LiveBleUi {
     scan: Option<ble::LiveScan>,
-    /// Keep closures alive while listening.
     _listeners: Vec<Closure<dyn FnMut(web_sys::Event)>>,
     status: Element,
     button: HtmlButtonElement,
@@ -254,7 +208,7 @@ pub fn start() -> Result<(), JsValue> {
     let header = doc.create_element("header")?;
     header.set_inner_html(
         "<h1>Color Hurry</h1>\
-         <p>Two boards share a simulated radio. Optional: listen for real CPB picker ads (Receiver).</p>",
+         <p>Browser Receiver — pick a receiver channel, then listen for a real CPB picker over BLE.</p>",
     );
     body.append_child(&header)?;
 
@@ -274,13 +228,11 @@ pub fn start() -> Result<(), JsValue> {
     ble_bar.append_child(&ble_status)?;
     body.append_child(&ble_bar)?;
 
-    let boards = doc.create_element("div")?;
-    boards.set_class_name("boards");
-    body.append_child(&boards)?;
+    let stage = doc.create_element("div")?;
+    stage.set_class_name("stage");
+    body.append_child(&stage)?;
 
-    let left = BoardState::new(&doc, &boards, "Board A", 0x1111_2222)?;
-    let right = BoardState::new(&doc, &boards, "Board B", 0x3333_4444)?;
-    let bus = Rc::new(RefCell::new(SimBus { left, right }));
+    let shell = Rc::new(RefCell::new(Shell::new(&doc, &stage)?));
     let live = Rc::new(RefCell::new(LiveBleUi {
         scan: None,
         _listeners: Vec::new(),
@@ -288,39 +240,19 @@ pub fn start() -> Result<(), JsValue> {
         button: ble_btn.clone(),
     }));
 
-    {
-        let mut b = bus.borrow_mut();
-        {
-            let SimBus { left, right } = &mut *b;
-            SimBus::dispatch(left, right, Event::Tick);
-        }
-        {
-            let SimBus { left, right } = &mut *b;
-            SimBus::dispatch(right, left, Event::Tick);
-        }
-        b.left.paint();
-        b.right.paint();
-    }
+    shell.borrow_mut().dispatch(Event::Tick);
 
-    bind_button(&doc, "Board A-a", {
-        let bus = bus.clone();
-        move || bus.borrow_mut().dispatch_left(Event::ButtonLeft)
+    bind_button(&doc, "btn-a", {
+        let shell = shell.clone();
+        move || shell.borrow_mut().dispatch(Event::ButtonLeft)
     })?;
-    bind_button(&doc, "Board A-b", {
-        let bus = bus.clone();
-        move || bus.borrow_mut().dispatch_left(Event::ButtonRight)
-    })?;
-    bind_button(&doc, "Board B-a", {
-        let bus = bus.clone();
-        move || bus.borrow_mut().dispatch_right(Event::ButtonLeft)
-    })?;
-    bind_button(&doc, "Board B-b", {
-        let bus = bus.clone();
-        move || bus.borrow_mut().dispatch_right(Event::ButtonRight)
+    bind_button(&doc, "btn-b", {
+        let shell = shell.clone();
+        move || shell.borrow_mut().dispatch(Event::ButtonRight)
     })?;
 
     {
-        let bus = bus.clone();
+        let shell = shell.clone();
         let live = live.clone();
         let closure = Closure::wrap(Box::new(move || {
             let already = live.borrow().scan.is_some();
@@ -331,7 +263,7 @@ pub fn start() -> Result<(), JsValue> {
             }
             live.borrow().button.set_disabled(true);
             live.borrow().set_status("Requesting Bluetooth permission…");
-            let bus = bus.clone();
+            let shell = shell.clone();
             let live = live.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 match ble::start_listening().await {
@@ -340,7 +272,7 @@ pub fn start() -> Result<(), JsValue> {
                         let targets = scan.event_targets();
                         let mut listeners = Vec::new();
                         for target in targets {
-                            let bus = bus.clone();
+                            let shell = shell.clone();
                             let live_cb = live.clone();
                             match ble::attach_advertisement_listener(&target, move |adv| {
                                 if let Some((ch, color)) = ble::color_from_advertisement(&adv) {
@@ -348,7 +280,7 @@ pub fn start() -> Result<(), JsValue> {
                                         "Live: ch{} rgb({},{},{}) via {}",
                                         ch, color.r, color.g, color.b, label
                                     ));
-                                    bus.borrow_mut().ingest_live_ble(ch, color);
+                                    shell.borrow_mut().ingest_live_ble(ch, color);
                                 }
                             }) {
                                 Ok(c) => listeners.push(c),
@@ -364,7 +296,7 @@ pub fn start() -> Result<(), JsValue> {
                             ui.button.set_inner_text("Stop BLE scan");
                             ui.button.set_disabled(false);
                             ui.set_status(&format!(
-                                "Listening ({label}). Put a board in Receiver mode; CPB picker must broadcast."
+                                "Listening ({label}). Select Receiver mode; CPB picker must broadcast."
                             ));
                         }
                     }
@@ -382,9 +314,9 @@ pub fn start() -> Result<(), JsValue> {
         closure.forget();
     }
 
-    let bus_ui = bus.clone();
+    let shell_ui = shell.clone();
     let ui_cb = Closure::wrap(Box::new(move || {
-        bus_ui.borrow_mut().ui_ticks();
+        shell_ui.borrow_mut().ui_ticks();
     }) as Box<dyn FnMut()>);
     window.set_interval_with_callback_and_timeout_and_arguments_0(
         ui_cb.as_ref().unchecked_ref(),
@@ -392,9 +324,9 @@ pub fn start() -> Result<(), JsValue> {
     )?;
     ui_cb.forget();
 
-    let bus_cd = bus;
+    let shell_cd = shell;
     let cd_cb = Closure::wrap(Box::new(move || {
-        bus_cd.borrow_mut().countdown_ticks();
+        shell_cd.borrow_mut().countdown_ticks();
     }) as Box<dyn FnMut()>);
     window.set_interval_with_callback_and_timeout_and_arguments_0(
         cd_cb.as_ref().unchecked_ref(),
