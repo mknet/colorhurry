@@ -5,7 +5,7 @@ Kooperatives 2-Spieler-Spiel: geteilte Logik in `crates/core` (Crux-ähnliche AP
 ```text
 crates/core   — Event / Model / Effect / update / view  (no_std)
 crates/cpb    — Hardware-Shell (Embassy, SoftDevice, NeoPixels, Audio)
-crates/web    — Browser-Shell (zwei Boards, sim-BLE + experimenteller Live-Receiver)
+crates/web    — Browser-Shell (ein Receiver-Board + experimenteller Live-BLE-Scan)
 ```
 
 ## Voraussetzungen
