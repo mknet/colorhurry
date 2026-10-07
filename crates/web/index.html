@@ -10,79 +10,126 @@
         --panel: #1a222c;
         --text: #e8eef4;
         --muted: #8b9aab;
+        /* % of the LED box ≈ 0.38 × ring diameter when LED is 12% wide */
+        --led-radius: -320%;
       }
       * { box-sizing: border-box; }
+      html, body {
+        height: 100%;
+      }
       body {
         margin: 0;
         font-family: "Segoe UI", system-ui, sans-serif;
         background: radial-gradient(1200px 600px at 20% 0%, #1b2a3a, var(--bg));
         color: var(--text);
-        min-height: 100vh;
+        min-height: 100dvh;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
       header {
-        padding: 1.5rem 1.5rem 0.5rem;
+        flex: 0 0 auto;
+        padding: 0.85rem 1.25rem 0.35rem;
       }
       header h1 {
         margin: 0;
-        font-size: 1.75rem;
+        font-size: 1.35rem;
         letter-spacing: 0.02em;
       }
       header p {
-        margin: 0.35rem 0 0;
+        margin: 0.25rem 0 0;
         color: var(--muted);
+        font-size: 0.9rem;
       }
       .ble-bar {
+        flex: 0 0 auto;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.5rem 1.5rem 0;
+        padding: 0.35rem 1.25rem 0;
       }
       .ble-status {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         color: var(--muted);
         max-width: 48rem;
       }
-      .boards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        padding: 1rem 1.5rem 2rem;
-      }
-      @media (max-width: 800px) {
-        .boards { grid-template-columns: 1fr; }
+      .stage {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        padding: 0.75rem 1rem 1rem;
       }
       .board {
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
         background: var(--panel);
-        border-radius: 16px;
-        padding: 1rem 1.25rem 1.25rem;
+        border-radius: 20px;
+        padding: 0.85rem 1rem 1rem;
         border: 1px solid #2a3542;
+        display: flex;
+        flex-direction: column;
       }
       .board h2 {
+        flex: 0 0 auto;
+        margin: 0 0 0.25rem;
+        font-size: 1.05rem;
+      }
+      .meta {
+        flex: 0 0 auto;
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 0.5rem;
+      }
+      /* Fills leftover board space; ring = largest inscribed circle */
+      .board-face {
+        flex: 1 1 auto;
+        min-height: 0;
+        min-width: 0;
+        container-type: size;
+        display: grid;
+        place-items: center;
         margin: 0 0 0.75rem;
-        font-size: 1.1rem;
       }
       .ring {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 0.4rem;
-        margin: 0.75rem 0 1rem;
+        --size: min(100cqw, 100cqh);
+        position: relative;
+        width: var(--size);
+        height: var(--size);
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 50% 48%, #2a3542 0 18%, transparent 19%),
+          radial-gradient(circle at 50% 50%, #151c24 0 72%, #0c1016 73% 100%);
+        border: 3px solid #3a4a5c;
+        box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.45);
+      }
+      @supports not (width: 1cqw) {
+        .ring {
+          --size: min(100%, 100%);
+          width: min(92vw, calc(100dvh - 14rem));
+          height: min(92vw, calc(100dvh - 14rem));
+        }
       }
       .led {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 12%;
         aspect-ratio: 1;
+        margin: -6%;
         border-radius: 50%;
         border: 1px solid #314050;
         background: #111;
-      }
-      .meta {
-        font-size: 0.85rem;
-        color: var(--muted);
-        margin-bottom: 0.75rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
+        transform-origin: center center;
       }
       .actions {
         display: flex;
         gap: 0.5rem;
         flex-wrap: wrap;
+        justify-content: center;
       }
       button {
         appearance: none;
@@ -96,6 +143,7 @@
       }
       button.secondary { background: #45566a; }
       button:active { transform: translateY(1px); }
+      button:disabled { opacity: 0.55; cursor: default; }
     </style>
     <link data-trunk rel="rust" href="Cargo.toml" data-wasm-opt="z" />
   </head>
