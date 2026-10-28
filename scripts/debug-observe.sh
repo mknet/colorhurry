@@ -3,8 +3,9 @@
 
 set -euo pipefail
 
-LOG="/Users/marcel/Development/mk/embedded/adafruit/.cursor/debug-55c9bc.log"
 SESSION="55c9bc"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+LOG="$ROOT/.cursor/debug-55c9bc.log"
 OBS="${1:-unknown}"
 TS=$(($(date +%s) * 1000))
 

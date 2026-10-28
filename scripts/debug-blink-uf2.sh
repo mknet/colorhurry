@@ -20,12 +20,13 @@ CPB_MEMORY="$layout" "$root/scripts/debug-host-log.sh" "blink-post-build"
 
 elf2flash convert --board circuit_playground_bluefruit "$elf" "$uf2"
 
-python3 - "$uf2" <<'PY'
+mkdir -p "$root/.cursor"
+python3 - "$uf2" "$root/.cursor/debug-55c9bc.log" <<'PY'
 import struct, sys, json, time
 p = sys.argv[1]
+log = sys.argv[2]
 d = open(p, "rb").read()
 _, target = struct.unpack_from("<II", d, 8)
-log = "/Users/marcel/Development/mk/embedded/adafruit/.cursor/debug-55c9bc.log"
 entry = {
     "sessionId": "55c9bc",
     "timestamp": int(time.time() * 1000),
