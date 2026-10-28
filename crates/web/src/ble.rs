@@ -1,7 +1,10 @@
-//! Experimental Web Bluetooth advertising receive (Chrome flag required).
+//! Local browser↔board link via Web Bluetooth (no server).
+//!
+//! CPB advertises non-connectable packets, so there is no GATT connect.
+//! Chrome “connection” = pick the device once, then `watchAdvertisements`.
 
 use color_hurry_core::{Rgb, CHANNELS};
-use js_sys::{Function, Reflect, Uint8Array};
+use js_sys::{Function, Reflect};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{
@@ -53,83 +56,59 @@ pub fn color_from_advertisement(ev: &BluetoothAdvertisingEvent) -> Option<(u8, R
     parse_color_payload(&bytes)
 }
 
-fn manufacturer_filter_array() -> Result<js_sys::Array, JsValue> {
+/// Debug helper: any manufacturer blob for company id (hex).
+pub fn manufacturer_hex(ev: &BluetoothAdvertisingEvent) -> Option<String> {
+    let view = ev.manufacturer_data().get(COMPANY_ID)?;
+    let mut out = String::new();
+    for i in 0..view.byte_length() {
+        if i > 0 {
+            out.push(' ');
+        }
+        out.push_str(&format!("{:02x}", view.get_uint8(i)));
+    }
+    Some(out)
+}
+
+fn discovery_filters() -> Result<js_sys::Array, JsValue> {
+    let filters = js_sys::Array::new();
+
     let mfg = js_sys::Object::new();
     Reflect::set(
         &mfg,
         &JsValue::from_str("companyIdentifier"),
         &JsValue::from(COMPANY_ID),
     )?;
-    let prefix = Uint8Array::new_with_length(3);
-    prefix.set_index(0, protocol::MAGIC);
-    prefix.set_index(1, protocol::VERSION);
-    prefix.set_index(2, protocol::CMD_COLOR);
-    Reflect::set(&mfg, &JsValue::from_str("dataPrefix"), &prefix)?;
+    let mfg_list = js_sys::Array::new();
+    mfg_list.push(&mfg);
+    let by_company = BluetoothLeScanFilterInit::new();
+    by_company.set_manufacturer_data(mfg_list.as_ref());
+    filters.push(by_company.as_ref());
 
-    let arr = js_sys::Array::new();
-    arr.push(&mfg);
-    Ok(arr)
-}
+    for name in ["ColorHurry", "ColHurry"] {
+        let by_name = BluetoothLeScanFilterInit::new();
+        by_name.set_name_prefix(name);
+        filters.push(by_name.as_ref());
+    }
 
-fn scan_filter() -> Result<BluetoothLeScanFilterInit, JsValue> {
-    let filter = BluetoothLeScanFilterInit::new();
-    filter.set_manufacturer_data(manufacturer_filter_array()?.as_ref());
-    Ok(filter)
+    Ok(filters)
 }
 
 pub fn bluetooth() -> Result<Bluetooth, JsValue> {
     let window = web_sys::window().ok_or_else(|| JsValue::from_str("no window"))?;
-    window
-        .navigator()
-        .bluetooth()
-        .ok_or_else(|| {
-            JsValue::from_str(
-                "Web Bluetooth unavailable (Chrome/Edge + HTTPS/localhost; enable experimental flag)",
-            )
-        })
+    window.navigator().bluetooth().ok_or_else(|| {
+        JsValue::from_str(
+            "Web Bluetooth unavailable (Chrome/Edge + HTTPS/localhost)",
+        )
+    })
 }
 
-/// Prefer `requestLEScan` (room scan). Falls back to `requestDevice` + `watchAdvertisements`.
-pub async fn start_listening() -> Result<LiveScan, JsValue> {
+/// Pick the CPB in Chrome’s chooser (local permission — no server).
+pub async fn request_board() -> Result<(Bluetooth, BluetoothDevice), JsValue> {
     let bt = bluetooth()?;
-    if Reflect::has(bt.as_ref(), &JsValue::from_str("requestLEScan"))? {
-        match start_le_scan(&bt).await {
-            Ok(scan) => return Ok(LiveScan::LeScan { bt, scan }),
-            Err(e) => {
-                web_sys::console::warn_2(
-                    &JsValue::from_str("requestLEScan failed, trying watchAdvertisements:"),
-                    &e,
-                );
-            }
-        }
-    }
-    let device = start_watch(&bt).await?;
-    Ok(LiveScan::Watch { bt, device })
-}
-
-async fn start_le_scan(bt: &Bluetooth) -> Result<JsValue, JsValue> {
-    let options = js_sys::Object::new();
-    let filters = js_sys::Array::new();
-    filters.push(scan_filter()?.as_ref());
-    Reflect::set(&options, &JsValue::from_str("filters"), &filters)?;
-    Reflect::set(
-        &options,
-        &JsValue::from_str("keepRepeatedDevices"),
-        &JsValue::TRUE,
-    )?;
-
-    let f = Reflect::get(bt.as_ref(), &JsValue::from_str("requestLEScan"))?
-        .dyn_into::<Function>()?;
-    let promise = f
-        .call1(bt.as_ref(), &options)?
-        .dyn_into::<js_sys::Promise>()?;
-    wasm_bindgen_futures::JsFuture::from(promise).await
-}
-
-async fn start_watch(bt: &Bluetooth) -> Result<BluetoothDevice, JsValue> {
     let opts = RequestDeviceOptions::new();
-    let filter = scan_filter()?;
-    opts.set_filters(std::slice::from_ref(&filter));
+    let filters = discovery_filters()?;
+    Reflect::set(opts.as_ref(), &JsValue::from_str("filters"), filters.as_ref())?;
+    // Required so advertisement events include our manufacturer payload.
     Reflect::set(
         opts.as_ref(),
         &JsValue::from_str("optionalManufacturerData"),
@@ -139,39 +118,49 @@ async fn start_watch(bt: &Bluetooth) -> Result<BluetoothDevice, JsValue> {
     let device = wasm_bindgen_futures::JsFuture::from(bt.request_device(&opts))
         .await?
         .dyn_into::<BluetoothDevice>()?;
-
-    wasm_bindgen_futures::JsFuture::from(device.watch_advertisements()).await?;
-    Ok(device)
+    Ok((bt, device))
 }
 
-pub enum LiveScan {
-    LeScan { bt: Bluetooth, scan: JsValue },
-    Watch { bt: Bluetooth, device: BluetoothDevice },
-}
+/// Start receiving advertisements from an already-chosen device.
+/// Call only after listeners are attached (avoids missing the first packets).
+pub async fn watch_board(device: &BluetoothDevice) -> Result<(), JsValue> {
+    // Prefer options bag so Chrome keeps delivering manufacturer data.
+    let options = js_sys::Object::new();
+    Reflect::set(
+        &options,
+        &JsValue::from_str("optionalManufacturerData"),
+        &js_sys::Array::of1(&JsValue::from(COMPANY_ID)),
+    )?;
 
-impl LiveScan {
-    pub fn stop(&self) {
-        if let LiveScan::LeScan { scan, .. } = self {
-            if let Ok(f) = Reflect::get(scan, &JsValue::from_str("stop")).and_then(|v| v.dyn_into::<Function>()) {
-                let _ = f.call0(scan);
-            }
-        }
+    if Reflect::has(device.as_ref(), &JsValue::from_str("watchAdvertisements"))? {
+        let f = Reflect::get(device.as_ref(), &JsValue::from_str("watchAdvertisements"))?
+            .dyn_into::<Function>()?;
+        let result = f.call1(device.as_ref(), &options).or_else(|_| f.call0(device.as_ref()))?;
+        let _ = wasm_bindgen_futures::JsFuture::from(result.dyn_into::<js_sys::Promise>()?).await?;
+        return Ok(());
     }
+    Err(JsValue::from_str(
+        "watchAdvertisements missing — enable chrome://flags/#enable-experimental-web-platform-features",
+    ))
+}
 
-    pub fn mode_label(&self) -> &'static str {
-        match self {
-            LiveScan::LeScan { .. } => "requestLEScan",
-            LiveScan::Watch { .. } => "watchAdvertisements",
-        }
+pub struct BoardLink {
+    pub bt: Bluetooth,
+    pub device: BluetoothDevice,
+}
+
+impl BoardLink {
+    pub fn device_label(&self) -> String {
+        self.device
+            .name()
+            .unwrap_or_else(|| "CPB".to_string())
     }
 
     pub fn event_targets(&self) -> Vec<EventTarget> {
-        match self {
-            LiveScan::LeScan { bt, .. } => vec![bt.clone().unchecked_into()],
-            LiveScan::Watch { bt, device } => {
-                vec![bt.clone().unchecked_into(), device.clone().unchecked_into()]
-            }
-        }
+        vec![
+            self.bt.clone().unchecked_into(),
+            self.device.clone().unchecked_into(),
+        ]
     }
 }
 

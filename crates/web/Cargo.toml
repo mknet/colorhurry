@@ -42,4 +42,5 @@ web-sys = { version = "0.3", features = [
     "BluetoothManufacturerDataMap",
     "BluetoothLeScanFilterInit",
     "RequestDeviceOptions",
+    "WatchAdvertisementsOptions",
 ] }

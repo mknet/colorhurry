@@ -176,7 +176,7 @@ fn play_tone(kind: ToneKind) {
 }
 
 struct LiveBleUi {
-    scan: Option<ble::LiveScan>,
+    link: Option<ble::BoardLink>,
     _listeners: Vec<Closure<dyn FnMut(web_sys::Event)>>,
     status: Element,
     button: HtmlButtonElement,
@@ -188,11 +188,9 @@ impl LiveBleUi {
     }
 
     fn set_idle(&mut self) {
-        if let Some(scan) = self.scan.take() {
-            scan.stop();
-        }
+        self.link = None;
         self._listeners.clear();
-        self.button.set_inner_text("Live BLE scan");
+        self.button.set_inner_text("Connect board");
         self.button.set_disabled(false);
     }
 }
@@ -208,7 +206,7 @@ pub fn start() -> Result<(), JsValue> {
     let header = doc.create_element("header")?;
     header.set_inner_html(
         "<h1>Color Hurry</h1>\
-         <p>Browser Receiver — pick a receiver channel, then listen for a real CPB picker over BLE.</p>",
+         <p>Local link (no server): choose the CPB in Chrome, then this tab watches its color ads as Receiver.</p>",
     );
     body.append_child(&header)?;
 
@@ -218,11 +216,11 @@ pub fn start() -> Result<(), JsValue> {
         .create_element("button")?
         .dyn_into::<HtmlButtonElement>()?;
     ble_btn.set_id("ble-scan");
-    ble_btn.set_inner_text("Live BLE scan");
+    ble_btn.set_inner_text("Connect board");
     let ble_status = doc.create_element("div")?;
     ble_status.set_class_name("ble-status");
     ble_status.set_text_content(Some(
-        "Chrome/Edge + chrome://flags/#enable-experimental-web-platform-features · Receiver only",
+        "1) CPB: Picker + apply color  2) Connect board  3) This page: Receiver, same channel  · Flag: experimental Web Platform features",
     ));
     ble_bar.append_child(&ble_btn)?;
     ble_bar.append_child(&ble_status)?;
@@ -234,7 +232,7 @@ pub fn start() -> Result<(), JsValue> {
 
     let shell = Rc::new(RefCell::new(Shell::new(&doc, &stage)?));
     let live = Rc::new(RefCell::new(LiveBleUi {
-        scan: None,
+        link: None,
         _listeners: Vec::new(),
         status: ble_status,
         button: ble_btn.clone(),
@@ -255,32 +253,43 @@ pub fn start() -> Result<(), JsValue> {
         let shell = shell.clone();
         let live = live.clone();
         let closure = Closure::wrap(Box::new(move || {
-            let already = live.borrow().scan.is_some();
+            let already = live.borrow().link.is_some();
             if already {
                 live.borrow_mut().set_idle();
-                live.borrow().set_status("Scan stopped.");
+                live.borrow().set_status("Disconnected.");
                 return;
             }
             live.borrow().button.set_disabled(true);
-            live.borrow().set_status("Requesting Bluetooth permission…");
+            live.borrow()
+                .set_status("Choose ColorHurry-CPB in the Chrome dialog…");
             let shell = shell.clone();
             let live = live.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                match ble::start_listening().await {
-                    Ok(scan) => {
-                        let label = scan.mode_label();
-                        let targets = scan.event_targets();
+                match ble::request_board().await {
+                    Ok((bt, device)) => {
+                        let link = ble::BoardLink { bt, device };
+                        let name = link.device_label();
+                        let targets = link.event_targets();
                         let mut listeners = Vec::new();
                         for target in targets {
                             let shell = shell.clone();
                             let live_cb = live.clone();
+                            let name_cb = name.clone();
                             match ble::attach_advertisement_listener(&target, move |adv| {
                                 if let Some((ch, color)) = ble::color_from_advertisement(&adv) {
                                     live_cb.borrow().set_status(&format!(
-                                        "Live: ch{} rgb({},{},{}) via {}",
-                                        ch, color.r, color.g, color.b, label
+                                        "Linked to {name_cb} · ch{} rgb({},{},{})",
+                                        ch, color.r, color.g, color.b
                                     ));
                                     shell.borrow_mut().ingest_live_ble(ch, color);
+                                } else if let Some(hex) = ble::manufacturer_hex(&adv) {
+                                    live_cb.borrow().set_status(&format!(
+                                        "Linked to {name_cb} · ad seen, not CMD_COLOR yet ({hex})"
+                                    ));
+                                } else {
+                                    live_cb.borrow().set_status(&format!(
+                                        "Linked to {name_cb} · advertisement (no mfg 0x239A payload)"
+                                    ));
                                 }
                             }) {
                                 Ok(c) => listeners.push(c),
@@ -289,22 +298,33 @@ pub fn start() -> Result<(), JsValue> {
                                 }
                             }
                         }
-                        {
-                            let mut ui = live.borrow_mut();
-                            ui.scan = Some(scan);
-                            ui._listeners = listeners;
-                            ui.button.set_inner_text("Stop BLE scan");
-                            ui.button.set_disabled(false);
-                            ui.set_status(&format!(
-                                "Listening ({label}). Select Receiver mode; CPB picker must broadcast."
-                            ));
+
+                        let watch = ble::watch_board(&link.device).await;
+                        match watch {
+                            Ok(()) => {
+                                let mut ui = live.borrow_mut();
+                                ui.link = Some(link);
+                                ui._listeners = listeners;
+                                ui.button.set_inner_text("Disconnect");
+                                ui.button.set_disabled(false);
+                                ui.set_status(&format!(
+                                    "Linked to {name} (ads only, no GATT). Waiting for picker color broadcasts…"
+                                ));
+                            }
+                            Err(e) => {
+                                let mut ui = live.borrow_mut();
+                                ui.set_idle();
+                                ui.set_status(&format!(
+                                    "Board chosen but watchAdvertisements failed: {e:?}"
+                                ));
+                            }
                         }
                     }
                     Err(e) => {
                         let mut ui = live.borrow_mut();
                         ui.set_idle();
                         ui.set_status(&format!(
-                            "BLE start failed: {e:?}. Flag + user gesture required."
+                            "Connect cancelled/failed: {e:?}"
                         ));
                     }
                 }
