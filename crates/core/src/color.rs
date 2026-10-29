@@ -1,7 +1,10 @@
 //! Display RGB and named game colors (identity on the wire).
 
+use facet::Facet;
+use serde::{Deserialize, Serialize};
+
 /// Platform-free RGB (full palette 0-255; shells may dim for hardware).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Rgb {
     pub r: u8,
     pub g: u8,
@@ -17,7 +20,7 @@ impl Rgb {
 }
 
 /// Named spectrum color. Index 0..[`crate::SPECTRUM_LEN`] is the BLE identity (protocol v4).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Color {
     White = 0,

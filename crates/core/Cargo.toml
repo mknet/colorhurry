@@ -7,8 +7,14 @@ description = "Color Hurry game logic (Crux App, no_std)"
 license.workspace = true
 autotests = false
 
+[features]
+# Facet type generation for the FFI bridge (used by crates/ffi, needs std).
+facet_typegen = ["crux_core/facet_typegen"]
+
 [dependencies]
 crux_core = { path = "../../../../../crux/crux_core", default-features = false, features = ["crux_macros", "critical-section"] }
+facet = { version = "=0.46.5", default-features = false, features = ["alloc"] }
+serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 critical-section = { version = "1.2", features = ["std"] }

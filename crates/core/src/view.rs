@@ -1,8 +1,11 @@
+use facet::Facet;
+use serde::{Deserialize, Serialize};
+
 use crate::color::{Color, Rgb};
 use crate::model::{Model, PickerPhase, Round, Screen, NUM_LEDS};
 use crate::palette::{self, CHANNELS};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ViewModel {
     pub screen: Screen,
     pub leds: [Rgb; NUM_LEDS],

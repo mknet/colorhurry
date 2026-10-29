@@ -1,7 +1,10 @@
 //! Tone meaning and parameters (same everywhere; shell only plays).
 
+use facet::Facet;
+use serde::{Deserialize, Serialize};
+
 /// One frequency/duration step for the shell PWM / WebAudio output.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ToneStep {
     pub hz: u32,
     pub ms: u32,
@@ -10,7 +13,7 @@ pub struct ToneStep {
 pub const MAX_TONE_STEPS: usize = 12;
 
 /// Fixed-capacity tone sequence carried in a [`crate::PlayTone`] effect.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ToneSequence {
     steps: [ToneStep; MAX_TONE_STEPS],
     len: u8,

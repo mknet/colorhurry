@@ -1,3 +1,6 @@
+use facet::Facet;
+use serde::{Deserialize, Serialize};
+
 use crate::color::Color;
 
 pub const NUM_LEDS: usize = 10;
@@ -15,7 +18,8 @@ pub enum Role {
     Receiver { channel: u8 },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
 pub enum Screen {
     ModeSelect,
     Picker,

@@ -30,12 +30,18 @@ use crux_core::{
     macros::{Operation, effect},
     render::{RenderOperation, render},
 };
+use facet::Facet;
+use serde::{Deserialize, Serialize};
+// The typegen code `#[effect]` emits calls `to_string`, which no_std has no prelude for.
+#[cfg(feature = "facet_typegen")]
+use alloc::string::ToString;
 use model::{PickerPhase as Phase, Role as RoleKind, Round as RoundState, Screen as Scr};
 use palette as pal;
 use tones as tone;
 
 /// Domain events. Shells map hardware / DOM onto these.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[repr(C)]
 pub enum Event {
     /// Shell finished constructing the core; start blink (and initial render).
     Boot,
@@ -49,23 +55,24 @@ pub enum Event {
     BeatDone(u32),
 }
 
-#[derive(Operation, Debug, Clone, PartialEq, Eq)]
+#[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[operation(request, output = ())]
 pub struct Delay {
     pub millis: u32,
 }
 
-#[derive(Operation, Debug, Clone, PartialEq, Eq)]
+#[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[operation(request, output = u8)]
 pub struct Random;
 
-#[derive(Operation, Debug, Clone, PartialEq, Eq)]
+#[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[operation(notify)]
 pub struct PlayTone {
     pub sequence: ToneSequence,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
 pub enum BleOp {
     Off,
     Picker { channel: u8 },
@@ -73,13 +80,13 @@ pub enum BleOp {
     Broadcast { color: Option<Color> },
 }
 
-#[derive(Operation, Debug, Clone, PartialEq, Eq)]
+#[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[operation(notify)]
 pub struct Ble {
     pub op: BleOp,
 }
 
-#[effect]
+#[effect(facet_typegen)]
 #[derive(Debug)]
 pub enum Effect {
     Render(RenderOperation),
