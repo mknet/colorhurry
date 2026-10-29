@@ -1,0 +1,27 @@
+[package]
+name = "color-hurry-ffi"
+crate = "color_hurry_ffi"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[targets.apple]
+output = "../../apps/ios/generated/Shared"
+include_macos = false
+
+[targets.apple.swift]
+module_name = "Shared"
+
+[targets.apple.spm]
+package_name = "Shared"
+layout = "ffi-only"
+
+[targets.android]
+output = "../../apps/android/generated"
+min_sdk = 26
+
+[targets.android.kotlin]
+package = "com.colorhurry.shared"
+output = "../../apps/android/generated/kotlin"
+
+[targets.android.pack]
+output = "../../apps/android/generated/jniLibs"

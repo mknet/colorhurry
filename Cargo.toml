@@ -4,6 +4,7 @@ members = [
     "crates/core",
     "crates/cpb",
     "crates/web",
+    "crates/ffi",
 ]
 default-members = ["crates/cpb"]
 

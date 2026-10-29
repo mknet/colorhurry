@@ -1,4 +1,5 @@
 /target
+crates/ffi/target/
 **/dist/
 crates/web/dist/
 **/*.rs.bk

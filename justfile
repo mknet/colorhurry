@@ -20,9 +20,25 @@ web-serve:
 web-build:
     cd crates/web && RUSTFLAGS='--cfg=web_sys_unstable_apis' NO_COLOR=false trunk build --release
 
-# Core unit tests + Gherkin feature tests
+# Rust core for the native apps: BoltFFI packages + generated Swift/Kotlin types
+# Needs `cargo install boltffi_cli --version '=0.30.1' --locked`
+ffi: ffi-ios ffi-android
+
+ffi-ios:
+    cd crates/ffi && boltffi pack apple
+    cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language swift --output-dir apps/ios/generated
+
+# Uses ANDROID_NDK_HOME, else the newest NDK under ~/Library/Android/sdk/ndk
+ffi-android:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$(ls -d "$HOME"/Library/Android/sdk/ndk/* | sort -V | tail -1)}"
+    (cd crates/ffi && boltffi pack android)
+    cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language kotlin --output-dir apps/android/generated
+
+# Core unit tests + Gherkin feature tests + FFI payload helpers
 test:
-    cargo test -p color-hurry-core
+    cargo test -p color-hurry-core -p color-hurry-ffi
 
 # Serial-DFU v7 (S140 7.x @ 0x27000) — für BLE / nrf-softdevice
 flash-v7:
