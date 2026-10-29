@@ -20,8 +20,8 @@ web-serve:
 web-build:
     cd crates/web && RUSTFLAGS='--cfg=web_sys_unstable_apis' NO_COLOR=false trunk build --release
 
-# Host unit tests for shared game logic
-test-core:
+# Core unit tests + Gherkin feature tests
+test:
     cargo test -p color-hurry-core
 
 # Serial-DFU v7 (S140 7.x @ 0x27000) — für BLE / nrf-softdevice
