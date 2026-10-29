@@ -32,6 +32,7 @@ The board SHALL keep the radio off during mode select and SHALL start advertisin
 
 ### Requirement: Picker broadcasts only the applied color
 The Picker SHALL advertise a color only after ActivateColor and SHALL withdraw it on the next Skip or ActivateColor.
+Acceptance: `crates/core/tests/features/picker.feature`.
 
 #### Scenario: Apply starts the broadcast
 - **WHEN** the Picker applies Red on channel 0
@@ -43,6 +44,7 @@ The Picker SHALL advertise a color only after ActivateColor and SHALL withdraw i
 
 ### Requirement: Receiver listens on its channel
 During a countdown the Receiver SHALL scan for Color Hurry payloads and SHALL treat only payloads on its own channel as ColorReceived.
+Acceptance: `crates/core/tests/features/receiver.feature`.
 
 #### Scenario: Other channel is ignored
 - **WHEN** a Receiver on channel 0 hears a payload for channel 1
