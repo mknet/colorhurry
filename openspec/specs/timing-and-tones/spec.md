@@ -24,11 +24,11 @@ A countdown SHALL consist of ten beats one second apart, each playing a 200 ms t
 - **THEN** ten tones play one second apart, each lower than the one before
 
 ### Requirement: Explosion sound
-When a countdown expires, the game SHALL play an explosion: ten 100 ms steps sweeping from 180 Hz down to 45 Hz.
+When a countdown expires, every shell SHALL play the same explosion: ten 100 ms steps sweeping from 180 Hz down to 45 Hz, as defined by the game rather than by the shell.
 
 #### Scenario: Countdown expires
 - **WHEN** the tenth countdown beat has played
-- **THEN** the explosion sweep plays for about one second
+- **THEN** the explosion sweep plays for about one second on board and browser alike
 
 ### Requirement: Timing next to the radio stack
 Delays, blink cadence and countdown beats SHALL keep their period while the BLE radio stack is active.
@@ -43,3 +43,14 @@ Playing a feedback tone SHALL NOT delay button handling or LED updates.
 #### Scenario: Fast skipping
 - **WHEN** the player presses Skip several times in quick succession
 - **THEN** every press moves the selection and the ring follows without waiting for the previous tone to end
+
+### Requirement: Game owns blink and beat periods
+The game SHALL request its own delays: a 50 ms blink tick (six ticks per blink phase) in mode select and picker, a 0 ms kick for the first countdown beat and 1000 ms between further beats. Delays from a previous state SHALL be ignored.
+
+#### Scenario: Boot schedules a blink
+- **WHEN** the game boots
+- **THEN** a 50 ms delay is requested
+
+#### Scenario: Stale delays after Skip
+- **WHEN** the player presses Skip and an older blink delay finishes afterwards
+- **THEN** the older delay has no effect
