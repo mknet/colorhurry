@@ -1,89 +1,89 @@
 # Color Hurry
 
-Kooperatives 2-Spieler-Spiel: geteilte Logik in `crates/core` (Crux App), Shells für **Circuit Playground Bluefruit**, **Browser (WASM)** und **iOS / Android** (FFI).
+Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit**, **Browser (WASM)** and **iOS / Android** (FFI).
 
 ```text
 crates/core    — Event / Model / Effect / update / view  (no_std)
-crates/cpb     — Hardware-Shell (Embassy, SoftDevice, NeoPixels, Audio)
-crates/web     — Browser-Shell (ein Receiver-Board + experimenteller Live-BLE-Scan)
-crates/ffi     — Core über FFI für die nativen Apps (Crux Bridge + BoltFFI, facet typegen)
-apps/ios       — Native SwiftUI + CoreBluetooth Shell auf dem Rust-Core
-apps/android   — Native Kotlin Compose + Android BLE Shell auf dem Rust-Core
+crates/cpb     — Hardware shell (Embassy, SoftDevice, NeoPixels, Audio)
+crates/web     — Browser shell (one receiver board + experimental live BLE scan)
+crates/ffi     — Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
+apps/ios       — Native SwiftUI + CoreBluetooth shell on the Rust core
+apps/android   — Native Kotlin Compose + Android BLE shell on the Rust core
 ```
 
-Tests: `just test` — Unit-Tests und Gherkin-Integrationstests in `crates/core`.
+Tests: `just test` — unit tests and Gherkin integration tests in `crates/core`.
 
 
-## Voraussetzungen
+## Prerequisites
 
 - [Rust](https://rustup.rs/) (stable)
-- Target `thumbv7em-none-eabihf` (Board) und `wasm32-unknown-unknown` (Web)
-- [just](https://github.com/casey/just), [trunk](https://trunkrs.dev/) (`brew install trunk` oder `cargo install trunk`)
-- [elf2flash](https://crates.io/crates/elf2flash) für Flashen (`just install-tools`)
+- Target `thumbv7em-none-eabihf` (board) and `wasm32-unknown-unknown` (web)
+- [just](https://github.com/casey/just), [trunk](https://trunkrs.dev/) (`brew install trunk` or `cargo install trunk`)
+- [elf2flash](https://crates.io/crates/elf2flash) for flashing (`just install-tools`)
 
 ```bash
 rustup target add thumbv7em-none-eabihf wasm32-unknown-unknown
-just install-tools   # einmalig
+just install-tools   # once
 ```
 
-Optional (nur mit externem SWD-Debugger): [probe-rs](https://probe.rs/) — `just flash-probe`
+Optional (only with an external SWD debugger): [probe-rs](https://probe.rs/) — `just flash-probe`
 
 ## BLE (SoftDevice S140 7.0.1)
 
-Standard-Build: Feature **`sd-v7`**, App @ **0x27000**. Adafruit Restore liefert **S140 6.1.1** — damit sendet BLE **nicht**. Einmalig:
+Default build: feature **`sd-v7`**, app @ **0x27000**. Adafruit restore ships **S140 6.1.1** — BLE will **not** transmit with that. Once:
 
 ```bash
-just setup-ble    # SD 6.1.1 → 7.0.1 + App flashen
-just flash-v7     # danach nur noch App
+just setup-ble    # SD 6.1.1 → 7.0.1 + flash app
+just flash-v7     # app only after that
 cargo test -p color-hurry-core
-just web-serve    # Browser: http://127.0.0.1:8080
-just ios / just android   # native Apps (baut den Core via `just ffi`, Xcode / JDK 17|21)
+just web-serve    # browser: http://127.0.0.1:8080
+just ios / just android   # native apps (builds the core via `just ffi`, Xcode / JDK 17|21)
 ```
 
-**Native Apps (iOS + Android):** Einstieg wie am Board (Skip/Apply → Picker/Receiver), UI wie Web. Demo: CPB als Picker, Handy als Receiver. Siehe [apps/README.md](apps/README.md).
+**Native apps (iOS + Android):** same entry as on the board (Skip/Apply → Picker/Receiver), UI like the web shell. Demo: CPB as picker, phone as receiver. See [apps/README.md](apps/README.md).
 
-Browser **Live BLE** (unstable POC, Receiver only): Chrome/Edge, Flag
-`chrome://flags/#enable-experimental-web-platform-features`, dann „Live BLE scan“.
-Picker-Advertise aus dem Tab ist nicht möglich — nur Ads von echten CPBs empfangen.
+Browser **Live BLE** (unstable POC, receiver only): Chrome/Edge, flag
+`chrome://flags/#enable-experimental-web-platform-features`, then “Live BLE scan”.
+Picker advertising from the tab is not possible — only ads from real CPBs are received.
 
-Ausführlich: [docs/BLE.md](docs/BLE.md), Troubleshooting: [docs/ERKENNTNISSE-BLE-FIX.md](docs/ERKENNTNISSE-BLE-FIX.md)
+Details: [docs/BLE.md](docs/BLE.md), troubleshooting: [docs/FINDINGS-BLE-FIX.md](docs/FINDINGS-BLE-FIX.md)
 
-Ohne BLE (nur Color Picker): `just restore-and-flash` + `just flash` (6.1.1 @ 0x26000).
+Without BLE (color picker only): `just restore-and-flash` + `just flash` (6.1.1 @ 0x26000).
 
-Audio (Skip/Apply-Töne): [docs/AUDIO.md](docs/AUDIO.md). Demo-Sequenz: Feature `speaker-demo`.
+Audio (skip/apply tones): [docs/AUDIO.md](docs/AUDIO.md). Demo sequence: feature `speaker-demo`.
 
-**Dauerhaft grün** = Bootloader, App läuft nicht → [docs/RECOVERY.md](docs/RECOVERY.md)
+**Solid green** = bootloader, app is not running → [docs/RECOVERY.md](docs/RECOVERY.md)
 
-**macOS: kein Zugriff auf CPLAYBTBOOT** → [docs/FLASH-MACOS.md](docs/FLASH-MACOS.md) (`just flash-serial`)
+**macOS: no access to CPLAYBTBOOT** → [docs/FLASH-MACOS.md](docs/FLASH-MACOS.md) (`just flash-serial`)
 
-## Bauen & Flashen (USB)
+## Build & flash (USB)
 
-Board mit **USB-Datenkabel** verbinden (reines Ladekabel reicht nicht).
+Connect the board with a **USB data cable** (charge-only cables are not enough).
 
-**Bootloader:** nicht Button A/B — den kleinen **Reset in der Mitte** **2× schnell** drücken, **oder** **Button A (links) halten** und **Reset 1×**. Im Finder erscheint **CPLAYBTBOOT** (NeoPixels: rot → grün). Ausführlich: [docs/BOOTLOADER.md](docs/BOOTLOADER.md).
+**Bootloader:** not button A/B — press the small **center reset** **twice quickly**, **or** **hold button A (left)** and **reset once**. **CPLAYBTBOOT** appears in Finder (NeoPixels: red → green). Details: [docs/BOOTLOADER.md](docs/BOOTLOADER.md).
 
-Dann:
+Then:
 
 ```bash
-just          # baut (release), erzeugt .uf2, kopiert auf CPLAYBTBOOT
-# oder:
+just          # builds (release), creates .uf2, copies to CPLAYBTBOOT
+# or:
 just flash
-just build    # nur kompilieren
+just build    # compile only
 ```
 
-`just` wartet bis zu 60 s auf das BOOT-Laufwerk (Reset kann auch nach Start erfolgen).
+`just` waits up to 60 s for the BOOT volume (reset can happen after start).
 
-Alternativ: `cargo run --release` (gleicher Ablauf über `scripts/cargo-uf2-runner.sh`).
+Alternatively: `cargo run --release` (same flow via `scripts/cargo-uf2-runner.sh`).
 
-Ohne Rebuild: `just flash-bin`.
+Without rebuild: `just flash-bin`.
 
-Experimentell (oft auf macOS kaputt): `just flash-deploy` (`elf2flash deploy` → `BlockDeviceOpenFail`).
+Experimental (often broken on macOS): `just flash-deploy` (`elf2flash deploy` → `BlockDeviceOpenFail`).
 
-**Hinweis:** Verschwindet `CPLAYBTBOOT` während des Kopierens mit `Input/output error`, war der Flash oft trotzdem erfolgreich (Board startet sofort neu). Das Skript erkennt das jetzt als Erfolg.
+**Note:** If `CPLAYBTBOOT` disappears during copy with `Input/output error`, the flash often still succeeded (board reboots immediately). The script now treats that as success.
 
-## defmt-Logs
+## defmt logs
 
-RTT funktioniert nur mit einem **SWD-Debugger** (probe-rs), nicht über den UF2-USB-Bootloader allein:
+RTT only works with an **SWD debugger** (probe-rs), not via the UF2 USB bootloader alone:
 
 ```bash
 probe-rs attach --chip nRF52840_xxAA
@@ -91,7 +91,7 @@ probe-rs attach --chip nRF52840_xxAA
 
 ## Hardware (Bluefruit)
 
-| Funktion   | Pin    |
+| Function  | Pin    |
 |-----------|--------|
 | NeoPixel  | P0.08  |
 | Button A  | P1.02  |
@@ -101,15 +101,15 @@ probe-rs attach --chip nRF52840_xxAA
 
 Pinout: [Circuit Playground Bluefruit](https://learn.adafruit.com/adafruit-circuit-playground-bluefruit/pinouts)
 
-## Projektphasen
+## Project phases
 
-1. **Skelett** — Embassy + defmt
-2. **NeoPixel-Treiber** (aktuell) — 10× WS2812 an P0.13, Blinktest mit D13
-3. Buttons mit Debouncing
+1. **Skeleton** — Embassy + defmt
+2. **NeoPixel driver** (current) — 10× WS2812 on P0.13, blink test with D13
+3. Buttons with debouncing
 4. Speaker (Destroy / Success)
-5. BLE Advertising + Scan (`nrf-softdevice`)
-6. Spiel-State-Machine
+5. BLE advertising + scan (`nrf-softdevice`)
+6. Game state machine
 
-## Lizenz
+## License
 
 MIT OR Apache-2.0

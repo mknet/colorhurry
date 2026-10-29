@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Bootloader + SoftDevice S140 6.1.1 per Serial-DFU wiederherstellen (ohne UF2/CPLAYBTBOOT)
+# Restore bootloader + SoftDevice S140 6.1.1 via serial DFU (without UF2/CPLAYBTBOOT)
 #
 # Adafruit CPB: circuitplayground_nrf52840_bootloader @ 0.11.0, S140 6.1.1
-# Danach App mit: just flash  (v6 @ 0x26000)
+# Afterwards flash the app with: just flash  (v6 @ 0x26000)
 
 set -euo pipefail
 
@@ -56,30 +56,30 @@ do_restore() {
 }
 
 if ! command -v adafruit-nrfutil &>/dev/null; then
-    echo "adafruit-nrfutil fehlt: pip3 install adafruit-nrfutil" >&2
+    echo "adafruit-nrfutil is missing: pip3 install adafruit-nrfutil" >&2
     exit 1
 fi
 
 mkdir -p "$cache"
 if [[ ! -f "$zip_path" ]]; then
-    echo "→ Lade Bootloader-Paket …"
+    echo "→ Downloading bootloader package …"
     curl -fsSL -o "$zip_path" "$zip_url"
 fi
 
 echo ""
-echo "=== Bootloader + SoftDevice wiederherstellen ==="
-echo "  Paket: $zip_name"
-echo "  Dauer: ~30 s — USB NICHT abziehen!"
+echo "=== Restoring bootloader + SoftDevice ==="
+echo "  Package: $zip_name"
+echo "  Duration: ~30 s — do NOT unplug USB!"
 echo ""
 if [[ "$dfu_manual" == "1" ]]; then
-    echo "  Jetzt: Button A halten → Reset 1× → A loslassen (DFU-Modus)"
-    echo "  Du hast 8 Sekunden …"
+    echo "  Now: hold Button A → Reset 1× → release A (DFU mode)"
+    echo "  You have 8 seconds …"
     sleep 8
 fi
 
 port="$(wait_for_port || true)"
 if [[ -z "$port" ]]; then
-    echo "Kein Serial-Port. Board verbinden oder SERIAL_PORT setzen." >&2
+    echo "No serial port. Connect the board or set SERIAL_PORT." >&2
     exit 1
 fi
 
@@ -87,7 +87,7 @@ echo "→ Port: $port"
 restored=0
 for attempt in $(seq 1 3); do
     echo ""
-    echo "=== Restore-Versuch $attempt/3 ==="
+    echo "=== Restore attempt $attempt/3 ==="
     port="$(wait_for_port || true)"
     [[ -z "$port" ]] && { sleep 3; continue; }
     echo "→ Port: $port"
@@ -95,16 +95,16 @@ for attempt in $(seq 1 3); do
         restored=1
         break
     fi
-    echo "→ Fehlgeschlagen — ggf. A+Reset für DFU, dann erneut"
+    echo "→ Failed — A+Reset for DFU if needed, then retry"
     sleep 3
 done
 
 if [[ "$restored" != "1" ]]; then
-    echo "✗ Bootloader-Restore fehlgeschlagen." >&2
+    echo "✗ Bootloader restore failed." >&2
     exit 1
 fi
 
 echo ""
-echo "✓ Bootloader + SoftDevice wiederhergestellt."
-echo "→ USB abziehen, 5 s warten, wieder einstecken, Reset 1×."
-echo "→ Dann Rust-App flashen:  just flash"
+echo "✓ Bootloader + SoftDevice restored."
+echo "→ Unplug USB, wait 5 s, plug it back in, Reset 1×."
+echo "→ Then flash the Rust app:  just flash"

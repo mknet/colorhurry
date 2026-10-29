@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# SoftDevice S140 6.1.1 → 7.0.1 (Serial-DFU, Adafruit CPB)
+# SoftDevice S140 6.1.1 → 7.0.1 (serial DFU, Adafruit CPB)
 #
-# nrf-softdevice (Rust) bindet gegen S140 7.0.1. Adafruit-Restore liefert 6.1.1.
-# Der Serial-Bootloader akzeptiert nur „softdevice_bootloader“-Pakete (wie restore),
-# kein reines SoftDevice-Paket.
+# nrf-softdevice (Rust) binds against S140 7.0.1. The Adafruit restore ships 6.1.1.
+# The serial bootloader only accepts "softdevice_bootloader" packages (like restore),
+# not a SoftDevice-only package.
 #
-# Danach: just flash-v7  (App @ 0x27000)
+# Afterwards: just flash-v7  (app @ 0x27000)
 
 set -euo pipefail
 
@@ -64,9 +64,9 @@ do_flash() {
         rm -f "$log"
         return 0
     fi
-    # macOS: USB bricht oft ab, obwohl der Flash danach OK ist
+    # macOS: USB often drops even though the flash is OK afterwards
     if grep -q "Device not configured" "$log"; then
-        echo "→ USB-Reconnect nach DFU (macOS) — prüfe gleich erneut …" >&2
+        echo "→ USB reconnect after DFU (macOS) — checking again shortly …" >&2
         sleep 5
         if wait_for_port >/dev/null; then
             rm -f "$log"
@@ -108,12 +108,12 @@ for off in range(0, len(bootloader), chunk):
     lines.append(":" + rec.hex().upper() + f"{cs:02X}")
 lines.append(":00000001FF")
 bl_hex.write_text("\n".join(lines) + "\n")
-print(f"Bootloader extrahiert: {len(bootloader)} Bytes → {bl_hex}")
+print(f"Bootloader extracted: {len(bootloader)} Bytes → {bl_hex}")
 PY
 }
 
 if ! command -v adafruit-nrfutil &>/dev/null; then
-    echo "adafruit-nrfutil fehlt: pip3 install adafruit-nrfutil" >&2
+    echo "adafruit-nrfutil is missing: pip3 install adafruit-nrfutil" >&2
     exit 1
 fi
 
@@ -125,19 +125,19 @@ done
 mkdir -p "$bl_cache" "$sd_cache"
 
 if [[ ! -f "$bl_zip_path" ]]; then
-    echo "→ Lade Adafruit-Bootloader-Paket (zum Extrahieren des Bootloaders) …"
+    echo "→ Downloading Adafruit bootloader package (to extract the bootloader) …"
     curl -fsSL -o "$bl_zip_path" "$bl_zip_url"
 fi
 
 if [[ ! -f "$sd_hex_path" ]]; then
-    echo "→ Lade $sd_hex_name …"
+    echo "→ Downloading $sd_hex_name …"
     curl -fsSL -o "$sd_hex_path" "$sd_hex_url"
 fi
 
-echo "→ Bootloader aus Adafruit-Zip extrahieren (0xF4000)"
+echo "→ Extracting bootloader from Adafruit zip (0xF4000)"
 extract_bootloader_hex
 
-echo "→ DFU-Paket: S140 7.0.1 + Bootloader (softdevice_bootloader, wie restore)"
+echo "→ DFU package: S140 7.0.1 + bootloader (softdevice_bootloader, like restore)"
 adafruit-nrfutil dfu genpkg \
     --dev-type 0x0052 \
     --dev-revision 52840 \
@@ -147,23 +147,23 @@ adafruit-nrfutil dfu genpkg \
     "$zip_path"
 
 echo ""
-echo "=== SoftDevice S140 7.0.1 + Bootloader flashen ==="
-echo "  Paket: $(basename "$zip_path") (SD 7.0.1, ~30 s)"
-echo "  USB während DFU NICHT abziehen!"
+echo "=== Flashing SoftDevice S140 7.0.1 + bootloader ==="
+echo "  Package: $(basename "$zip_path") (SD 7.0.1, ~30 s)"
+echo "  Do NOT unplug USB during DFU!"
 echo ""
 if [[ "$dfu_manual" == "1" ]]; then
-    echo "  Jetzt: Button A halten → Reset 1× → A loslassen (DFU-Modus)"
-    echo "  Du hast 12 Sekunden …"
+    echo "  Now: hold Button A → Reset 1× → release A (DFU mode)"
+    echo "  You have 12 seconds …"
     sleep 12
 fi
 
 flashed=0
 for attempt in $(seq 1 3); do
     echo ""
-    echo "=== Upgrade-Versuch $attempt/3 ==="
+    echo "=== Upgrade attempt $attempt/3 ==="
     port="$(wait_for_port || true)"
     if [[ -z "$port" ]]; then
-        echo "→ Kein Port — USB prüfen, ggf. A+Reset für DFU"
+        echo "→ No port — check USB, A+Reset for DFU if needed"
         sleep 3
         continue
     fi
@@ -172,24 +172,24 @@ for attempt in $(seq 1 3); do
         flashed=1
         break
     fi
-    echo "→ Fehlgeschlagen — erneut A+Reset für DFU, dann nächster Versuch"
+    echo "→ Failed — A+Reset for DFU again, then next attempt"
     sleep 4
 done
 
 if [[ "$flashed" != "1" ]]; then
     echo "" >&2
-    echo "✗ SoftDevice-Upgrade fehlgeschlagen." >&2
+    echo "✗ SoftDevice upgrade failed." >&2
     echo "" >&2
-    echo "Typisch auf macOS: USB trennt sich kurz (Device not configured)." >&2
-    echo "Manuell:" >&2
-    echo "  1. Button A halten → Reset 1× → A loslassen" >&2
+    echo "Typical on macOS: USB disconnects briefly (Device not configured)." >&2
+    echo "Manually:" >&2
+    echo "  1. Hold Button A → Reset 1× → release A" >&2
     echo "  2. DFU_MANUAL=1 ./scripts/upgrade-softdevice-v7.sh" >&2
     echo "" >&2
-    echo "Alternativ mit SWD-Debugger: docs/BLE.md" >&2
+    echo "Alternatively with an SWD debugger: docs/BLE.md" >&2
     exit 1
 fi
 
 echo ""
-echo "✓ SoftDevice S140 7.0.1 installiert."
-echo "→ USB abziehen, 5 s warten, wieder einstecken, Reset 1×."
-echo "→ App flashen:  just flash-v7"
+echo "✓ SoftDevice S140 7.0.1 installed."
+echo "→ Unplug USB, wait 5 s, plug it back in, Reset 1×."
+echo "→ Flash the app:  just flash-v7"

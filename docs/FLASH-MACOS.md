@@ -1,36 +1,36 @@
-# Flashen auf macOS ohne CPLAYBTBOOT
+# Flashing on macOS without CPLAYBTBOOT
 
-Wenn der Mac das UF2-Laufwerk **nicht mehr mountet** (`Permission denied`, Finder zeigt nichts):
+If the Mac **no longer mounts** the UF2 drive (`Permission denied`, Finder shows nothing):
 
-## 1. Mount zurücksetzen
+## 1. Reset the mount
 
 ```bash
 just mac-reset-boot
 ```
 
-USB ab, 10 s warten, Reset 2×, `just boot-check`.
+Unplug USB, wait 10 s, Reset 2×, `just boot-check`.
 
 ---
 
-## 2. Empfohlen: Serial-Flash (kein Laufwerk nötig)
+## 2. Recommended: serial flash (no drive needed)
 
 ```bash
 pip3 install adafruit-nrfutil
 just flash-serial
 ```
 
-Das Board kann **CircuitPython** oder normal laufen — das Skript weckt den Bootloader per 1200-Baud-Touch und flasht dann **ohne** `--touch` im selben Aufruf (stabiler auf macOS).
+The board can be running **CircuitPython** or anything else — the script wakes the bootloader with a 1200-baud touch and then flashes **without** `--touch` in the same invocation (more stable on macOS).
 
-### „Device not configured“ / Flash bricht ab
+### "Device not configured" / flash aborts
 
-USB trennt sich oft mitten in der DFU. Dann **manuell in DFU** gehen und erneut flashen:
+USB often disconnects in the middle of DFU. In that case, **enter DFU manually** and flash again:
 
-1. **Button A (links)** gedrückt halten  
-2. **Reset 1×** (Mitte)  
-3. **A loslassen**  
+1. Hold **Button A (left)**  
+2. **Reset 1×** (middle)  
+3. **Release A**  
 4. `just flash-serial-dfu`
 
-Port manuell wählen:
+Choose the port manually:
 
 ```bash
 ls /dev/cu.usb*
@@ -39,27 +39,27 @@ SERIAL_PORT=/dev/cu.usbmodem14101 just flash-serial
 
 ---
 
-## 3. Finder (wenn Laufwerk wieder da ist)
+## 3. Finder (once the drive is back)
 
 ```bash
 just flash-finder
 ```
 
-`.uf2` auf **CPLAYBTBOOT** ziehen — Laufwerk muss **verschwinden**.
+Drag the `.uf2` onto **CPLAYBTBOOT** — the drive must **disappear**.
 
 ---
 
-## 4. Vollzugriff Festplatten (optional)
+## 4. Full Disk Access (optional)
 
-Systemeinstellungen → Datenschutz & Sicherheit → **Vollzugriff auf Festplatten** → Terminal/iTerm aktivieren → Mac neu starten.
+System Settings → Privacy & Security → **Full Disk Access** → enable Terminal/iTerm → restart the Mac.
 
-Hilft manchmal bei `cp` auf CPLAYBTBOOT — oft unzuverlässig.
+Sometimes helps with `cp` to CPLAYBTBOOT — often unreliable.
 
 ---
 
-## 5. SWD-Debugger
+## 5. SWD debugger
 
-Mit J-Link / DAPLink an den SWD-Pins:
+With a J-Link / DAPLink on the SWD pins:
 
 ```bash
 just flash-probe
@@ -67,6 +67,6 @@ just flash-probe
 
 ---
 
-## Erfolg erkennen
+## Recognizing success
 
-Nach Reset **1×**: D13 blinkt **3× kurz**, dann **langsam** — nicht dauerhaft grün (Bootloader), nicht CircuitPython-REPL.
+After Reset **1×**: D13 blinks **3× short**, then **slowly** — not permanently green (bootloader), not the CircuitPython REPL.

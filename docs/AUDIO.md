@@ -1,60 +1,60 @@
-# Audio (Lautsprecher CPB)
+# Audio (CPB speaker)
 
 ## Hardware
 
-| Pin | Funktion |
+| Pin | Function |
 |-----|----------|
-| P0.26 (D12) | PWM1 → Lautsprecher |
-| P1.04 (D11) | Verstärker Enable (HIGH = an) |
+| P0.26 (D12) | PWM1 → speaker |
+| P1.04 (D11) | Amplifier enable (HIGH = on) |
 
-PWM0 ist für NeoPixels reserviert.
+PWM0 is reserved for NeoPixels.
 
-## Color Picker — UI-Töne (Standard)
+## Color Picker — UI sounds (default)
 
-| Aktion | Button | Ton | Charakter |
-|--------|--------|-----|-----------|
-| **Farbe wechseln** | A (Skip, Auswahl) | 380 Hz, 55 ms, Duty 22 % | dezent, tief |
-| **Farbe übernehmen** | B (alle LEDs) | 784 Hz, 130 ms, Duty 34 % | höher, Enter-artig |
+| Action | Button | Tone | Character |
+|--------|--------|------|-----------|
+| **Change color** | A (skip, selection) | 380 Hz, 55 ms, duty 22 % | subtle, low |
+| **Confirm color** | B (all LEDs) | 784 Hz, 130 ms, duty 34 % | higher, enter-like |
 
-Implementierung: `speaker::play_skip()` / `speaker::play_apply()` in `color_picker.rs`.
+Implementation: `speaker::play_skip()` / `speaker::play_apply()` in `color_picker.rs`.
 
-Konstanten in `src/speaker.rs` anpassen.
+Adjust the constants in `src/speaker.rs`.
 
-## Empfänger-Countdown (Standard im Empfänger-Modus)
+## Receiver countdown (default in receiver mode)
 
-Pro Sekunde ein absteigender Ton, synchron zum CCW-Ausschalten der NeoPixels:
+One descending tone per second, in sync with the NeoPixels switching off counter-clockwise (CCW):
 
-| Sekunde | Ton (ca.) |
-|---------|-----------|
+| Second | Tone (approx.) |
+|--------|----------------|
 | 1–10 | 680 → 200 Hz (`src/countdown.rs`) |
 
-Implementierung: `countdown::run_once` nach Anzeige der Zufallsfarbe (`src/receiver.rs`).
+Implementation: `countdown::run_once` after the random color is shown (`src/receiver.rs`).
 
-## 12-Sekunden-Demo (aufgehoben)
+## 12-second demo (kept)
 
-Die Test-Sequenz (Gitarren-Reset → 10 absteigende Töne → Explosion) liegt in **`src/speaker_demo.rs`** und ist standardmäßig **aus**.
+The test sequence (guitar reset → 10 descending tones → explosion) lives in **`src/speaker_demo.rs`** and is **off** by default.
 
-Zum Testen bauen mit Feature:
+To test, build with the feature:
 
 ```bash
 cargo build --release --features speaker-demo
-# oder in Cargo.toml default erweitern; dann flash-v7 wie gewohnt
+# or extend default in Cargo.toml; then flash-v7 as usual
 ```
 
-In `main.rs` wird dann `speaker_demo_task` mitgestartet. **Nicht** parallel zur UI-Nutzung gedacht (beide nutzen PWM1).
+`speaker_demo_task` is then started in `main.rs`. **Not** intended for use in parallel with the UI (both use PWM1).
 
-### Demo-Ablauf
+### Demo sequence
 
-| Sekunde | Inhalt |
-|---------|--------|
-| 1 | Gitarren-Anschlag g–h–e |
-| 2–11 | Absteigende Tonleiter (680 → 200 Hz) |
-| 12 | Explosion (Sweep, volle Sekunde) |
+| Second | Content |
+|--------|---------|
+| 1 | Guitar strum g–b–e |
+| 2–11 | Descending scale (680 → 200 Hz) |
+| 12 | Explosion (sweep, full second) |
 
-## Relevante Dateien
+## Relevant files
 
-| Datei | Rolle |
-|-------|--------|
-| `src/speaker.rs` | PWM-Treiber, UI-Töne |
-| `src/speaker_demo.rs` | Demo-Sequenz (Feature `speaker-demo`) |
-| `src/color_picker.rs` | Ruft UI-Töne bei Buttons auf |
+| File | Role |
+|------|------|
+| `src/speaker.rs` | PWM driver, UI sounds |
+| `src/speaker_demo.rs` | Demo sequence (feature `speaker-demo`) |
+| `src/color_picker.rs` | Calls UI sounds on button presses |

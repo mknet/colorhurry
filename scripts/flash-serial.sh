@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Flashen ohne UF2-Laufwerk — per USB-Serial (adafruit-nrfutil)
-# Standard: S140 6.1.1 @ 0x26000 (--features sd-v6)
+# Flash without a UF2 drive — via USB serial (adafruit-nrfutil)
+# Default: S140 6.1.1 @ 0x26000 (--features sd-v6)
 # Alternative: just flash-serial-v7  →  S140 7.x @ 0x27000
 #
-# Bei „Device not configured“ (macOS): just flash-serial-dfu
-# (Board manuell in DFU, dann ohne --touch flashen)
+# On "Device not configured" (macOS): just flash-serial-dfu
+# (put the board into DFU manually, then flash without --touch)
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ case "$layout" in
     features="sd-v7"
     ;;
   v6|*)
-    # 0xFFFE = Adafruit-Standard „any SoftDevice“ — auf CPB zuverlässiger als 0x0101/0x0123
+    # 0xFFFE = Adafruit default "any SoftDevice" — more reliable on CPB than 0x0101/0x0123
     sd_req="0xFFFE"
     flash_base="0x26000"
     layout="v6"
@@ -32,7 +32,7 @@ esac
 dfu_manual="${DFU_MANUAL:-0}"
 
 if ! command -v adafruit-nrfutil &>/dev/null; then
-    echo "adafruit-nrfutil fehlt. Installieren:" >&2
+    echo "adafruit-nrfutil is missing. Install it:" >&2
     echo "  pip3 install adafruit-nrfutil" >&2
     exit 1
 fi
@@ -42,7 +42,7 @@ for c in arm-none-eabi-objcopy llvm-objcopy; do
     command -v "$c" &>/dev/null && objcopy="$c" && break
 done
 if [[ -z "$objcopy" ]]; then
-    echo "objcopy fehlt (arm-none-eabi-objcopy oder llvm-objcopy)." >&2
+    echo "objcopy is missing (arm-none-eabi-objcopy or llvm-objcopy)." >&2
     exit 1
 fi
 
@@ -71,7 +71,7 @@ wait_for_port() {
 
 touch_dfu() {
     local port=$1
-    echo "→ Touch $port @ 1200 Baud (weckt Serial-Bootloader)"
+    echo "→ Touch $port @ 1200 baud (wakes the serial bootloader)"
     local py=""
     for candidate in \
         "${ADAFRUIT_NRFUTIL_PYTHON:-}" \
@@ -92,13 +92,13 @@ time.sleep(0.3)
 s.close()
 PY
     else
-        echo "→ (pyserial nicht gefunden — nutze ggf. just flash-serial-dfu)"
+        echo "→ (pyserial not found — use just flash-serial-dfu if needed)"
     fi
-    echo "→ Warte 5 s auf USB-Reconnect …"
+    echo "→ Waiting 5 s for USB reconnect …"
     sleep 5
 }
 
-# adafruit-nrfutil gibt bei Fehlern oft Exit-Code 0 — Ausgabe prüfen!
+# adafruit-nrfutil often returns exit code 0 on errors — check the output!
 do_flash() {
     local port=$1
     local use_touch=${2:-0}
@@ -128,11 +128,11 @@ do_flash() {
     return 1
 }
 
-echo "→ Layout: $layout (App @ $flash_base, --sd-req $sd_req, --features $features)"
+echo "→ Layout: $layout (app @ $flash_base, --sd-req $sd_req, --features $features)"
 
 stamp="$root/target/.cpb-memory-layout"
 if [[ -f "$stamp" ]] && [[ "$(cat "$stamp")" != "$layout" ]]; then
-    echo "→ Anderes Layout als letztes Mal — cargo clean"
+    echo "→ Different layout than last time — cargo clean"
     (cd "$root" && cargo clean)
 fi
 mkdir -p "$root/target"
@@ -141,13 +141,13 @@ echo "$layout" > "$stamp"
 echo "→ cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --features $features"
 (cd "$root" && cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --features "$features")
 
-echo "→ ELF-Sektionen (Vector-Tabelle soll bei $flash_base beginnen):"
+echo "→ ELF sections (vector table should start at $flash_base):"
 arm-none-eabi-objdump -h "$elf" 2>/dev/null | grep -E "vector|Idx" || llvm-objdump -h "$elf" | grep -E "vector|Idx"
 
 echo "→ ELF → Intel-Hex"
 "$objcopy" -O ihex "$elf" "$hex"
 
-echo "→ DFU-Paket (--sd-req $sd_req)"
+echo "→ DFU package (--sd-req $sd_req)"
 adafruit-nrfutil dfu genpkg \
     --dev-type 0x0052 \
     --sd-req "$sd_req" \
@@ -156,23 +156,23 @@ adafruit-nrfutil dfu genpkg \
     "$zip"
 
 echo ""
-echo "=== Verfügbare USB-Serial-Ports ==="
+echo "=== Available USB serial ports ==="
 ls /dev/cu.usb* /dev/cu.usbmodem* 2>/dev/null || ls /dev/cu.* 2>/dev/null | head -10 || true
 
 if [[ "$dfu_manual" == "1" ]]; then
     echo ""
-    echo "=== Manueller DFU-Modus ==="
-    echo "  Jetzt: Button A (links) HALTEN → Reset 1× → A loslassen"
-    echo "  Du hast 8 Sekunden …"
+    echo "=== Manual DFU mode ==="
+    echo "  Now: HOLD Button A (left) → Reset 1× → release A"
+    echo "  You have 8 seconds …"
     sleep 8
 fi
 
 port="$(wait_for_port || true)"
 if [[ -z "$port" ]]; then
     echo "" >&2
-    echo "Kein Port gefunden. Board per USB verbinden, dann:" >&2
+    echo "No port found. Connect the board via USB, then:" >&2
     echo "  SERIAL_PORT=/dev/cu.usbmodemXXXX just flash-serial" >&2
-    echo "  oder: just flash-serial-dfu" >&2
+    echo "  or: just flash-serial-dfu" >&2
     exit 1
 fi
 
@@ -184,24 +184,24 @@ max_attempts=3
 
 for attempt in $(seq 1 "$max_attempts"); do
     echo ""
-    echo "=== Flash-Versuch $attempt/$max_attempts ==="
+    echo "=== Flash attempt $attempt/$max_attempts ==="
 
     port="$(wait_for_port || true)"
     if [[ -z "$port" ]]; then
-        echo "→ Kein Port — USB ab/zu, ggf. Reset 1×"
+        echo "→ No port — unplug/replug USB, Reset 1× if needed"
         sleep 3
         continue
     fi
     echo "→ Port: $port"
 
     if [[ "$dfu_manual" == "1" ]]; then
-        echo "→ Flashe (Board soll in DFU sein, kein Touch)"
+        echo "→ Flashing (board should be in DFU, no touch)"
         if do_flash "$port" 0 "$zip"; then
             flashed=1
             break
         fi
     elif [[ "$attempt" -eq 1 ]]; then
-        echo "→ Touch, dann Flash ohne --touch"
+        echo "→ Touch, then flash without --touch"
         touch_dfu "$port" || true
         port="$(wait_for_port || true)"
         if [[ -n "$port" ]] && do_flash "$port" 0 "$zip"; then
@@ -209,40 +209,40 @@ for attempt in $(seq 1 "$max_attempts"); do
             break
         fi
     else
-        echo "→ Erneuter Versuch (Board ggf. A+Reset für DFU)"
+        echo "→ Retrying (board may need A+Reset for DFU)"
         if do_flash "$port" 0 "$zip"; then
             flashed=1
             break
         fi
     fi
 
-    echo "→ Versuch fehlgeschlagen"
+    echo "→ Attempt failed"
     if [[ "$attempt" -lt "$max_attempts" && "$dfu_manual" != "1" ]]; then
-        echo "→ Tipp: Button A halten → Reset 1× → A loslassen, dann nochmal"
+        echo "→ Tip: hold Button A → Reset 1× → release A, then try again"
     fi
     sleep 3
 done
 
 echo ""
 if [[ "$flashed" != "1" ]]; then
-    echo "✗ Flash fehlgeschlagen." >&2
+    echo "✗ Flash failed." >&2
     echo "" >&2
-    echo "Am zuverlässigsten auf macOS:" >&2
-    echo "  1. Button A (links) halten → Reset 1× → A loslassen" >&2
+    echo "Most reliable on macOS:" >&2
+    echo "  1. Hold Button A (left) → Reset 1× → release A" >&2
     echo "  2. just flash-serial-dfu" >&2
     echo "" >&2
-    echo "Alternativen:" >&2
-    echo "  just flash-serial-v7     (S140 7.x / Flash @ 0x27000)" >&2
-    echo "  just flash-finder        (Reset 2× → UF2 auf CPLAYBTBOOT)" >&2
+    echo "Alternatives:" >&2
+    echo "  just flash-serial-v7     (S140 7.x / flash @ 0x27000)" >&2
+    echo "  just flash-finder        (Reset 2× → UF2 onto CPLAYBTBOOT)" >&2
     exit 1
 fi
 
 echo "✓ Flash OK (Device programmed)."
-echo "→ USB kurz abziehen, wieder an, Reset 1× (nicht 2×)."
-echo "→ Erwartung: NeoPixels + D13 blinken synchron (400 ms)."
+echo "→ Briefly unplug USB, plug it back in, Reset 1× (not 2×)."
+echo "→ Expected: NeoPixels + D13 blink in sync (400 ms)."
 echo ""
 if [[ "$layout" == "v6" ]]; then
-    echo "→ Blinkt nichts? Sehr oft falsche Flash-Adresse — dann:"
+    echo "→ Nothing blinking? Very often a wrong flash address — then:"
     echo "     just flash-serial-dfu-v7"
-    echo "  (App @ 0x27000 statt 0x26000)"
+    echo "  (app @ 0x27000 instead of 0x26000)"
 fi

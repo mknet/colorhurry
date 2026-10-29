@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Beobachtung nach Reset ins Debug-Log schreiben (vom User auszuführen)
+# Write an observation after reset to the debug log (to be run by the user)
 
 set -euo pipefail
 
@@ -13,4 +13,4 @@ mkdir -p "$(dirname "$LOG")"
 printf '{"sessionId":"%s","timestamp":%s,"hypothesisId":"VIS","location":"debug-observe.sh","message":"user_observation","data":{"observation":"%s"},"runId":"user-report"}\n' \
     "$SESSION" "$TS" "$OBS" >> "$LOG"
 
-echo "→ Beobachtung geloggt: $OBS"
+echo "→ Observation logged: $OBS"

@@ -1,4 +1,4 @@
-//! WS2812 über nRF52840 PWM @ 16 MHz (wie Embassy neopixel.rs — unabhängig von CPU-Takt).
+//! WS2812 via nRF52840 PWM @ 16 MHz (like Embassy neopixel.rs — independent of CPU clock).
 
 use core::sync::atomic::{compiler_fence, Ordering};
 
@@ -14,10 +14,10 @@ const T0H: u16 = 0x8000 | 7;
 const RES: u16 = 0x8000;
 const END_DELAY: u32 = 799;
 
-/// Max. Wert pro RGB-Kanal nach Skalierung (8 ≈ 3 % von 255).
+/// Max value per RGB channel after scaling (8 ≈ 3 % of 255).
 pub const MAX_CHANNEL: u8 = 8;
 
-/// Einzelnen Kanal auf `MAX_CHANNEL` begrenzen (linear skaliert).
+/// Cap a single channel to `MAX_CHANNEL` (linear scale).
 #[inline(never)]
 pub fn scale_channel(v: u8) -> u8 {
     if v == 0 {
@@ -26,7 +26,7 @@ pub fn scale_channel(v: u8) -> u8 {
     ((v as u32 * MAX_CHANNEL as u32) / 255) as u8
 }
 
-/// GRB-Farbe für WS2812
+/// GRB color for WS2812
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Rgb {
     pub r: u8,
@@ -150,13 +150,13 @@ pub fn power_on() {
     nrf_pac::P0.outclr().write_value(nrf_pac::gpio::regs::Outclr(1 << 6));
 }
 
-/// PWM + NeoPixel-Pin einmalig initialisieren (nach `power_on`).
+/// Initialize PWM + NeoPixel pin once (after `power_on`).
 pub fn init() {
     configure_neo_pin();
     init_pwm0();
 }
 
-/// Farben für alle 10 NeoPixels anzeigen (Index 0 = links neben USB, dann CCW).
+/// Show colors on all 10 NeoPixels (index 0 = left of USB, then CCW).
 pub fn show_pixels(colors: &[Rgb; NUM_LEDS]) {
     let mut dimmed = [Rgb::OFF; NUM_LEDS];
     for (d, s) in dimmed.iter_mut().zip(colors.iter()) {
@@ -167,7 +167,7 @@ pub fn show_pixels(colors: &[Rgb; NUM_LEDS]) {
     play_sequence(&seq);
 }
 
-/// Alle NeoPixels orange.
+/// All NeoPixels orange.
 #[allow(dead_code)]
 pub fn show_orange() {
     show_pixels(&[Rgb::ORANGE; NUM_LEDS]);

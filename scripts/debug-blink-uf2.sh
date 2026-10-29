@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Endlos-Blink-Test (pre_init only) als UF2 bauen + Host-Log
+# Build endless-blink test (pre_init only) as UF2 + host log
 
 set -euo pipefail
 
@@ -11,7 +11,7 @@ features="sd-v7,diag-preinit-only"
 elf="$root/target/thumbv7em-none-eabihf/release/color-hurry-cpb"
 uf2="$root/target/thumbv7em-none-eabihf/release/color-hurry-cpb-blink-${layout}.uf2"
 
-echo "→ Layout: $layout (Endlos-D13-Blink in pre_init)"
+echo "→ Layout: $layout (endless D13 blink in pre_init)"
 CPB_MEMORY="$layout" "$root/scripts/debug-host-log.sh" "blink-pre"
 
 (cd "$root" && cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --no-default-features --features "$features")
@@ -43,6 +43,6 @@ PY
 
 echo "→ UF2: $uf2"
 open -R "$uf2" 2>/dev/null || true
-open /Volumes/CPLAYBTBOOT 2>/dev/null || echo "→ Reset 2× (NeoPixels grün), dann UF2 auf CPLAYBTBOOT ziehen"
-echo "→ Erwartung nach Reset 1×: D13 blinkt DAUERHAFT (~2 Hz)"
-echo "→ Wenn nicht: SoftDevice/Bootloader reparieren (CircuitPython UF2)"
+open /Volumes/CPLAYBTBOOT 2>/dev/null || echo "→ Reset 2× (NeoPixels green), then drag UF2 onto CPLAYBTBOOT"
+echo "→ Expected after Reset 1×: D13 blinks CONTINUOUSLY (~2 Hz)"
+echo "→ If not: repair SoftDevice/bootloader (CircuitPython UF2)"

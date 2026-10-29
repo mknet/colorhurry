@@ -1,38 +1,38 @@
-# Bootloader / Flashen (CPLAYBTBOOT)
+# Bootloader / flashing (CPLAYBTBOOT)
 
-## Wichtig: welcher Taster?
+## Important: which button?
 
-| Taster | Position | Funktion |
+| Button | Position | Function |
 |--------|----------|----------|
-| **Reset** | **Mitte** (klein) | 1× = Neustart, **2× schnell** = UF2-Bootloader |
-| **Button A** | links | Im Spiel / **halten beim Reset** → Bootloader |
-| **Button B** | rechts | Im Spiel |
+| **Reset** | **Middle** (small) | 1× = restart, **2× fast** = UF2 bootloader |
+| **Button A** | left | In-game / **hold during reset** → bootloader |
+| **Button B** | right | In-game |
 
-**Nicht** Button A oder B zweimal drücken — das startet **keinen** Bootloader.
+Do **not** press Button A or B twice — that does **not** start a bootloader.
 
-## Bootloader starten (3 Wege)
+## Starting the bootloader (3 ways)
 
-### 1. Doppel-Reset (Standard)
+### 1. Double reset (default)
 
-1. USB-**Daten**kabel (kein reines Ladekabel)
-2. **Reset in der Mitte** zweimal **schnell** hintereinander (< 500 ms)
-3. NeoPixels: kurz **rot**, dann **grün**
-4. Im Finder: Laufwerk **CPLAYBTBOOT**
+1. USB **data** cable (not a charge-only cable)
+2. Press **Reset in the middle** twice **quickly** in a row (< 500 ms)
+3. NeoPixels: briefly **red**, then **green**
+4. In Finder: drive **CPLAYBTBOOT**
 
-### 2. Button A + Reset (zuverlässiger)
+### 2. Button A + Reset (more reliable)
 
-1. **Button A (links) gedrückt halten**
-2. Währenddessen **Reset (Mitte) einmal** tippen (oder USB kurz trennen und wieder verbinden, A weiter halten)
-3. **A loslassen**, wenn die NeoPixels grün werden
-4. **CPLAYBTBOOT** sollte erscheinen
+1. **Hold Button A (left)**
+2. While holding, tap **Reset (middle) once** (or briefly unplug and replug USB, keep holding A)
+3. **Release A** when the NeoPixels turn green
+4. **CPLAYBTBOOT** should appear
 
-*(Mit aktueller Firmware: **Button A halten**, USB einstecken oder **Reset 1×** → startet direkt in den Bootloader.)*
+*(With current firmware: **hold Button A**, plug in USB or **Reset 1×** → starts directly in the bootloader.)*
 
-### 3. Firmware schon drauf, Bootloader per Code
+### 3. Firmware already on the board, bootloader via code
 
-Mit geflaschter Firmware: **Button A halten**, **Reset 1×** → `GPREGRET` → UF2.
+With flashed firmware: **hold Button A**, **Reset 1×** → `GPREGRET` → UF2.
 
-## Prüfen am Mac
+## Checking on the Mac
 
 ```bash
 just boot-check
@@ -40,50 +40,50 @@ just boot-check
 
 ### `Permission denied` in `/Volumes/CPLAYBTBOOT`
 
-Kommt auf dem Mac oft vor — der Bootloader ist trotzdem aktiv.
+Happens often on the Mac — the bootloader is active anyway.
 
-- **Nicht** mit `cd` ins Laufwerk wechseln und `ls` machen
-- Stattdessen von außen kopieren:
+- Do **not** `cd` into the drive and run `ls`
+- Instead, copy from the outside:
 
 ```bash
-cp /pfad/zur/datei.uf2 /Volumes/CPLAYBTBOOT/
-# oder im Projekt:
+cp /path/to/file.uf2 /Volumes/CPLAYBTBOOT/
+# or, in the project:
 just flash
 ```
 
-Oder im **Finder**: `.uf2` auf das Icon **CPLAYBTBOOT** ziehen (ohne den Ordner zu öffnen).
+Or in **Finder**: drag the `.uf2` onto the **CPLAYBTBOOT** icon (without opening the folder).
 
-Falls auch `cp` scheitert: Laufwerk auswerfen, Reset 2×, erneut versuchen.  
-Optional: **Systemeinstellungen → Datenschutz → Vollzugriff auf Festplatten** → Terminal/iTerm aktivieren.
+If `cp` fails too: eject the drive, Reset 2×, try again.  
+Optional: **System Settings → Privacy → Full Disk Access** → enable Terminal/iTerm.
 
-USB-Gerät (Vendor 0x239A):
+USB device (vendor 0x239A):
 
 ```bash
 system_profiler SPUSBDataType | grep -A6 -i "239A\|Circuit"
 ```
 
-## Alle NeoPixels bleiben grün (nach erfolgreichem `just`)
+## All NeoPixels stay green (after a successful `just`)
 
-Das Board ist noch im **UF2-Bootloader**, die App läuft nicht. Häufige Ursachen:
+The board is still in the **UF2 bootloader**, the app isn't running. Common causes:
 
-1. **Falsche Flash-Adresse** — App muss ab `0x27000` gelinkt sein (`memory.x`). Nach Änderung: `just flash-clean`
-2. **GPREGRET / Button A** — ältere Firmware sprang bei gedrücktem A sofort in den Bootloader. Aktuelle Firmware setzt GPREGRET beim Start auf 0.
-3. **Finger weg von Button A** beim Reset nach dem Flash.
+1. **Wrong flash address** — the app must be linked at `0x27000` (`memory.x`). After a change: `just flash-clean`
+2. **GPREGRET / Button A** — older firmware jumped into the bootloader immediately when A was held. Current firmware sets GPREGRET to 0 at startup.
+3. **Hands off Button A** during the reset after flashing.
 
-Erwartung nach OK: **cyan blinkende** Rand-LEDs, **rote** D13 blinkt mit — **nicht** dauerhaft grün.
+Expected after OK: **cyan blinking** edge LEDs, **red** D13 blinks too — **not** permanently green.
 
-## Wenn kein Laufwerk kommt
+## If no drive appears
 
-- Anderes USB-Kabel / direkt am Mac (ohne Hub)
-- Anderen USB-Port
-- NeoPixels bleiben **rot** → oft Kabel/Port (kein Datenkontakt)
-- Doppel-Reset-Rhythmus variieren (schneller/langsamer)
-- **Button A + Reset** probieren
+- Different USB cable / directly on the Mac (no hub)
+- Different USB port
+- NeoPixels stay **red** → often cable/port (no data contact)
+- Vary the double-reset rhythm (faster/slower)
+- Try **Button A + Reset**
 
-## Flashen
+## Flashing
 
 ```bash
 just
 ```
 
-Wartet bis zu 60 s auf **CPLAYBTBOOT** (Reset kann nach `just`-Start erfolgen).
+Waits up to 60 s for **CPLAYBTBOOT** (the reset can happen after `just` has started).

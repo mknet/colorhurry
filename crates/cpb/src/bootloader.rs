@@ -1,9 +1,9 @@
-//! Adafruit-nRF52-Bootloader: UF2-Modus per GPREGRET (0x57)
+//! Adafruit nRF52 bootloader: UF2 mode via GPREGRET (0x57)
 //!
-//! Bootloader manuell: Reset 2× (Mitte) oder Button A halten + Reset 1×.
-//! Nicht beim normalen App-Start aufrufen — GPREGRET bleibt sonst gesetzt.
+//! Manual bootloader: reset 2× (center) or hold button A + reset once.
+//! Do not call on normal app start — GPREGRET would stay set.
 
-/// Nächster Reset startet den UF2-Bootloader (CPLAYBTBOOT).
+/// Next reset starts the UF2 bootloader (CPLAYBTBOOT).
 #[allow(dead_code)]
 pub fn enter_uf2() -> ! {
     nrf_pac::POWER.gpregret().write(|w| w.set_gpregret(0x57));

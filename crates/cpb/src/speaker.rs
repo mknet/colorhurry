@@ -1,6 +1,6 @@
-//! Lautsprecher über PWM1 @ P0.26 (D12/AUDIO), Verstärker-Enable P1.04 (D11).
+//! Speaker via PWM1 @ P0.26 (D12/AUDIO), amplifier enable P1.04 (D11).
 //!
-//! UI-Feedback: kurze Töne ohne Blockieren der Button-Schleife (`tone_service`).
+//! UI feedback: short tones without blocking the button loop (`tone_service`).
 
 use core::sync::atomic::{compiler_fence, Ordering};
 
@@ -14,12 +14,12 @@ const SPEAKER_PIN: u8 = 26;
 const AMP_ENABLE_PIN: usize = 4;
 const PWM_CLK_HZ: u32 = 1_000_000;
 
-/// Farbe wechseln (Button A / Skip) — dezent, kurz, eher tief.
+/// Color change (button A / skip) — soft, short, rather low.
 const SKIP_HZ: u32 = 380;
 const SKIP_MS: u32 = 55;
 const SKIP_DUTY_PCT: u32 = 22;
 
-/// Bestätigungston beim Übernehmen (Button B, alle LEDs) — höher, Enter-artig.
+/// Confirm tone when applying (button B, all LEDs) — higher, enter-like.
 const APPLY_HZ: u32 = 784;
 const APPLY_MS: u32 = 130;
 const APPLY_DUTY_PCT: u32 = 34;
@@ -27,7 +27,7 @@ const APPLY_DUTY_PCT: u32 = 34;
 static mut TONE_SEQ: [u16; 2] = [500, 500];
 static mut READY: bool = false;
 static mut TONE_ACTIVE: bool = false;
-/// Failsafe: `tone_service`-Aufrufe bis zum erzwungenen Stopp.
+/// Failsafe: `tone_service` calls until a forced stop.
 static mut TONE_MAX_SERVICES: u8 = 0;
 static mut TONE_SERVICE_COUNT: u8 = 0;
 
@@ -65,12 +65,12 @@ pub fn play_tone_ui(freq_hz: u32, duration_ms: u32) {
     play_ui_tone(freq_hz, duration_ms, duty_for_core_tone(freq_hz, duration_ms));
 }
 
-/// Dezenter Ton beim Wechsel zur nächsten Farbe — blockiert nicht.
+/// Soft tone when switching to the next color — non-blocking.
 pub fn play_skip() {
     play_ui_tone(SKIP_HZ, SKIP_MS, Some(SKIP_DUTY_PCT));
 }
 
-/// Bestätigungston beim Übernehmen — blockiert nicht.
+/// Confirm tone when applying — non-blocking.
 pub fn play_apply() {
     play_ui_tone(APPLY_HZ, APPLY_MS, Some(APPLY_DUTY_PCT));
 }
@@ -81,7 +81,7 @@ fn play_ui_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>) {
     start_tone(freq_hz, duration_ms, duty_pct, true);
 }
 
-/// In jeder UI-Schleife (vor und nach `render`) aufrufen.
+/// Call from every UI loop (before and after `render`).
 pub fn tone_service() {
     if !unsafe { TONE_ACTIVE } {
         return;
@@ -105,7 +105,7 @@ pub fn tone_service() {
     }
 }
 
-/// Absteigender „Explosion“-Sweep (nach Countdown ohne Treffer).
+/// Descending “explosion” sweep (after countdown without a hit).
 pub async fn play_explosion() {
     const STEPS: u32 = 10;
     const START_HZ: u32 = 180;
@@ -118,7 +118,7 @@ pub async fn play_explosion() {
     }
 }
 
-/// Einzelton für Countdown/Demo: volle `duration_ms` (wie früher per Timer, ohne UI-Failsafe).
+/// Single tone for countdown/demo: full `duration_ms` (as with the old timer path, no UI failsafe).
 pub async fn play_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>) {
     ensure_init();
     stop_tone();
@@ -210,7 +210,7 @@ fn start_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>, ui_failsafe
     pwm.tasks_stop().write_value(1);
     pwm.enable().write(|w| w.set_enable(false));
     pwm.countertop().write(|w| w.set_countertop(top));
-    // LOOP=0 wäre Endlosschleife — Dauer über berechnete Wiederholungen.
+    // LOOP=0 would be infinite — duration comes from computed repetitions.
     pwm.loop_().write(|w| w.set_cnt(LoopCnt::from_bits(loops)));
     pwm.dma()
         .seq(0)
@@ -241,7 +241,7 @@ fn start_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>, ui_failsafe
     }
 }
 
-/// Lautsprecher sofort abschalten (z. B. nach Moduswahl-Bestätigungston).
+/// Silence the speaker immediately (e.g. after the mode-select confirm tone).
 pub fn stop_tone() {
     let pwm = nrf_pac::PWM1;
     pwm.tasks_stop().write_value(1);

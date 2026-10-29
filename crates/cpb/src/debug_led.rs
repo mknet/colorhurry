@@ -1,4 +1,4 @@
-//! D13 (P1.14, active high) — BLE-/Layout-Diagnose ohne Serial.
+//! D13 (P1.14, active high) — BLE/layout diagnostics without serial.
 
 use nrf_pac::gpio::vals::{Dir, Input, Pull};
 
@@ -23,7 +23,7 @@ fn delay_ms(ms: u32) {
     crate::time::delay_ms(ms);
 }
 
-/// Kurze Blink-Sequenz (Anzahl = Info-Code).
+/// Short blink sequence (count = info code).
 pub fn blink(count: u32) {
     for _ in 0..count {
         on();
@@ -33,7 +33,7 @@ pub fn blink(count: u32) {
     }
 }
 
-/// Beim Start: 2× = Firmware v6 (0x26000), 4× = v7 (0x27000, BLE).
+/// At start: 2× = firmware v6 (0x26000), 4× = v7 (0x27000, BLE).
 pub fn show_flash_layout() {
     #[cfg(cpb_memory_v7)]
     blink(4);
@@ -42,21 +42,21 @@ pub fn show_flash_layout() {
     delay_ms(300);
 }
 
-/// SoftDevice aktiv — 1 langer Blink (blockiert den Executor — nur vor Task-Start).
+/// SoftDevice active — 1 long blink (blocks the executor — only before task start).
 pub fn signal_softdevice_ok() {
     on();
     delay_ms(500);
     off();
 }
 
-/// Wie oben, ohne andere Embassy-Tasks zu blockieren.
+/// Same as above, without blocking other Embassy tasks.
 pub async fn signal_softdevice_ok_async() {
     on();
     crate::time::delay_ms_async(500).await;
     off();
 }
 
-/// Advertising-Fehler — schnelles Stroboskop.
+/// Advertising error — fast strobe.
 pub fn signal_advertising_error() {
     for _ in 0..8 {
         on();

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# UF2 auf CPLAYBTBOOT — unter macOS oft nur per Finder möglich.
+# UF2 onto CPLAYBTBOOT — on macOS often only possible via Finder.
 
 set -euo pipefail
 
@@ -30,11 +30,11 @@ flash_ok() {
 
 try_copy() {
     local src="$1" dest="$2"
-    # 1) cp ohne xattrs
+    # 1) cp without xattrs
     if COPYFILE_DISABLE=1 cp -X "$src" "$dest" 2>/dev/null; then
         return 0
     fi
-    # 2) cat (umgeht manchmal cp/fcopyfile)
+    # 2) cat (sometimes bypasses cp/fcopyfile)
     if cat "$src" > "$dest" 2>/dev/null; then
         return 0
     fi
@@ -50,41 +50,41 @@ open_finder_flash() {
     uf2_abs=$(cd "$(dirname "$uf2")" && pwd)/$(basename "$uf2")
     echo ""
     echo "════════════════════════════════════════════════════════════"
-    echo "  macOS blockiert Terminal-Kopieren auf CPLAYBTBOOT."
-    echo "  Bitte im Finder ziehen:"
+    echo "  macOS blocks copying to CPLAYBTBOOT from the terminal."
+    echo "  Please drag in Finder:"
     echo ""
     echo "  $uf2_abs"
-    echo "  → auf das Symbol „CPLAYBTBOOT“ (nicht in den Ordner)"
+    echo "  → onto the 'CPLAYBTBOOT' icon (not into the folder)"
     echo "════════════════════════════════════════════════════════════"
     open -R "$uf2_abs" 2>/dev/null || true
     [[ -d /Volumes/CPLAYBTBOOT ]] && open /Volumes/CPLAYBTBOOT 2>/dev/null || true
 }
 
-echo "→ Warte auf CPLAYBTBOOT (NeoPixels grün) …"
+echo "→ Waiting for CPLAYBTBOOT (NeoPixels green) …"
 deadline=$(( $(date +%s) + timeout_secs ))
 
 while true; do
     if vol=$(find_boot_volume); then
         dest="$vol/$name"
-        echo "→ Kopiere nach $vol/ …"
+        echo "→ Copying to $vol/ …"
 
         if try_copy "$uf2" "$dest"; then
             sync 2>/dev/null || true
             sleep 1.5
             if flash_ok "$vol"; then
-                echo "→ OK — Board startet neu."
-                echo "→ Erwartung: 2 s ORANGE, dann cyan blinken."
+                echo "→ OK — board is restarting."
+                echo "→ Expected: 2 s ORANGE, then blinking cyan."
                 exit 0
             fi
         fi
 
-        echo "→ Automatisch kopieren fehlgeschlagen (Permission denied ist normal auf dem Mac)." >&2
+        echo "→ Automatic copy failed (Permission denied is normal on the Mac)." >&2
         open_finder_flash
         exit 1
     fi
 
     if (( $(date +%s) >= deadline )); then
-        echo "Fehler: CPLAYBTBOOT nicht gefunden. Reset 2× (Mitte)." >&2
+        echo "Error: CPLAYBTBOOT not found. Reset 2× (middle)." >&2
         exit 1
     fi
     sleep 0.5

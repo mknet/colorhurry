@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cargo runner: ELF → UF2 → Boot-Laufwerk kopieren
+# Cargo runner: ELF → UF2 → copy to boot drive
 
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"

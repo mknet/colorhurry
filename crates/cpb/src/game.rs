@@ -1,4 +1,4 @@
-//! Spielablauf: Modus wählen → BLE starten → Core-Shell (Picker/Empfänger).
+//! Game flow: choose mode → start BLE → core shell (picker/receiver).
 
 use embassy_executor::Spawner;
 

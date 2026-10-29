@@ -1,6 +1,6 @@
-//! 12-Sekunden-Demo (Reset → Tonleiter → Explosion) — standardmäßig aus.
+//! 12-second demo (reset → scale → explosion) — off by default.
 //!
-//! Aktivieren: Feature `speaker-demo` in `Cargo.toml` und `speaker_task` in `main.rs`.
+//! Enable: feature `speaker-demo` in `Cargo.toml` and `speaker_task` in `main.rs`.
 
 use crate::speaker;
 use crate::time;

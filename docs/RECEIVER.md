@@ -1,28 +1,28 @@
-# Empfänger-Modus
+# Receiver mode
 
 ## Setup
 
-Position **5–9** am Ring (rechte Hälfte), Button **B** → Empfänger mit Kanal 0–4.
+Position **5–9** on the ring (right half), Button **B** → receiver with channel 0–4.
 
-Die **Kanalfarbe** dient nur der Identität im Setup — sie bestimmt **nicht** die Spiel-Farbe.
+The **channel color** serves only as an identity in setup — it does **not** determine the game color.
 
-## Laufzeit
+## Runtime
 
-1. **Zufallsfarbe** aus dem 10er-Spektrum, alle LEDs an.
-2. Sofort **10-Sekunden-Countdown** (LEDs CCW aus + absteigender Ton).
-3. Während des Countdowns: BLE-Scan auf passenden Picker-`CMD_COLOR`.
-   - **Treffer:** Countdown bricht ab → **keine** Explosion → neue Zufallsfarbe.
-   - **Kein Treffer:** nach Countdown **Explosion** (Sweep 180→45 Hz) → neue Zufallsfarbe.
-4. Button **A** bricht den Countdown ab (wie Treffer, ohne Explosion).
+1. **Random color** from the 10-color spectrum, all LEDs on.
+2. Immediately a **10-second countdown** (LEDs off CCW + descending tone).
+3. During the countdown: BLE scan for a matching picker `CMD_COLOR`.
+   - **Hit:** countdown aborts → **no** explosion → new random color.
+   - **No hit:** after the countdown, **explosion** (sweep 180→45 Hz) → new random color.
+4. Button **A** aborts the countdown (like a hit, without explosion).
 
 ## BLE
 
-Empfänger scannt während des Countdowns. Picker sendet `CMD_COLOR` erst nach Farbbestätigung (Button B). **Kanal** im Payload muss zum Setup passen (z. B. beide „blau“ = Kanal 3); sonst wird das Paket ignoriert. RGB muss exakt zur aktuellen Zufallsfarbe passen.
+The receiver scans during the countdown. The picker sends `CMD_COLOR` only after color confirmation (Button B). The **channel** in the payload must match the setup (e.g. both "blue" = channel 3); otherwise the packet is ignored. RGB must match the current random color exactly.
 
-## Dateien
+## Files
 
-| Datei | Rolle |
-|-------|--------|
-| `src/receiver.rs` | Schleife + Explosion |
-| `src/countdown.rs` | LED + Ton, Abbruch per Callback |
+| File | Role |
+|------|------|
+| `src/receiver.rs` | Loop + explosion |
+| `src/countdown.rs` | LED + tone, abort via callback |
 | `src/speaker.rs` | `play_explosion()` |

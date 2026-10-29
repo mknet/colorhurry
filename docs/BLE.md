@@ -1,70 +1,70 @@
-# BLE-Broadcast (Color Hurry CPB)
+# BLE Broadcast (Color Hurry CPB)
 
-Das Board sendet parallel zum **Color Picker** ein BLE-Kommando per **non-connectable Advertising** (Manufacturer Data im Werbepaket). Keine Verbindung nötig.
+In parallel with the **Color Picker**, the board sends a BLE command via **non-connectable advertising** (manufacturer data in the advertising packet). No connection required.
 
-> **Hintergrund / Troubleshooting:** Warum BLE anfangs unsichtbar blieb und was dafür nötig war (SoftDevice 7.0.1, Flash-Layout, DFU-Paket, async Tasks) → [ERKENNTNISSE-BLE-FIX.md](ERKENNTNISSE-BLE-FIX.md)
+> **Background / troubleshooting:** Why BLE was initially invisible and what it took to fix it (SoftDevice 7.0.1, flash layout, DFU package, async tasks) → [FINDINGS-BLE-FIX.md](FINDINGS-BLE-FIX.md)
 
-## Wichtig: SoftDevice-Version
+## Important: SoftDevice version
 
-| Auf dem Chip (Adafruit Restore) | Rust-Bibliothek `nrf-softdevice-s140` |
+| On the chip (Adafruit restore) | Rust library `nrf-softdevice-s140` |
 |----------------------------------|----------------------------------------|
-| **S140 6.1.1** (Standard)        | **S140 7.0.1**                         |
+| **S140 6.1.1** (default)         | **S140 7.0.1**                         |
 
-**Das ist der Grund, warum du kein `ColorHurry-CPB` siehst**, obwohl der Color Picker läuft: `Softdevice::enable()` / Advertising schlagen mit 6.1.1 still fehl — am Handy erscheint nichts Sinnvolles (nur fremde **N/A**-Einträge).
+**This is why you don't see `ColorHurry-CPB`** even though the Color Picker is running: `Softdevice::enable()` / advertising fail silently with 6.1.1 — nothing useful shows up on your phone (only foreign **N/A** entries).
 
-### Einmalige Einrichtung für BLE
+### One-time setup for BLE
 
 ```bash
 just setup-ble
 ```
 
-Das macht:
+This does:
 
-1. `upgrade-softdevice-v7` — SoftDevice **7.0.1** per Serial-DFU (Button A + Reset)
-2. `flash-v7` — App @ **0x27000** (`sd-v7`)
+1. `upgrade-softdevice-v7` — SoftDevice **7.0.1** via serial DFU (Button A + Reset)
+2. `flash-v7` — app @ **0x27000** (`sd-v7`)
 
-**Manuell:**
+**Manually:**
 
 ```bash
-just upgrade-softdevice-v7   # nur SoftDevice tauschen
-just flash-v7                # App bauen + flashen
+just upgrade-softdevice-v7   # only swap the SoftDevice
+just flash-v7                # build + flash the app
 ```
 
-Ohne BLE (nur Color Picker, wie früher): weiterhin `just restore-and-flash` + `just flash` (v6 / 6.1.1).
+Without BLE (Color Picker only, as before): keep using `just restore-and-flash` + `just flash` (v6 / 6.1.1).
 
-## Architektur
+## Architecture
 
-| Task | Modul | Aufgabe |
-|------|-------|---------|
-| SoftDevice | `main.rs` | `sd.run()` — Radio-Stack |
-| BLE | `ble_broadcast.rs` | Advertising mit Kommando-Payload (Picker) |
-| UI | `game.rs` | Moduswahl → Picker oder Empfänger |
+| Task | Module | Purpose |
+|------|--------|---------|
+| SoftDevice | `main.rs` | `sd.run()` — radio stack |
+| BLE | `ble_broadcast.rs` | Advertising with command payload (picker) |
+| UI | `game.rs` | Mode selection → picker or receiver |
 
-### Picker vs. Empfänger
+### Picker vs. receiver
 
-- **Picker:** sendet `CMD_COLOR` nur nach **Button B** (alle LEDs in der Farbe), nicht während der Auswahl.
-- **Empfänger:** zeigt Zufallsfarbe, **scannt** nach passendem `CMD_COLOR`, bei Treffer Countdown → neue Zufallsfarbe.
-- **Kanal** (0–4, Setup-Farbe links): Picker sendet Kanal im Payload; Empfänger ignoriert andere Kanäle.
+- **Picker:** sends `CMD_COLOR` only after **Button B** (all LEDs in that color), not during selection.
+- **Receiver:** shows a random color, **scans** for a matching `CMD_COLOR`; on a hit, countdown → new random color.
+- **Channel** (0–4, setup color on the left): the picker sends the channel in the payload; the receiver ignores other channels.
 
-## Gerätename
+## Device name
 
-**`ColorHurry-CPB`** — im Werbepaket (`full_name`) und im GAP-Stack (`gap_device_name`). In nRF Connect sollte der Name **namentlich** erscheinen (nicht nur N/A).
+**`ColorHurry-CPB`** — in the advertising packet (`full_name`) and in the GAP stack (`gap_device_name`). In nRF Connect the name should appear **by name** (not just N/A).
 
-## Protokoll (Manufacturer Data)
+## Protocol (manufacturer data)
 
-Company ID: **Adafruit `0x239A`**, danach:
+Company ID: **Adafruit `0x239A`**, followed by:
 
-| Offset | Feld | Wert |
-|--------|------|------|
+| Offset | Field | Value |
+|--------|-------|-------|
 | 0 | Magic | `'S'` (`0x53`) |
 | 1 | Version | `0x03` |
 | 2 | Opcode | `0x03` = CMD_COLOR |
-| 3 | Kanal | 0–4 (wie `palette::CHANNEL_COLORS` im Setup) |
-| 4 | Rot | 0–255 (Palette, ungedimmt) |
-| 5 | Grün | 0–255 |
-| 6 | Blau | 0–255 |
+| 3 | Channel | 0–4 (like `palette::CHANNEL_COLORS` in setup) |
+| 4 | Red | 0–255 (palette, undimmed) |
+| 5 | Green | 0–255 |
+| 6 | Blue | 0–255 |
 
-Beispiel Kanal 2 (grün), Farbe Rot: `53 03 03 02 FF 00 00`. Gesendet wird nur die **bestätigte** Farbe (Picker, Phase „Applied“).
+Example channel 2 (green), color red: `53 03 03 02 FF 00 00`. Only the **confirmed** color is sent (picker, "Applied" phase).
 
 ### Firmware
 
@@ -72,60 +72,60 @@ Beispiel Kanal 2 (grün), Farbe Rot: `53 03 03 02 FF 00 00`. Gesendet wird nur d
 ble_broadcast::set_picker_broadcast(Some(Rgb { r: 255, g: 120, b: 0 }));
 ```
 
-**Live-Updates beim Skippen:** Advertising wird alle **~50 ms** neu gestartet (`config.timeout = 5`), damit `set_color()` auch wirklich im Funk ankommt. Ohne Timeout bliebe die Manufacturer Data beim Startwert (Rot).
+**Live updates while skipping:** advertising is restarted every **~50 ms** (`config.timeout = 5`) so that `set_color()` actually reaches the radio. Without the timeout, the manufacturer data would stay at the initial value (red).
 
-## D13-Diagnose (ohne Handy)
+## D13 diagnostics (without a phone)
 
-Nach Reset 1× die **rote D13-LED** (neben USB) beobachten:
+After a reset, watch the **red D13 LED** (next to USB) once:
 
-| D13-Muster | Bedeutung |
-|------------|-----------|
-| **4× kurz** beim Start | Firmware **v7** (0x27000) — richtig für BLE |
-| **2× kurz** beim Start | Firmware **v6** (0x26000) — **falsch für BLE** → `just flash-v7` |
-| **1× lang** (~0,5 s) | SoftDevice OK |
-| **Danach ruhig** | Advertising läuft (Payload-Refresh alle ~50 ms, ohne D13-Feedback) |
-| **Schnelles Stroboskop** (8×) | Advertising-Fehler — SD-Version passt nicht |
-| **Nur 4×, sonst nichts** | SoftDevice-Init scheitert (Panic) — SD-Upgrade nötig |
-| **Dauerndes Zucken** | Alte Firmware: D13-Blink pro Adv-Timeout — `just flash-v7` |
+| D13 pattern | Meaning |
+|-------------|---------|
+| **4× short** at startup | Firmware **v7** (0x27000) — correct for BLE |
+| **2× short** at startup | Firmware **v6** (0x26000) — **wrong for BLE** → `just flash-v7` |
+| **1× long** (~0.5 s) | SoftDevice OK |
+| **Quiet afterwards** | Advertising is running (payload refresh every ~50 ms, no D13 feedback) |
+| **Fast strobe** (8×) | Advertising error — SD version doesn't match |
+| **Only 4×, nothing else** | SoftDevice init fails (panic) — SD upgrade needed |
+| **Constant flickering** | Old firmware: D13 blink per adv timeout — `just flash-v7` |
 
-NeoPixels (Color Picker) können **gleichzeitig** blinken — das ist normal.
+NeoPixels (Color Picker) may blink **at the same time** — that is normal.
 
-## Test mit nRF Connect
+## Testing with nRF Connect
 
-**Wichtig:** Am **iPhone/iPad** mit der App **nRF Connect** scannen — nicht am Mac. macOS zeigt oft nur den MacBook-Namen, CPB-Geräte fehlen oder erscheinen als N/A.
+**Important:** Scan on an **iPhone/iPad** with the **nRF Connect** app — not on the Mac. macOS often shows only the MacBook's name; CPB devices are missing or appear as N/A.
 
-1. `just setup-ble` (einmalig) oder nach SD-Upgrade: `just flash-v7`
-2. Scanner → **`ColorHurry-CPB`** oder **`ColHurry`**
-3. Manufacturer data: **`0x239A`**, Payload z. B. **`53 03 03 00 FF 00 00`** (Kanal 0, Rot) — ändert sich beim Skippen im Color Picker
+1. `just setup-ble` (once) or, after an SD upgrade: `just flash-v7`
+2. Scanner → **`ColorHurry-CPB`** or **`ColHurry`**
+3. Manufacturer data: **`0x239A`**, payload e.g. **`53 03 03 00 FF 00 00`** (channel 0, red) — changes while skipping in the Color Picker
 
-## Fehler: „Device not configured“ beim Upgrade
+## Error: "Device not configured" during upgrade
 
-Der Adafruit-Serial-Bootloader braucht ein **`softdevice_bootloader`**-DFU-Paket (SoftDevice + Bootloader zusammen), wie bei `just restore-and-flash` — kein reines SoftDevice-Paket.
+The Adafruit serial bootloader needs a **`softdevice_bootloader`** DFU package (SoftDevice + bootloader together), as with `just restore-and-flash` — not a SoftDevice-only package.
 
-Auf **macOS** bricht USB oft kurz ab (`Device not configured`). Das Skript versucht **3×**. Manuell:
+On **macOS**, USB often drops briefly (`Device not configured`). The script tries **3×**. Manually:
 
-1. **Button A halten → Reset 1× → A loslassen** (DFU-Modus)
-2. Sofort:
+1. **Hold Button A → Reset 1× → release A** (DFU mode)
+2. Immediately:
 
 ```bash
 DFU_MANUAL=1 just upgrade-softdevice-v7
 just flash-v7
 ```
 
-Erfolg: Meldung `Device programmed.` — danach USB ab, 5 s warten, einstecken, Reset 1×.
+Success: message `Device programmed.` — then unplug USB, wait 5 s, plug in, Reset 1×.
 
-## Kommando ändern (Firmware)
+## Changing the command (firmware)
 
 ```rust
 ble_broadcast::set_command(ble_broadcast::protocol::CMD_READY);
 ```
 
-## Relevante Dateien
+## Relevant files
 
-| Datei | Rolle |
-|-------|--------|
-| [ERKENNTNISSE-BLE-FIX.md](ERKENNTNISSE-BLE-FIX.md) | Debug-Session: alle Fixes chronologisch |
-| `src/ble_broadcast.rs` | SoftDevice, Advertising, Name, Protokoll |
-| `src/main.rs` | Embassy-Tasks |
-| `memory-s140-v7.x` | App @ `0x27000` (mit S140 7.x) |
+| File | Role |
+|------|------|
+| [FINDINGS-BLE-FIX.md](FINDINGS-BLE-FIX.md) | Debug session: all fixes in chronological order |
+| `src/ble_broadcast.rs` | SoftDevice, advertising, name, protocol |
+| `src/main.rs` | Embassy tasks |
+| `memory-s140-v7.x` | App @ `0x27000` (with S140 7.x) |
 | `scripts/upgrade-softdevice-v7.sh` | SD 6.1.1 → 7.0.1 |

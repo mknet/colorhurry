@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Host-seitige Diagnose → NDJSON-Log (Hypothesen H1/H2/H5)
+# Host-side diagnostics → NDJSON log (hypotheses H1/H2/H5)
 
 set -euo pipefail
 
@@ -22,7 +22,7 @@ log() {
 
 mkdir -p "$(dirname "$LOG")"
 
-# H1/H5: Link-Adresse vs. erwartete App-Basis
+# H1/H5: link address vs. expected app base
 if [[ -f "$ELF" ]]; then
     vt=$(arm-none-eabi-readelf -l "$ELF" 2>/dev/null | awk '/LOAD/{print $3; exit}' || echo "missing")
     entry=$(arm-none-eabi-readelf -h "$ELF" 2>/dev/null | awk '/Entry/{print $4}' || echo "missing")
@@ -51,12 +51,12 @@ else
     log "H1" "elf_missing" "{\"layout\":\"$LAYOUT\",\"path\":\"$ELF\"}"
 fi
 
-# H5: gleiche Basis wie ELF (Intel-Hex-Parser war unzuverlässig)
+# H5: same base as ELF (Intel-Hex parser was unreliable)
 if [[ -f "$ELF" && "$vt" != "missing" ]]; then
     log "H5" "flash_base_from_elf" "{\"layout\":\"$LAYOUT\",\"flash_base\":\"$vt\"}"
 fi
 
-# H2: Bootloader / USB-Zustand
+# H2: bootloader / USB state
 boot=""
 if [[ -d /Volumes/CPLAYBTBOOT ]]; then
     boot="CPLAYBTBOOT_mounted"

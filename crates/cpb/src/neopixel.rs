@@ -1,4 +1,4 @@
-//! WS2812-NeoPixels (10×) an P0.13 — Circuit Playground Bluefruit
+//! WS2812 NeoPixels (10×) on P0.13 — Circuit Playground Bluefruit
 
 use embassy_nrf::gpio::{OutputDrive, Pin as GpioPin};
 use embassy_nrf::peripherals::PWM0;
@@ -8,10 +8,10 @@ use embassy_nrf::pwm::{
 use embassy_nrf::Peri;
 use embassy_time::Timer;
 
-/// Anzahl NeoPixels am Rand des Boards
+/// Number of NeoPixels around the board edge
 pub const NUM_LEDS: usize = 10;
 
-/// RGB-Farbe (wird als GRB an WS2812 gesendet)
+/// RGB color (sent as GRB to WS2812)
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Rgb {
     pub r: u8,
@@ -30,12 +30,12 @@ impl Rgb {
 
 const SEQ_LEN: usize = NUM_LEDS * 24 + 1;
 
-// WS2812: invertierte Polarität (High-Bit gesetzt), 1.25 µs Bitzeit @ 16 MHz / 20 Ticks
+// WS2812: inverted polarity (high bit set), 1.25 µs bit time @ 16 MHz / 20 ticks
 const T1H: u16 = 0x8000 | 13;
 const T0H: u16 = 0x8000 | 7;
 const RES: u16 = 0x8000;
 
-/// NeoPixel-Treiber über PWM-Sequenzer
+/// NeoPixel driver via PWM sequencer
 pub struct NeoPixel<'d> {
     pwm: SequencePwm<'d>,
     seq_words: [u16; SEQ_LEN],
@@ -43,7 +43,7 @@ pub struct NeoPixel<'d> {
 }
 
 impl<'d> NeoPixel<'d> {
-    /// NeoPixel-Datenleitung: P0.13 (D8)
+    /// NeoPixel data line: P0.13 (D8)
     pub fn new(pwm0: Peri<'d, PWM0>, pin: Peri<'d, impl GpioPin>) -> Self {
         let mut config = Config::default();
         config.sequence_load = SequenceLoad::Common;
@@ -53,7 +53,7 @@ impl<'d> NeoPixel<'d> {
         let pwm = SequencePwm::new_1ch(pwm0, pin, config).unwrap();
 
         let mut seq_config = SequenceConfig::default();
-        // ~50 µs Reset nach der Sequenz (wie Embassy-Beispiel)
+        // ~50 µs reset after the sequence (as in the Embassy example)
         seq_config.end_delay = 799;
 
         let mut this = Self {
@@ -65,7 +65,7 @@ impl<'d> NeoPixel<'d> {
         this
     }
 
-    /// Alle 10 LEDs setzen (noch nicht senden — `show` aufrufen)
+    /// Set all 10 LEDs (do not send yet — call `show`)
     pub fn set_colors(&mut self, colors: &[Rgb; NUM_LEDS]) {
         let mut i = 0;
         for c in colors {
@@ -74,7 +74,7 @@ impl<'d> NeoPixel<'d> {
         self.seq_words[i] = RES;
     }
 
-    /// Eine Farbe auf alle LEDs
+    /// One color on all LEDs
     pub fn fill(&mut self, color: Rgb) {
         self.set_colors(&[color; NUM_LEDS]);
     }
@@ -83,11 +83,11 @@ impl<'d> NeoPixel<'d> {
         self.fill(Rgb::OFF);
     }
 
-    /// Farbdaten an die LEDs senden
+    /// Send color data to the LEDs
     pub async fn show(&mut self) {
         let seq = SingleSequencer::new(&mut self.pwm, &self.seq_words, self.seq_config.clone());
         seq.start(SingleSequenceMode::Times(1)).unwrap();
-        // WS2812 braucht Zeit für die komplette Sequenz + Reset (~400 µs für 10 LEDs)
+        // WS2812 needs time for the full sequence + reset (~400 µs for 10 LEDs)
         Timer::after_millis(2).await;
     }
 }

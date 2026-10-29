@@ -1,6 +1,6 @@
-//! App-Zeitbasis: TIMER4 @ 1 MHz.
+//! App time base: TIMER4 @ 1 MHz.
 //!
-//! Mit S140 sind TIMER2/TIMER3 vom SoftDevice belegt — TIMER4 ist für die App frei.
+//! With S140, TIMER2/TIMER3 are claimed by the SoftDevice — TIMER4 is free for the app.
 
 use nrf_pac::timer::vals::{Bitmode, Mode};
 
@@ -26,9 +26,9 @@ fn init() {
     t.prescaler().write(|w| w.set_prescaler(4)); // 16 MHz → 1 MHz
 }
 
-/// Blockiert für `ms` Millisekunden (hardware-getaktet).
+/// Blocks for `ms` milliseconds (hardware-timed).
 ///
-/// **Nur vor SoftDevice-Start** oder aus ISR-freien Kontexten ohne laufenden SD-Stack.
+/// **Only before SoftDevice start**, or from ISR-free contexts without a running SD stack.
 pub fn delay_ms(ms: u32) {
     if ms == 0 {
         return;
@@ -46,7 +46,7 @@ pub fn delay_ms(ms: u32) {
     t.tasks_stop().write_value(1);
 }
 
-/// Async-Wartezeit für UI/Spiel/Countdown (TIMER4 — SD-kompatibel).
+/// Async wait for UI/game/countdown (TIMER4 — SoftDevice-safe).
 pub async fn delay_ms_async(ms: u32) {
     if ms == 0 {
         return;

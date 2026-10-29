@@ -1,41 +1,41 @@
-# Color Picker (Picker-Modus)
+# Color Picker (picker mode)
 
-## Start: Moduswahl
+## Start: mode selection
 
-Nach Reset erscheint der **Setup-Ring**:
+After a reset, the **setup ring** appears:
 
-### Modus + Kanal (Setup)
+### Mode + channel (setup)
 
-| Anzeige | **5 Kanalfarben** links (blink), rechts **eine** LED an (Radio) |
+| Display | **5 channel colors** on the left (blinking), **one** LED on the right (radio) |
 
-| Taste | Aktion |
-|-------|--------|
-| **A** | Nächster Ring-Schritt (CCW, Lila links → Lila rechts) |
-| **B** | Start (0–4 = Picker, 5–9 = Empfänger) |
+| Button | Action |
+|--------|--------|
+| **A** | Next ring step (CCW, purple left → purple right) |
+| **B** | Start (0–4 = picker, 5–9 = receiver) |
 
-Kanäle: `palette::CHANNEL_COLORS` (5 Farben).
+Channels: `palette::CHANNEL_COLORS` (5 colors).
 
-### Farbauswahl (Picker-Modus)
+### Color selection (picker mode)
 
-Alle **10** LEDs = `palette::SPECTRUM` (weiß … rosa), gewählte blinkt aus — **getrennt** vom Kanal-Setup.
+All **10** LEDs = `palette::SPECTRUM` (white … pink), the selected one blinks off — **separate** from the channel setup.
 
-## Picker-Laufzeit
+## Picker runtime
 
-| Taste | Aktion |
-|-------|--------|
-| **A** | Nächste Farbe (10 Spektrumfarben am Ring) |
-| **B** | Farbe übernehmen → **alle 10** LEDs; BLE sendet `CMD_COLOR` (nur dann) |
+| Button | Action |
+|--------|--------|
+| **A** | Next color (10 spectrum colors on the ring) |
+| **B** | Confirm color → **all 10** LEDs; BLE sends `CMD_COLOR` (only then) |
 
-Töne: `speaker::play_skip` / `play_apply`.
+Sounds: `speaker::play_skip` / `play_apply`.
 
 ## BLE
 
-Picker sendet die gewählte Farbe per Manufacturer Data (`ble_broadcast::set_color`). Siehe [BLE.md](BLE.md).
+The picker sends the selected color via manufacturer data (`ble_broadcast::set_color`). See [BLE.md](BLE.md).
 
-## Dateien
+## Files
 
-| Datei | Rolle |
-|-------|--------|
-| `src/mode_select.rs` | Setup-UI |
+| File | Role |
+|------|------|
+| `src/mode_select.rs` | Setup UI |
 | `src/color_picker.rs` | Picker |
-| `src/game.rs` | Modus-Verzweigung |
+| `src/game.rs` | Mode branching |

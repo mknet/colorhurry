@@ -1,4 +1,4 @@
-//! Debug-Checkpoints — Stage in RAM + defmt (RTT), falls Probe verbunden.
+//! Debug checkpoints — stage in RAM + defmt (RTT) when a probe is connected.
 
 use core::sync::atomic::{AtomicU32, Ordering};
 
@@ -8,7 +8,7 @@ pub fn set_stage_only(stage: u32) {
     STAGE.store(stage, Ordering::Relaxed);
 }
 
-/// Checkpoint mit defmt (nur nach RTT-Init, nicht in pre_init).
+/// Checkpoint with defmt (only after RTT init, not in pre_init).
 pub fn checkpoint(stage: u32) {
     STAGE.store(stage, Ordering::Relaxed);
     // #region agent log
