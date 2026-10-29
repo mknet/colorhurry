@@ -1,22 +1,30 @@
-//! Browser shell: single Receiver board + experimental live BLE receive.
+//! Browser shell: Crux `Core<ColorHurry>` + Web Bluetooth receive.
 
 mod ble;
 
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::rc::Rc;
 
 use color_hurry_core::{
-    update, view as core_view, Effect as CoreEffect, Event, Model, Rgb, Screen, ToneKind, NUM_LEDS,
+    BleOp, Color, ColorHurry, Effect, Event, NUM_LEDS,
 };
+use crux_core::{Core, Request};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlButtonElement, HtmlElement};
 
+struct PendingDelay {
+    due_ms: f64,
+    request: Request<color_hurry_core::Delay>,
+}
+
 struct Shell {
-    model: Model,
+    core: Core<ColorHurry>,
     entropy: u32,
     meta: Element,
     leds: Vec<Element>,
+    delays: VecDeque<PendingDelay>,
 }
 
 impl Shell {
@@ -40,7 +48,6 @@ impl Shell {
         for i in 0..NUM_LEDS {
             let led = doc.create_element("div")?;
             led.set_class_name("led");
-            // CPB-style: index 0 at top, then clockwise (36° steps).
             let angle = -90.0 + (i as f64) * 36.0;
             if let Ok(html) = led.clone().dyn_into::<HtmlElement>() {
                 let _ = html.style().set_property(
@@ -74,10 +81,11 @@ impl Shell {
         parent.append_child(&root)?;
 
         Ok(Self {
-            model: Model::new(),
+            core: Core::new(),
             entropy: 0xC0FF_EE42,
             meta,
             leds,
+            delays: VecDeque::new(),
         })
     }
 
@@ -89,8 +97,12 @@ impl Shell {
         (self.entropy >> 16) as u8
     }
 
+    fn now_ms() -> f64 {
+        js_sys::Date::now()
+    }
+
     fn paint(&self) {
-        let vm = core_view(&self.model);
+        let vm = self.core.view();
         self.meta.set_text_content(Some(&format!(
             "Screen: {:?} · channel {}",
             vm.screen, vm.channel
@@ -104,73 +116,80 @@ impl Shell {
         }
     }
 
-    fn dispatch(&mut self, event: Event) {
-        let effects = update(event, &mut self.model);
-        for effect in effects.iter() {
-            apply_effect(&effect);
-        }
-        if self.model.awaiting_entropy && self.model.screen == Screen::Receiver {
-            let byte = self.next_entropy();
-            self.dispatch(Event::Entropy(byte));
-            return;
-        }
-        self.paint();
+    fn process(&mut self, event: Event) {
+        let effects = self.core.process_event(event);
+        self.handle(effects);
     }
 
-    fn ingest_live_ble(&mut self, channel: u8, color: Rgb) {
-        self.dispatch(Event::BleColorReceived { channel, color });
-    }
-
-    fn ui_ticks(&mut self) {
-        if matches!(self.model.screen, Screen::ModeSelect | Screen::Picker) {
-            self.dispatch(Event::Tick);
-        } else {
-            self.paint();
+    fn handle(&mut self, effects: Vec<Effect>) {
+        let mut queue: VecDeque<Effect> = effects.into();
+        let mut tones = Vec::new();
+        // Start Delay timers before WebAudio work so beat period is wall-clock.
+        while let Some(effect) = queue.pop_front() {
+            match effect {
+                Effect::Render(_) => self.paint(),
+                Effect::Delay(request) => {
+                    let due = Self::now_ms() + f64::from(request.operation.millis);
+                    self.delays.push_back(PendingDelay { due_ms: due, request });
+                }
+                Effect::Random(mut request) => {
+                    let byte = self.next_entropy();
+                    let more = self.core.resolve(&mut request, byte).unwrap_or_default();
+                    for e in more {
+                        queue.push_back(e);
+                    }
+                }
+                Effect::PlayTone(request) => {
+                    tones.push(request.operation.sequence);
+                }
+                Effect::Ble(request) => {
+                    // Web demo is Receiver-only; inbound ads use watchAdvertisements.
+                    let _ = request.operation.op;
+                    let _ = BleOp::Off;
+                }
+            }
+        }
+        for seq in tones {
+            play_sequence(seq.steps());
         }
     }
 
-    fn countdown_ticks(&mut self) {
-        if self.model.screen == Screen::Receiver && self.model.countdown_active {
-            self.dispatch(Event::Tick);
-        } else {
-            self.paint();
+    fn resolve_due(&mut self) {
+        let now = Self::now_ms();
+        let mut i = 0;
+        while i < self.delays.len() {
+            if self.delays[i].due_ms <= now {
+                if let Some(PendingDelay { mut request, .. }) = self.delays.remove(i) {
+                    let more = self.core.resolve(&mut request, ()).unwrap_or_default();
+                    self.handle(more);
+                }
+            } else {
+                i += 1;
+            }
         }
+    }
+
+    fn ingest_live_ble(&mut self, channel: u8, color: Color) {
+        self.process(Event::ColorReceived { channel, color });
     }
 }
 
-fn apply_effect(effect: &CoreEffect) {
-    match effect {
-        CoreEffect::Render
-        | CoreEffect::SetBlePicker { .. }
-        | CoreEffect::SetPickerBroadcast { .. }
-        | CoreEffect::SetBleReceiver { .. }
-        | CoreEffect::ClearBle => {}
-        CoreEffect::PlayTone(kind) => play_tone(*kind),
-    }
-}
-
-fn play_tone(kind: ToneKind) {
-    let (freq, ms) = match kind {
-        ToneKind::Skip => (380.0, 55.0),
-        ToneKind::Apply => (784.0, 130.0),
-        ToneKind::CountdownStep(step) => {
-            let table = [
-                680.0, 620.0, 560.0, 500.0, 450.0, 400.0, 350.0, 300.0, 250.0, 200.0,
-            ];
-            (table[step.min(9) as usize], 200.0)
-        }
-        ToneKind::Explosion => (120.0, 400.0),
-    };
+fn play_sequence(steps: &[color_hurry_core::ToneStep]) {
     let _ = (|| -> Result<(), JsValue> {
         let ctx = web_sys::AudioContext::new()?;
-        let osc = ctx.create_oscillator()?;
-        let gain = ctx.create_gain()?;
-        osc.frequency().set_value(freq as f32);
-        gain.gain().set_value(0.08);
-        osc.connect_with_audio_node(&gain)?;
-        gain.connect_with_audio_node(&ctx.destination())?;
-        osc.start()?;
-        osc.stop_with_when(ctx.current_time() + ms / 1000.0)?;
+        let mut t = ctx.current_time();
+        for step in steps {
+            let osc = ctx.create_oscillator()?;
+            let gain = ctx.create_gain()?;
+            osc.frequency().set_value(step.hz as f32);
+            gain.gain().set_value(0.08);
+            osc.connect_with_audio_node(&gain)?;
+            gain.connect_with_audio_node(&ctx.destination())?;
+            osc.start_with_when(t)?;
+            let end = t + f64::from(step.ms) / 1000.0;
+            osc.stop_with_when(end)?;
+            t = end;
+        }
         Ok(())
     })();
 }
@@ -238,15 +257,15 @@ pub fn start() -> Result<(), JsValue> {
         button: ble_btn.clone(),
     }));
 
-    shell.borrow_mut().dispatch(Event::Tick);
+    shell.borrow_mut().process(Event::Boot);
 
     bind_button(&doc, "btn-a", {
         let shell = shell.clone();
-        move || shell.borrow_mut().dispatch(Event::ButtonLeft)
+        move || shell.borrow_mut().process(Event::Skip)
     })?;
     bind_button(&doc, "btn-b", {
         let shell = shell.clone();
-        move || shell.borrow_mut().dispatch(Event::ButtonRight)
+        move || shell.borrow_mut().process(Event::ActivateColor)
     })?;
 
     {
@@ -278,8 +297,8 @@ pub fn start() -> Result<(), JsValue> {
                             match ble::attach_advertisement_listener(&target, move |adv| {
                                 if let Some((ch, color)) = ble::color_from_advertisement(&adv) {
                                     live_cb.borrow().set_status(&format!(
-                                        "Linked to {name_cb} · ch{} rgb({},{},{})",
-                                        ch, color.r, color.g, color.b
+                                        "Linked to {name_cb} · ch{} color {:?}",
+                                        ch, color
                                     ));
                                     shell.borrow_mut().ingest_live_ble(ch, color);
                                 } else if let Some(hex) = ble::manufacturer_hex(&adv) {
@@ -323,9 +342,7 @@ pub fn start() -> Result<(), JsValue> {
                     Err(e) => {
                         let mut ui = live.borrow_mut();
                         ui.set_idle();
-                        ui.set_status(&format!(
-                            "Connect cancelled/failed: {e:?}"
-                        ));
+                        ui.set_status(&format!("Connect cancelled/failed: {e:?}"));
                     }
                 }
             });
@@ -334,25 +351,16 @@ pub fn start() -> Result<(), JsValue> {
         closure.forget();
     }
 
-    let shell_ui = shell.clone();
-    let ui_cb = Closure::wrap(Box::new(move || {
-        shell_ui.borrow_mut().ui_ticks();
+    // Resolve Delay effects only (blink + beat); no model peeks.
+    let shell_tick = shell;
+    let tick_cb = Closure::wrap(Box::new(move || {
+        shell_tick.borrow_mut().resolve_due();
     }) as Box<dyn FnMut()>);
     window.set_interval_with_callback_and_timeout_and_arguments_0(
-        ui_cb.as_ref().unchecked_ref(),
-        50,
+        tick_cb.as_ref().unchecked_ref(),
+        10,
     )?;
-    ui_cb.forget();
-
-    let shell_cd = shell;
-    let cd_cb = Closure::wrap(Box::new(move || {
-        shell_cd.borrow_mut().countdown_ticks();
-    }) as Box<dyn FnMut()>);
-    window.set_interval_with_callback_and_timeout_and_arguments_0(
-        cd_cb.as_ref().unchecked_ref(),
-        1000,
-    )?;
-    cd_cb.forget();
+    tick_cb.forget();
 
     Ok(())
 }
