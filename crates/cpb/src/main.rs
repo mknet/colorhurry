@@ -3,8 +3,18 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
+use core::mem::MaybeUninit;
+
 use embassy_executor::Spawner;
+use embedded_alloc::LlffHeap as Heap;
 use panic_halt as _;
+
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
+
+const HEAP_SIZE: usize = 32 * 1024;
 
 mod ble_broadcast;
 mod buttons;
@@ -52,6 +62,14 @@ async fn ble_system(spawner: Spawner) -> ! {
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     use nrf_softdevice as _;
+
+    {
+        static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+        #[allow(static_mut_refs)]
+        unsafe {
+            HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE);
+        }
+    }
 
     neopixel_pwm::power_on();
     neopixel_pwm::init();

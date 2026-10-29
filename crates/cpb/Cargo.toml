@@ -14,8 +14,10 @@ speaker-demo = []
 
 [dependencies]
 color-hurry-core = { path = "../core" }
+crux_core = { path = "../../../../../crux/crux_core", default-features = false, features = ["crux_macros", "critical-section"] }
 cortex-m = "0.7"
 cortex-m-rt = "0.7"
+embedded-alloc = "0.7"
 nrf-pac = { version = "0.3", features = ["nrf52840"] }
 panic-halt = "0.2"
 

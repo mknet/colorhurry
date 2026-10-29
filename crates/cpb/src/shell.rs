@@ -1,8 +1,11 @@
-//! Drive [`color_hurry_core`] from CPB hardware (buttons, LEDs, speaker, BLE).
+//! Drive [`color_hurry_core::ColorHurry`] from CPB hardware.
+
+use alloc::vec::Vec;
 
 use color_hurry_core::{
-    update, view, Effect, Event, Model, Rgb as CoreRgb, Screen, ToneKind, NUM_LEDS,
+    BleOp, ColorHurry, Effect, Event, Screen, ToneStep,
 };
+use crux_core::{Core, Request};
 
 use crate::ble_broadcast;
 use crate::buttons::{self, Buttons};
@@ -10,26 +13,24 @@ use crate::neopixel_pwm::{self, Rgb};
 use crate::speaker;
 use crate::time;
 
-const UI_TICK_MS: u32 = 50;
-
-const DESCENDING_HZ: [u32; NUM_LEDS] =
-    [680, 620, 560, 500, 450, 400, 350, 300, 250, 200];
+const SLICE_MS: u32 = 10;
 
 pub struct Shell {
-    model: Model,
+    core: Core<ColorHurry>,
     buttons: Buttons,
     entropy: u32,
-    /// SoftDevice ready — BLE effects are applied.
     ble_ready: bool,
+    delays: Vec<(u32, Request<color_hurry_core::Delay>)>,
 }
 
 impl Shell {
     pub fn new() -> Self {
         Self {
-            model: Model::new(),
+            core: Core::new(),
             buttons: Buttons::new(),
             entropy: 0xA5A5_1234,
             ble_ready: false,
+            delays: Vec::new(),
         }
     }
 
@@ -37,143 +38,131 @@ impl Shell {
         self.ble_ready = true;
     }
 
-    /// Mode-select only (no SoftDevice yet).
     pub async fn run_mode_select(&mut self) {
         Buttons::init();
-        self.dispatch(Event::Tick).await;
-        while view(&self.model).screen == Screen::ModeSelect {
-            self.poll_buttons().await;
-            self.dispatch(Event::Tick).await;
-            speaker::tone_service();
-            time::delay_ms_async(UI_TICK_MS).await;
-        }
-    }
-
-    /// Apply radio setup after SoftDevice is up, then run picker/receiver forever.
-    pub async fn run_game(&mut self) -> ! {
-        self.bootstrap_radio().await;
-        loop {
-            match view(&self.model).screen {
-                Screen::ModeSelect => {
-                    // Should not happen after mode select finished.
-                    time::delay_ms_async(UI_TICK_MS).await;
-                }
-                Screen::Picker => {
-                    self.poll_buttons().await;
-                    self.dispatch(Event::Tick).await;
-                    speaker::tone_service();
-                    time::delay_ms_async(UI_TICK_MS).await;
-                }
-                Screen::Receiver => {
-                    if self.model.awaiting_entropy {
-                        let b = self.next_entropy();
-                        self.dispatch(Event::Entropy(b)).await;
-                        continue;
-                    }
-                    if self.model.countdown_active {
-                        // Beat: tone+render via Tick, then poll remainder for match/abort.
-                        self.dispatch(Event::Tick).await;
-                        if !self.model.countdown_active {
-                            continue;
-                        }
-                        let _ = self.poll_match_or_abort(800).await;
-                    } else {
-                        time::delay_ms_async(UI_TICK_MS).await;
-                    }
-                }
-            }
-        }
-    }
-
-    async fn bootstrap_radio(&mut self) {
-        match view(&self.model).screen {
-            Screen::Picker => {
-                let ch = self.model.channel();
-                ble_broadcast::set_radio_picker(ch as usize);
-                ble_broadcast::set_picker_broadcast(None);
-            }
-            Screen::Receiver => {
-                // Round starts via Entropy in the loop.
-            }
-            Screen::ModeSelect => {}
-        }
-        self.dispatch(Event::Tick).await;
-    }
-
-    async fn poll_buttons(&mut self) {
-        match self.buttons.poll() {
-            buttons::Event::Left => self.dispatch(Event::ButtonLeft).await,
-            buttons::Event::Right => self.dispatch(Event::ButtonRight).await,
-            buttons::Event::None => {}
-        }
-    }
-
-    async fn poll_match_or_abort(&mut self, duration_ms: u32) -> bool {
-        const SLICE_MS: u32 = 50;
-        let slices = duration_ms / SLICE_MS;
-        for _ in 0..slices {
-            if self.buttons.poll() == buttons::Event::Left {
-                self.dispatch(Event::ButtonLeft).await;
-                return true;
-            }
-            if ble_broadcast::take_color_match() {
-                let target = self.model.receiver_target;
-                let ch = self.model.channel();
-                self.dispatch(Event::BleColorReceived {
-                    channel: ch,
-                    color: target,
-                })
-                .await;
-                return true;
-            }
+        let effects = self.core.process_event(Event::Boot);
+        self.handle(effects).await;
+        while self.core.view().screen == Screen::ModeSelect {
+            self.poll_inputs().await;
+            self.tick_delays(SLICE_MS).await;
             speaker::tone_service();
             time::delay_ms_async(SLICE_MS).await;
         }
-        false
     }
 
-    async fn dispatch(&mut self, event: Event) {
-        let effects = update(event, &mut self.model);
-        for effect in effects.iter() {
-            self.apply_effect(effect).await;
+    pub async fn run_game(&mut self) -> ! {
+        self.bootstrap_radio();
+        loop {
+            self.poll_inputs().await;
+            self.tick_delays(SLICE_MS).await;
+            speaker::tone_service();
+            time::delay_ms_async(SLICE_MS).await;
         }
-        let vm = view(&self.model);
-        let leds = vm.leds.map(to_hw_rgb);
-        neopixel_pwm::show_pixels(&leds);
     }
 
-    async fn apply_effect(&mut self, effect: Effect) {
-        match effect {
-            Effect::Render => {}
-            Effect::PlayTone(kind) => match kind {
-                ToneKind::Skip => speaker::play_skip(),
-                ToneKind::Apply => speaker::play_apply(),
-                ToneKind::CountdownStep(step) => {
-                    let hz = DESCENDING_HZ[(step as usize).min(NUM_LEDS - 1)];
-                    speaker::play_tone(hz, 200, None).await;
+    fn bootstrap_radio(&mut self) {
+        match self.core.view().screen {
+            Screen::Picker => {
+                let ch = self.core.view().channel;
+                ble_broadcast::set_radio_picker(ch as usize);
+            }
+            Screen::Receiver | Screen::ModeSelect => {}
+        }
+    }
+
+    async fn poll_inputs(&mut self) {
+        match self.buttons.poll() {
+            buttons::Event::Left => {
+                let effects = self.core.process_event(Event::Skip);
+                self.handle(effects).await;
+            }
+            buttons::Event::Right => {
+                let effects = self.core.process_event(Event::ActivateColor);
+                self.handle(effects).await;
+            }
+            buttons::Event::None => {}
+        }
+        if let Some((channel, color)) = ble_broadcast::take_color_received() {
+            let effects = self
+                .core
+                .process_event(Event::ColorReceived { channel, color });
+            self.handle(effects).await;
+        }
+    }
+
+    async fn tick_delays(&mut self, elapsed_ms: u32) {
+        let mut i = 0;
+        while i < self.delays.len() {
+            if self.delays[i].0 <= elapsed_ms {
+                let (_, mut request) = self.delays.swap_remove(i);
+                let effects = self.core.resolve(&mut request, ()).unwrap_or_default();
+                self.handle(effects).await;
+            } else {
+                self.delays[i].0 -= elapsed_ms;
+                i += 1;
+            }
+        }
+    }
+
+    async fn handle(&mut self, effects: Vec<Effect>) {
+        use alloc::collections::VecDeque;
+        let mut queue: VecDeque<Effect> = effects.into();
+        let mut tones: Vec<color_hurry_core::ToneSequence> = Vec::new();
+        let mut need_render = false;
+        // 1) Delays/Ble/Random first (beat clock starts immediately)
+        // 2) Tones next (old shell played audio before refreshing LEDs)
+        // 3) Render last so the ring updates as the beep ends
+        while let Some(effect) = queue.pop_front() {
+            match effect {
+                Effect::Render(_) => need_render = true,
+                Effect::Delay(request) => {
+                    let ms = request.operation.millis;
+                    self.delays.push((ms, request));
                 }
-                ToneKind::Explosion => speaker::play_explosion().await,
-            },
-            Effect::SetBlePicker { channel } => {
-                if self.ble_ready {
-                    ble_broadcast::set_radio_picker(channel as usize);
+                Effect::Random(mut request) => {
+                    let byte = self.next_entropy();
+                    let more = self.core.resolve(&mut request, byte).unwrap_or_default();
+                    for e in more {
+                        queue.push_back(e);
+                    }
+                }
+                Effect::PlayTone(request) => {
+                    tones.push(request.operation.sequence);
+                }
+                Effect::Ble(request) => {
+                    self.apply_ble(request.operation.op);
                 }
             }
-            Effect::SetBleReceiver { channel, color } => {
-                if self.ble_ready {
-                    ble_broadcast::set_radio_receiver(to_hw_rgb(color), channel as usize);
-                }
+        }
+        for seq in tones {
+            self.play_sequence(seq.steps()).await;
+        }
+        if need_render {
+            let vm = self.core.view();
+            let leds = vm.leds.map(to_hw_rgb);
+            neopixel_pwm::show_pixels(&leds);
+        }
+    }
+
+    fn apply_ble(&mut self, op: BleOp) {
+        // Always update intended radio state; advertise/scan runs only when stack is ready.
+        match op {
+            BleOp::Off => ble_broadcast::set_radio_off(),
+            BleOp::Picker { channel } => ble_broadcast::set_radio_picker(channel as usize),
+            BleOp::Receiver { channel, color: _ } => {
+                ble_broadcast::set_radio_receiver(channel as usize);
             }
-            Effect::SetPickerBroadcast { color } => {
-                if self.ble_ready {
-                    ble_broadcast::set_picker_broadcast(color.map(to_hw_rgb));
-                }
-            }
-            Effect::ClearBle => {
-                if self.ble_ready {
-                    ble_broadcast::set_radio_off();
-                }
-            }
+            BleOp::Broadcast { color } => ble_broadcast::set_picker_broadcast(color),
+        }
+        let _ = self.ble_ready;
+    }
+
+    async fn play_sequence(&mut self, steps: &[ToneStep]) {
+        // Always wait the full duration. The non-blocking UI failsafe path was
+        // chopping Apply/Skip after the Crux shell switched to a 10 ms poll.
+        for step in steps {
+            let duty = speaker::duty_for_core_tone(step.hz, step.ms);
+            speaker::play_tone(step.hz, step.ms, duty).await;
         }
     }
 
@@ -186,7 +175,7 @@ impl Shell {
     }
 }
 
-fn to_hw_rgb(c: CoreRgb) -> Rgb {
+fn to_hw_rgb(c: color_hurry_core::Rgb) -> Rgb {
     Rgb {
         r: c.r,
         g: c.g,

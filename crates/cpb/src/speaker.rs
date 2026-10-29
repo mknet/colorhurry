@@ -49,6 +49,22 @@ fn ensure_init() {
     }
 }
 
+/// Duty for core-supplied tones (Skip/Apply keep their old character).
+pub fn duty_for_core_tone(freq_hz: u32, duration_ms: u32) -> Option<u32> {
+    if freq_hz == APPLY_HZ && duration_ms == APPLY_MS {
+        Some(APPLY_DUTY_PCT)
+    } else if freq_hz == SKIP_HZ && duration_ms == SKIP_MS {
+        Some(SKIP_DUTY_PCT)
+    } else {
+        None
+    }
+}
+
+/// Short non-blocking UI tone (hz/ms from the core).
+pub fn play_tone_ui(freq_hz: u32, duration_ms: u32) {
+    play_ui_tone(freq_hz, duration_ms, duty_for_core_tone(freq_hz, duration_ms));
+}
+
 /// Dezenter Ton beim Wechsel zur nächsten Farbe — blockiert nicht.
 pub fn play_skip() {
     play_ui_tone(SKIP_HZ, SKIP_MS, Some(SKIP_DUTY_PCT));
@@ -112,8 +128,8 @@ pub async fn play_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>) {
 }
 
 fn service_budget(duration_ms: u32) -> u8 {
-    // UI-Tick ~50 ms, `tone_service` typisch 2× pro Tick → ~25 ms pro Zähler
-    ((duration_ms + 20) / 25).clamp(2, 12) as u8
+    // Shell loop calls `tone_service` about every 10 ms (Crux delay slice).
+    ((duration_ms + 9) / 10).clamp(2, 24) as u8
 }
 
 fn loops_for_duration(freq_hz: u32, duration_ms: u32) -> u16 {
