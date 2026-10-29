@@ -6,6 +6,7 @@ crates/web/dist/
 Cargo.lock
 .DS_Store
 *.iml
+/logs/
 
 # Native Android
 apps/android/.gradle/

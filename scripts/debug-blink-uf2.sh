@@ -20,8 +20,8 @@ CPB_MEMORY="$layout" "$root/scripts/debug-host-log.sh" "blink-post-build"
 
 elf2flash convert --board circuit_playground_bluefruit "$elf" "$uf2"
 
-mkdir -p "$root/.cursor"
-python3 - "$uf2" "$root/.cursor/debug-55c9bc.log" <<'PY'
+mkdir -p "$root/logs"
+python3 - "$uf2" "$root/logs/debug-host.ndjson" <<'PY'
 import struct, sys, json, time
 p = sys.argv[1]
 log = sys.argv[2]

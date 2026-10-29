@@ -5,7 +5,7 @@ set -euo pipefail
 
 SESSION="55c9bc"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-LOG="$ROOT/.cursor/debug-55c9bc.log"
+LOG="$ROOT/logs/debug-host.ndjson"
 PHASE="${1:-snapshot}"
 LAYOUT="${CPB_MEMORY:-v6}"
 ELF="$ROOT/target/thumbv7em-none-eabihf/release/color-hurry-cpb"
