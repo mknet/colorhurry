@@ -3,9 +3,12 @@ name = "color-hurry-core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Color Hurry game logic (platform-free, Crux-like API)"
+description = "Color Hurry game logic (Crux App, no_std)"
 license.workspace = true
 
 [dependencies]
+crux_core = { path = "../../../../../crux/crux_core", default-features = false, features = ["crux_macros", "critical-section"] }
 
 [dev-dependencies]
+critical-section = { version = "1.2", features = ["std"] }
+crux_core = { path = "../../../../../crux/crux_core", default-features = false, features = ["crux_macros", "critical-section", "testing"] }

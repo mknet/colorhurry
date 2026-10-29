@@ -1,5 +1,5 @@
-use crate::color::Rgb;
-use crate::model::{Model, PickerPhase, Screen, NUM_LEDS};
+use crate::color::{Color, Rgb};
+use crate::model::{Model, PickerPhase, Round, Screen, NUM_LEDS};
 use crate::palette::{self, CHANNELS};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -11,19 +11,24 @@ pub struct ViewModel {
     pub countdown_active: bool,
 }
 
-pub fn view(model: &Model) -> ViewModel {
+pub fn view_model(model: &Model) -> ViewModel {
     let leds = match model.screen {
         Screen::ModeSelect => mode_select_leds(model),
         Screen::Picker => picker_leds(model),
         Screen::Receiver => receiver_leds(model),
     };
 
+    let (countdown_step, countdown_active) = match model.round {
+        Round::Waiting => (0, false),
+        Round::Running { step, .. } => (step, true),
+    };
+
     ViewModel {
         screen: model.screen,
         leds,
         channel: model.channel(),
-        countdown_step: model.countdown_step,
-        countdown_active: model.countdown_active,
+        countdown_step,
+        countdown_active,
     }
 }
 
@@ -57,13 +62,24 @@ fn picker_leds(model: &Model) -> [Rgb; NUM_LEDS] {
             }
             colors
         }
-        PickerPhase::Applied => [model.picker_applied; NUM_LEDS],
+        PickerPhase::Applied => [palette::spectrum_rgb(model.picker_applied); NUM_LEDS],
     }
 }
 
 fn receiver_leds(model: &Model) -> [Rgb; NUM_LEDS] {
-    let mut colors = [model.receiver_target; NUM_LEDS];
-    let off = model.countdown_step as usize;
+    let target = match model.round {
+        Round::Running { target, .. } => target,
+        Round::Waiting => Color::White,
+    };
+    let rgb = match model.round {
+        Round::Waiting => Rgb::OFF,
+        Round::Running { .. } => palette::spectrum_rgb(target),
+    };
+    let mut colors = [rgb; NUM_LEDS];
+    let off = match model.round {
+        Round::Running { step, .. } => step as usize,
+        Round::Waiting => 0,
+    };
     for i in 0..off.min(NUM_LEDS) {
         colors[i] = Rgb::OFF;
     }

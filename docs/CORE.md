@@ -1,6 +1,6 @@
 # Color Hurry shared core (inventory for the Crux port)
 
-Status: confirmed for port (Marcel, 2026-10-29). Color on wire = C/v4; tones (Hz/ms) in core; inventory and effect shape accepted.
+Status: ported to Crux `spike/no-std` (2026-10-29). Color on wire = C/v4; tones (Hz/ms) in core; `impl App for ColorHurry` with Delay/Random/Ble/PlayTone/Render.
 
 This note inventories what belongs in the shared core versus the shells, checks that list against the current tree, records known violations with file and function, sketches the Crux target shape (from Stuart's `spike/no-std` / `examples/cpb-counter`), and lists migration steps. Guiding rule: the core says WHAT, the shell says HOW.
 

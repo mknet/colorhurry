@@ -1,4 +1,4 @@
-use crate::color::Rgb;
+use crate::color::{Color, Rgb};
 use crate::model::NUM_LEDS;
 
 pub const CHANNELS: usize = 5;
@@ -12,7 +12,7 @@ const CHANNEL_COLORS: [Rgb; CHANNELS] = [
     Rgb::from_rgb(200, 0, 255),
 ];
 
-const SPECTRUM: [Rgb; NUM_LEDS] = [
+const SPECTRUM_RGB: [Rgb; NUM_LEDS] = [
     Rgb::from_rgb(255, 255, 255),
     Rgb::from_rgb(255, 0, 0),
     Rgb::from_rgb(255, 120, 0),
@@ -29,12 +29,16 @@ pub fn channel_color(i: usize) -> Rgb {
     CHANNEL_COLORS[i.min(CHANNELS - 1)]
 }
 
-pub fn spectrum_color(index: usize) -> Rgb {
-    SPECTRUM[index % NUM_LEDS]
+pub fn spectrum_rgb(color: Color) -> Rgb {
+    SPECTRUM_RGB[color.index() as usize % NUM_LEDS]
+}
+
+pub fn spectrum_color_at(index: usize) -> Color {
+    Color::from_index((index % NUM_LEDS) as u8).unwrap_or(Color::White)
 }
 
 pub fn spectrum_array() -> [Rgb; NUM_LEDS] {
-    SPECTRUM
+    SPECTRUM_RGB
 }
 
 pub fn ring_step_led(step: usize) -> usize {
@@ -54,7 +58,7 @@ pub fn ring_step_is_picker(step: usize) -> bool {
     ring_step_led(step) < CHANNELS
 }
 
-/// Map entropy byte to a spectrum color (shell supplies entropy).
-pub fn color_from_entropy(byte: u8) -> Rgb {
-    spectrum_color(byte as usize % NUM_LEDS)
+/// Map entropy byte to a named spectrum color.
+pub fn color_from_entropy(byte: u8) -> Color {
+    spectrum_color_at(byte as usize)
 }
