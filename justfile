@@ -36,6 +36,26 @@ ffi-android:
     (cd crates/ffi && boltffi pack android)
     cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language kotlin --output-dir apps/android/generated
 
+# Native iOS (SwiftUI) — regenerate Xcode project then open
+ios: ffi-ios
+    cd apps/ios && xcodegen generate && open ColorHurry.xcodeproj
+
+ios-build: ffi-ios
+    cd apps/ios && xcodegen generate && xcodebuild -scheme ColorHurry -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+
+# Native Android (Kotlin/Compose) — needs JDK 17/21
+android: ffi-android
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home -v 17)}"
+    cd apps/android && ./gradlew :app:installDebug
+
+android-build: ffi-android
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home -v 17)}"
+    cd apps/android && ./gradlew :app:assembleDebug
+
 # Core unit tests + Gherkin feature tests + FFI payload helpers
 test:
     cargo test -p color-hurry-core -p color-hurry-ffi

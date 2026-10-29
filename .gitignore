@@ -5,3 +5,19 @@ crates/web/dist/
 **/*.rs.bk
 Cargo.lock
 .DS_Store
+*.iml
+
+# Native Android
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+apps/android/local.properties
+apps/android/.idea/
+apps/android/captures/
+apps/android/generated/
+
+# Native iOS
+apps/ios/**/xcuserdata/
+apps/ios/**/DerivedData/
+apps/ios/*.xcworkspace/xcuserdata/
+apps/ios/generated/

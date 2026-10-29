@@ -1,12 +1,18 @@
 # Color Hurry
 
-Kooperatives 2-Spieler-Spiel: geteilte Logik in `crates/core` (Crux-ähnliche API), Shells für **Circuit Playground Bluefruit** und **Browser (WASM)**.
+Kooperatives 2-Spieler-Spiel: geteilte Logik in `crates/core` (Crux App), Shells für **Circuit Playground Bluefruit**, **Browser (WASM)** und **iOS / Android** (FFI).
 
 ```text
-crates/core   — Event / Model / Effect / update / view  (no_std)
-crates/cpb    — Hardware-Shell (Embassy, SoftDevice, NeoPixels, Audio)
-crates/web    — Browser-Shell (ein Receiver-Board + experimenteller Live-BLE-Scan)
+crates/core    — Event / Model / Effect / update / view  (no_std)
+crates/cpb     — Hardware-Shell (Embassy, SoftDevice, NeoPixels, Audio)
+crates/web     — Browser-Shell (ein Receiver-Board + experimenteller Live-BLE-Scan)
+crates/ffi     — Core über FFI für die nativen Apps (Crux Bridge + BoltFFI, facet typegen)
+apps/ios       — Native SwiftUI + CoreBluetooth Shell auf dem Rust-Core
+apps/android   — Native Kotlin Compose + Android BLE Shell auf dem Rust-Core
 ```
+
+Tests: `just test` — Unit-Tests und Gherkin-Integrationstests in `crates/core`.
+
 
 ## Voraussetzungen
 
@@ -31,7 +37,10 @@ just setup-ble    # SD 6.1.1 → 7.0.1 + App flashen
 just flash-v7     # danach nur noch App
 cargo test -p color-hurry-core
 just web-serve    # Browser: http://127.0.0.1:8080
+just ios / just android   # native Apps (baut den Core via `just ffi`, Xcode / JDK 17|21)
 ```
+
+**Native Apps (iOS + Android):** Einstieg wie am Board (Skip/Apply → Picker/Receiver), UI wie Web. Demo: CPB als Picker, Handy als Receiver. Siehe [apps/README.md](apps/README.md).
 
 Browser **Live BLE** (unstable POC, Receiver only): Chrome/Edge, Flag
 `chrome://flags/#enable-experimental-web-platform-features`, dann „Live BLE scan“.
