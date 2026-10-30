@@ -1,4 +1,4 @@
-//! WS2812 NeoPixels (10×) on P0.13 — Circuit Playground Bluefruit
+//! WS2812 NeoPixels (10×) on P0.13, Circuit Playground Bluefruit
 
 use embassy_nrf::gpio::{OutputDrive, Pin as GpioPin};
 use embassy_nrf::peripherals::PWM0;
@@ -65,7 +65,7 @@ impl<'d> NeoPixel<'d> {
         this
     }
 
-    /// Set all 10 LEDs (do not send yet — call `show`)
+    /// Set all 10 LEDs (do not send yet; call `show`)
     pub fn set_colors(&mut self, colors: &[Rgb; NUM_LEDS]) {
         let mut i = 0;
         for c in colors {

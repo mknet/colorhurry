@@ -70,7 +70,7 @@ class BleService(context: Context) {
             is BleOp.Picker -> {
                 pickerChannel = op.channel
                 stopScan()
-                onStatus?.invoke("Picker ch${op.channel} — tap Apply to broadcast")
+                onStatus?.invoke("Picker ch${op.channel}: tap Apply to broadcast")
             }
             is BleOp.Receiver -> {
                 pickerChannel = null
@@ -82,7 +82,7 @@ class BleService(context: Context) {
                 if (op.color == null) {
                     stopAdvertise()
                     onStatus?.invoke(
-                        pickerChannel?.let { "Picker ch$it — selecting (not broadcasting)" }
+                        pickerChannel?.let { "Picker ch$it: selecting (not broadcasting)" }
                             ?: "Broadcast cleared",
                     )
                 } else {

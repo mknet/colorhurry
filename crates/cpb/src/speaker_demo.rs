@@ -1,4 +1,4 @@
-//! 12-second demo (reset → scale → explosion) — off by default.
+//! 12-second demo (reset → scale → explosion), off by default.
 //!
 //! Enable: feature `speaker-demo` in `Cargo.toml` and `speaker_task` in `main.rs`.
 

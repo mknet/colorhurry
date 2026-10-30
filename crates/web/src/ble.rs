@@ -100,7 +100,7 @@ pub async fn watch_board(device: &BluetoothDevice) -> Result<(), JsValue> {
         return Ok(());
     }
     Err(JsValue::from_str(
-        "watchAdvertisements missing — enable chrome://flags/#enable-experimental-web-platform-features",
+        "watchAdvertisements missing; enable chrome://flags/#enable-experimental-web-platform-features",
     ))
 }
 

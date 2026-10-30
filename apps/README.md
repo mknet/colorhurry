@@ -13,7 +13,7 @@ Both mirror the board entry (**Skip** / **Apply** → Mode select → Picker or 
 2. Phone: Skip to **Receiver** on the same channel, Apply.
 3. CPB: Picker on that channel, Apply a color → phone countdown resets on match.
 
-**iOS as Picker:** CoreBluetooth cannot put Adafruit manufacturer data on the air the way the board expects — use a CPB (or Android) as Picker. **Android as Picker** can advertise.
+**iOS as Picker:** CoreBluetooth cannot put Adafruit manufacturer data on the air the way the board expects; use a CPB (or Android) as Picker. **Android as Picker** can advertise.
 
 ## Build / run
 
@@ -36,7 +36,7 @@ Needs a Development Team in Xcode signing for a physical device (BLE).
 
 ### Android
 
-Needs **JDK 17 or 21** (not Homebrew OpenJDK 27 — Gradle Kotlin DSL fails to parse that version string):
+Needs **JDK 17 or 21** (not Homebrew OpenJDK 27, because Gradle Kotlin DSL fails to parse that version string):
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)

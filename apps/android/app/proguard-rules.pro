@@ -1,1 +1,1 @@
-# Color Hurry — keep default for now
+# Color Hurry: keep default for now

@@ -1,6 +1,6 @@
 //! App time base: TIMER4 @ 1 MHz.
 //!
-//! With S140, TIMER2/TIMER3 are claimed by the SoftDevice — TIMER4 is free for the app.
+//! With S140, TIMER2/TIMER3 are claimed by the SoftDevice; TIMER4 is free for the app.
 
 use nrf_pac::timer::vals::{Bitmode, Mode};
 
@@ -46,7 +46,7 @@ pub fn delay_ms(ms: u32) {
     t.tasks_stop().write_value(1);
 }
 
-/// Async wait for UI/game/countdown (TIMER4 — SoftDevice-safe).
+/// Async wait for UI/game/countdown (TIMER4, SoftDevice-safe).
 pub async fn delay_ms_async(ms: u32) {
     if ms == 0 {
         return;

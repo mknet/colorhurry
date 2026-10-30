@@ -8,7 +8,7 @@
 | **Button A** | left | In-game / **hold during reset** → bootloader |
 | **Button B** | right | In-game |
 
-Do **not** press Button A or B twice — that does **not** start a bootloader.
+Do **not** press Button A or B twice; that does **not** start a bootloader.
 
 ## Starting the bootloader (3 ways)
 
@@ -40,7 +40,7 @@ just boot-check
 
 ### `Permission denied` in `/Volumes/CPLAYBTBOOT`
 
-Happens often on the Mac — the bootloader is active anyway.
+Happens often on the Mac; the bootloader is active anyway.
 
 - Do **not** `cd` into the drive and run `ls`
 - Instead, copy from the outside:
@@ -66,11 +66,11 @@ system_profiler SPUSBDataType | grep -A6 -i "239A\|Circuit"
 
 The board is still in the **UF2 bootloader**, the app isn't running. Common causes:
 
-1. **Wrong flash address** — the app must be linked at `0x27000` (`memory.x`). After a change: `just flash-clean`
-2. **GPREGRET / Button A** — older firmware jumped into the bootloader immediately when A was held. Current firmware sets GPREGRET to 0 at startup.
+1. **Wrong flash address**: the app must be linked at `0x27000` (`memory.x`). After a change: `just flash-clean`
+2. **GPREGRET / Button A**: older firmware jumped into the bootloader immediately when A was held. Current firmware sets GPREGRET to 0 at startup.
 3. **Hands off Button A** during the reset after flashing.
 
-Expected after OK: **cyan blinking** edge LEDs, **red** D13 blinks too — **not** permanently green.
+Expected after OK: **cyan blinking** edge LEDs, **red** D13 blinks too, **not** permanently green.
 
 ## If no drive appears
 

@@ -311,7 +311,7 @@ fn start_round(model: &mut Model, color: Color) -> Command<Effect, Event> {
     let channel = model.channel();
     // step = how many LEDs are already off / next tone index.
     // Show the full ring first; the first BeatDone (0 ms) plays tone 0 and
-    // extinguishes LED 0 — same cadence as the old CPB Tick loop.
+    // extinguishes LED 0, same cadence as the old CPB Tick loop.
     model.round = RoundState::Running {
         target: color,
         step: 0,

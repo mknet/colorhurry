@@ -3,15 +3,15 @@
 Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit**, **Browser (WASM)** and **iOS / Android** (FFI).
 
 ```text
-crates/core    — Event / Model / Effect / update / view  (no_std)
-crates/cpb     — Hardware shell (Embassy, SoftDevice, NeoPixels, Audio)
-crates/web     — Browser shell (one receiver board + experimental live BLE scan)
-crates/ffi     — Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
-apps/ios       — Native SwiftUI + CoreBluetooth shell on the Rust core
-apps/android   — Native Kotlin Compose + Android BLE shell on the Rust core
+crates/core    Event / Model / Effect / update / view  (no_std)
+crates/cpb     Hardware shell (Embassy, SoftDevice, NeoPixels, Audio)
+crates/web     Browser shell (one receiver board + experimental live BLE scan)
+crates/ffi     Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
+apps/ios       Native SwiftUI + CoreBluetooth shell on the Rust core
+apps/android   Native Kotlin Compose + Android BLE shell on the Rust core
 ```
 
-Tests: `just test` — unit tests and Gherkin integration tests in `crates/core`.
+Tests: `just test` runs unit tests and Gherkin integration tests in `crates/core`.
 
 
 ## Prerequisites
@@ -26,11 +26,11 @@ rustup target add thumbv7em-none-eabihf wasm32-unknown-unknown
 just install-tools   # once
 ```
 
-Optional (only with an external SWD debugger): [probe-rs](https://probe.rs/) — `just flash-probe`
+Optional (only with an external SWD debugger): [probe-rs](https://probe.rs/), `just flash-probe`
 
 ## BLE (SoftDevice S140 7.0.1)
 
-Default build: feature **`sd-v7`**, app @ **0x27000**. Adafruit restore ships **S140 6.1.1** — BLE will **not** transmit with that. Once:
+Default build: feature **`sd-v7`**, app @ **0x27000**. Adafruit restore ships **S140 6.1.1**; BLE will **not** transmit with that. Once:
 
 ```bash
 just setup-ble    # SD 6.1.1 → 7.0.1 + flash app
@@ -44,7 +44,7 @@ just ios / just android   # native apps (builds the core via `just ffi`, Xcode /
 
 Browser **Live BLE** (unstable POC, receiver only): Chrome/Edge, flag
 `chrome://flags/#enable-experimental-web-platform-features`, then “Live BLE scan”.
-Picker advertising from the tab is not possible — only ads from real CPBs are received.
+Picker advertising from the tab is not possible; only ads from real CPBs are received.
 
 Details: [docs/BLE.md](docs/BLE.md), troubleshooting: [docs/FINDINGS-BLE-FIX.md](docs/FINDINGS-BLE-FIX.md)
 
@@ -60,7 +60,7 @@ Audio (skip/apply tones): [docs/AUDIO.md](docs/AUDIO.md). Demo sequence: feature
 
 Connect the board with a **USB data cable** (charge-only cables are not enough).
 
-**Bootloader:** not button A/B — press the small **center reset** **twice quickly**, **or** **hold button A (left)** and **reset once**. **CPLAYBTBOOT** appears in Finder (NeoPixels: red → green). Details: [docs/BOOTLOADER.md](docs/BOOTLOADER.md).
+**Bootloader:** not button A/B: press the small **center reset** **twice quickly**, **or** **hold button A (left)** and **reset once**. **CPLAYBTBOOT** appears in Finder (NeoPixels: red → green). Details: [docs/BOOTLOADER.md](docs/BOOTLOADER.md).
 
 Then:
 
@@ -103,8 +103,8 @@ Pinout: [Circuit Playground Bluefruit](https://learn.adafruit.com/adafruit-circu
 
 ## Project phases
 
-1. **Skeleton** — Embassy + defmt
-2. **NeoPixel driver** (current) — 10× WS2812 on P0.13, blink test with D13
+1. **Skeleton**: Embassy + defmt
+2. **NeoPixel driver** (current): 10× WS2812 on P0.13, blink test with D13
 3. Buttons with debouncing
 4. Speaker (Destroy / Success)
 5. BLE advertising + scan (`nrf-softdevice`)

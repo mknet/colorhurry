@@ -16,7 +16,7 @@ There were **three separate problems**, not one:
 | 3 | No blink logic for NeoPixels | Orange **solid**, only D13 blinks | `show_orange()` / `show_off()` in the loop |
 | 4 | NeoPixels too bright | Colors correct, but uncomfortably harsh | Hard channel cap `MAX_CHANNEL = 8` |
 
-**Step 1 was decisive.** Without a working SoftDevice, no Rust app starts — no matter which firmware you flash.
+**Step 1 was decisive.** Without a working SoftDevice, no Rust app starts, no matter which firmware you flash.
 
 ---
 
@@ -25,9 +25,9 @@ There were **three separate problems**, not one:
 ### Symptoms
 
 - **No** D13 blink after reset once
-- NeoPixels **only briefly** on USB plug-in (bootloader/power-on) — **no** solid orange
+- NeoPixels **only briefly** on USB plug-in (bootloader/power-on), **no** solid orange
 - Serial DFU reports `Device programmed`, board leaves DFU mode
-- Host logs: ELF correct @ `0x26000` or `0x27000`, stack pointer OK — still no visible app
+- Host logs: ELF correct @ `0x26000` or `0x27000`, stack pointer OK, still no visible app
 
 ### Cause
 
@@ -55,7 +55,7 @@ The script `scripts/restore-bootloader-serial.sh` flashes:
 ### How to recognize success
 
 - D13 blinks (slowly)
-- NeoPixels respond (initially maybe still white — see problem 2)
+- NeoPixels respond (initially maybe still white, see problem 2)
 
 ---
 
@@ -94,7 +94,7 @@ Hardware **PWM @ 16 MHz** (independent of CPU clock), analogous to `src/neopixel
 
 ### Cause
 
-Not a bug — `show_orange()` was called **only once in `main()` at start**. The main loop only toggled D13.
+Not a bug: `show_orange()` was called **only once in `main()` at start**. The main loop only toggled D13.
 
 ### Fix
 
@@ -131,9 +131,9 @@ Several stages of **percentage scaling** in `show_pixels()`:
 | ~40 % | `102/256` | ~102 |
 | ~20 % | `51/256` | ~51 |
 
-The palette in `color_picker.rs` intentionally stayed at full RGB (0–255) so the ten spectrum colors remain distinguishable. Dimming happened only when sending via `Rgb::dimmed()` in `show_pixels()`.
+The palette in `color_picker.rs` intentionally stayed at full RGB (0-255) so the ten spectrum colors remain distinguishable. Dimming happened only when sending via `Rgb::dimmed()` in `show_pixels()`.
 
-**Why that still felt too bright:** At 20 %, the max channel is still ~51 — about 20 % of WS2812 resolution. Ten NeoPixels in a ring add visually; in a dark room it still looks harsh. Percentage scaling without a hard cap still allows high individual values.
+**Why that still felt too bright:** At 20 %, the max channel is still ~51, about 20 % of WS2812 resolution. Ten NeoPixels in a ring add visually; in a dark room it still looks harsh. Percentage scaling without a hard cap still allows high individual values.
 
 ### Fix (final step)
 
@@ -154,7 +154,7 @@ pub fn scale_channel(v: u8) -> u8 {
 **Behavior:**
 
 - Each channel is scaled **linearly**: full red (255) → **8**, half green (128) → **4**, black (0) → **0**
-- No channel can exceed **8** — independent of the input palette
+- No channel can exceed **8**, independent of the input palette
 - `show_pixels()` applies `dimmed()` to all pixels before building the PWM sequence
 - Color ratios (e.g. orange vs yellow) are preserved; only overall brightness drops
 
@@ -170,10 +170,10 @@ pub fn scale_channel(v: u8) -> u8 {
 
 | Guess | Result |
 |-------|--------|
-| Flashing fails | **Disproven** — DFU reports success, board leaves flash mode |
-| Wrong link address (v6 vs v7) | **Not enough alone** — correctly linked ELFs only helped after SoftDevice restore |
-| CPLAYBTBOOT / UF2 on macOS | Often `Permission denied` / volume does not mount — **serial DFU** more reliable |
-| Wrong D13 pin | **Unlikely** — P1.14, active high; D13 blinked once the app ran |
+| Flashing fails | **Disproven**: DFU reports success, board leaves flash mode |
+| Wrong link address (v6 vs v7) | **Not enough alone**: correctly linked ELFs only helped after SoftDevice restore |
+| CPLAYBTBOOT / UF2 on macOS | Often `Permission denied` / volume does not mount; **serial DFU** more reliable |
+| Wrong D13 pin | **Unlikely**: P1.14, active high; D13 blinked once the app ran |
 | defmt / panic-probe | Simplification useful, but **not** the cause of missing app start |
 
 ---

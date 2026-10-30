@@ -69,7 +69,7 @@ fi
 echo ""
 echo "=== Restoring bootloader + SoftDevice ==="
 echo "  Package: $zip_name"
-echo "  Duration: ~30 s — do NOT unplug USB!"
+echo "  Duration: ~30 s, do NOT unplug USB!"
 echo ""
 if [[ "$dfu_manual" == "1" ]]; then
     echo "  Now: hold Button A → Reset 1× → release A (DFU mode)"
@@ -95,7 +95,7 @@ for attempt in $(seq 1 3); do
         restored=1
         break
     fi
-    echo "→ Failed — A+Reset for DFU if needed, then retry"
+    echo "→ Failed: A+Reset for DFU if needed, then retry"
     sleep 3
 done
 

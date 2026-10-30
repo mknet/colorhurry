@@ -1,4 +1,4 @@
-//! Button A (links) / B (rechts) — CPB: P1.02 / P1.15.
+//! Button A (left) / B (right), CPB: P1.02 / P1.15.
 //!
 //! Adafruit CPB: Tasten liegen bei Druck an 3,3 V → **active high**, Pull-**down**.
 

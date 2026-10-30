@@ -1,4 +1,4 @@
-# Color Hurry CPB — Build & Flash
+# Color Hurry CPB: Build & Flash
 #
 # Default on macOS: serial DFU (no CPLAYBTBOOT needed)
 #   just flash       → v6 @ 0x26000
@@ -12,7 +12,7 @@ board   := "circuit_playground_bluefruit"
 
 default: flash-v7
 
-# Browser shell (WASM) — http://127.0.0.1:8080
+# Browser shell (WASM): http://127.0.0.1:8080
 # Needs --cfg=web_sys_unstable_apis for Web Bluetooth (also in crates/web/.cargo/config.toml).
 web-serve:
     cd crates/web && RUSTFLAGS='--cfg=web_sys_unstable_apis' NO_COLOR=false trunk serve --open
@@ -36,14 +36,14 @@ ffi-android:
     (cd crates/ffi && boltffi pack android)
     cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language kotlin --output-dir apps/android/generated
 
-# Native iOS (SwiftUI) — regenerate Xcode project then open
+# Native iOS (SwiftUI): regenerate Xcode project then open
 ios: ffi-ios
     cd apps/ios && xcodegen generate && open ColorHurry.xcodeproj
 
 ios-build: ffi-ios
     cd apps/ios && xcodegen generate && xcodebuild -scheme ColorHurry -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
 
-# Native Android (Kotlin/Compose) — needs JDK 17/21
+# Native Android (Kotlin/Compose): needs JDK 17/21
 android: ffi-android
     #!/usr/bin/env bash
     set -euo pipefail
@@ -60,15 +60,15 @@ android-build: ffi-android
 test:
     cargo test -p color-hurry-core -p color-hurry-ffi
 
-# Serial-DFU v7 (S140 7.x @ 0x27000) — for BLE / nrf-softdevice
+# Serial-DFU v7 (S140 7.x @ 0x27000): for BLE / nrf-softdevice
 flash-v7:
     DFU_MANUAL=1 CPB_MEMORY=v7 ./scripts/flash-serial.sh
 
-# Serial-DFU v6 (S140 6.1.1 @ 0x26000) — Color Picker only, without BLE
+# Serial-DFU v6 (S140 6.1.1 @ 0x26000): Color Picker only, without BLE
 flash:
     DFU_MANUAL=1 ./scripts/flash-serial.sh
 
-# Automatic (touch) — in case manual DFU is annoying
+# Automatic (touch), in case manual DFU is annoying
 flash-serial:
     ./scripts/flash-serial.sh
 
@@ -95,7 +95,7 @@ flash-uf2: rebuild
 boot-check:
     @echo "=== Mounted BOOT drives ==="
     @ls -d /Volumes/*BOOT 2>/dev/null || echo "(none)"
-    @test -d /Volumes/CPLAYBTBOOT && echo "OK: CPLAYBTBOOT" || echo "— CPLAYBTBOOT missing"
+    @test -d /Volumes/CPLAYBTBOOT && echo "OK: CPLAYBTBOOT" || echo "MISSING: CPLAYBTBOOT"
     @echo ""
     @echo "=== USB (Adafruit 0x239A) ==="
     @system_profiler SPUSBDataType 2>/dev/null | grep -E "239A|Circuit|Playground|Bluefruit|CPLAY" -A3 || echo "(nothing found)"
@@ -114,7 +114,7 @@ flash-bin:
     elf2flash convert --board {{board}} {{elf}} {{uf2}}
     ./scripts/copy-uf2.sh {{uf2}}
 
-# Bootloader already active (NeoPixels green) — just copy
+# Bootloader already active (NeoPixels green): just copy
 flash-now: uf2
     ./scripts/copy-uf2.sh {{uf2}}
 
@@ -185,7 +185,7 @@ debug-uf2-v7:
     @open /Volumes/CPLAYBTBOOT 2>/dev/null || echo "→ Reset 2× (NeoPixels green), then drag .uf2 onto CPLAYBTBOOT"
     @echo "→ The drive must disappear. Then unplug USB, Reset 1×."
 
-# Endless-blink UF2 — strongest test of whether the binary starts (H12)
+# Endless-blink UF2: strongest test of whether the binary starts (H12)
 debug-blink-uf2-v7:
     chmod +x ./scripts/debug-blink-uf2.sh
     CPB_MEMORY=v7 ./scripts/debug-blink-uf2.sh

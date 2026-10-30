@@ -1,7 +1,7 @@
 //! Effect runtime for feature tests: virtual time, scripted entropy, logs.
 //!
 //! Domain steps call [`Harness::send`] with [`Event`]s derived from the feature
-//! text. This type is not a product shell — it only completes `Delay` / `Random`
+//! text. This type is not a product shell; it only completes `Delay` / `Random`
 //! and records notify effects for assertions.
 
 use std::collections::VecDeque;

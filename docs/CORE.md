@@ -206,11 +206,11 @@ Send a fixed color concept on the wire, not RGB triples. Domain and protocol use
 
 ### Options considered
 
-**A — `Rgb` on the wire (v3):** no cutover; match = exact bytes; domain stays hardware-ish.
+**A) `Rgb` on the wire (v3):** no cutover; match = exact bytes; domain stays hardware-ish.
 
-**B — Named `Color` in the domain, RGB still on the wire (v3):** talk can say "Red"; wire stays compatible; two builds with different palettes can still disagree on the air.
+**B) Named `Color` in the domain, RGB still on the wire (v3):** talk can say "Red"; wire stays compatible; two builds with different palettes can still disagree on the air.
 
-**C — Named `Color` / index on the wire (v4):** chosen. Closest to "players shout Red!"; match is an index/enum compare; requires coordinated firmware + web update.
+**C) Named `Color` / index on the wire (v4):** chosen. Closest to "players shout Red!"; match is an index/enum compare; requires coordinated firmware + web update.
 
 ---
 
@@ -271,6 +271,6 @@ Confirmed:
 - [x] Boundary core vs shell (sections 1-2) looks right (Inventar)
 - [x] Violations a-i match reality (section 4)
 - [x] Effect list (section 5) is the intended first cut (incl. Ble as a normal Crux effect; ads in as Events)
-- [x] Color on the wire: **C** (named/index, protocol v4) — section 6
+- [x] Color on the wire: **C** (named/index, protocol v4), see section 6
 - [x] Migration order (section 8) is acceptable
-- [x] Tone parameters (including Explosion) move into the core — shell only plays
+- [x] Tone parameters (including Explosion) move into the core; shell only plays

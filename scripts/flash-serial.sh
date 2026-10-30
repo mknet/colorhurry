@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Flash without a UF2 drive — via USB serial (adafruit-nrfutil)
+# Flash without a UF2 drive, via USB serial (adafruit-nrfutil)
 # Default: S140 6.1.1 @ 0x26000 (--features sd-v6)
 # Alternative: just flash-serial-v7  →  S140 7.x @ 0x27000
 #
@@ -21,7 +21,7 @@ case "$layout" in
     features="sd-v7"
     ;;
   v6|*)
-    # 0xFFFE = Adafruit default "any SoftDevice" — more reliable on CPB than 0x0101/0x0123
+    # 0xFFFE = Adafruit default "any SoftDevice", more reliable on CPB than 0x0101/0x0123
     sd_req="0xFFFE"
     flash_base="0x26000"
     layout="v6"
@@ -92,13 +92,13 @@ time.sleep(0.3)
 s.close()
 PY
     else
-        echo "→ (pyserial not found — use just flash-serial-dfu if needed)"
+        echo "→ (pyserial not found; use just flash-serial-dfu if needed)"
     fi
     echo "→ Waiting 5 s for USB reconnect …"
     sleep 5
 }
 
-# adafruit-nrfutil often returns exit code 0 on errors — check the output!
+# adafruit-nrfutil often returns exit code 0 on errors; check the output!
 do_flash() {
     local port=$1
     local use_touch=${2:-0}
@@ -132,7 +132,7 @@ echo "→ Layout: $layout (app @ $flash_base, --sd-req $sd_req, --features $feat
 
 stamp="$root/target/.cpb-memory-layout"
 if [[ -f "$stamp" ]] && [[ "$(cat "$stamp")" != "$layout" ]]; then
-    echo "→ Different layout than last time — cargo clean"
+    echo "→ Different layout than last time: cargo clean"
     (cd "$root" && cargo clean)
 fi
 mkdir -p "$root/target"
@@ -188,7 +188,7 @@ for attempt in $(seq 1 "$max_attempts"); do
 
     port="$(wait_for_port || true)"
     if [[ -z "$port" ]]; then
-        echo "→ No port — unplug/replug USB, Reset 1× if needed"
+        echo "→ No port: unplug/replug USB, Reset 1× if needed"
         sleep 3
         continue
     fi
@@ -242,7 +242,7 @@ echo "→ Briefly unplug USB, plug it back in, Reset 1× (not 2×)."
 echo "→ Expected: NeoPixels + D13 blink in sync (400 ms)."
 echo ""
 if [[ "$layout" == "v6" ]]; then
-    echo "→ Nothing blinking? Very often a wrong flash address — then:"
+    echo "→ Nothing blinking? Very often a wrong flash address, then:"
     echo "     just flash-serial-dfu-v7"
     echo "  (app @ 0x27000 instead of 0x26000)"
 fi

@@ -29,14 +29,14 @@ final class BleService: NSObject {
         case .picker(let channel):
             pickerChannel = channel
             stopScan()
-            status = "Picker ch\(channel) — iOS cannot advertise manufacturer data; use a CPB (or Android) as Picker"
+            status = "Picker ch\(channel): iOS cannot advertise manufacturer data; use a CPB (or Android) as Picker"
         case .receiver(let channel, let color):
             pickerChannel = nil
             startScan()
             status = "Receiver ch\(channel) scanning for \(color)…"
         case .broadcast(let color):
             if color == nil {
-                status = pickerChannel.map { "Picker ch\($0) — selecting (not broadcasting)" } ?? "Broadcast cleared"
+                status = pickerChannel.map { "Picker ch\($0): selecting (not broadcasting)" } ?? "Broadcast cleared"
             } else if let color {
                 status = "Cannot broadcast \(color) from iOS (no manufacturer AD). Pair with CPB Picker instead."
             }

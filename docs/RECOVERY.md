@@ -3,21 +3,21 @@
 If **CircuitPython** or the **old factory program** is still running after flashing (e.g. `CIRCUITPY` in Finder, colorful demo, no 2× orange startup):
 
 1. **Bootloader:** Reset **2×** → NeoPixels **green**
-2. **Finder** (almost always necessary on the Mac — Terminal: `Permission denied`):
+2. **Finder** (almost always necessary on the Mac; Terminal: `Permission denied`):
    ```bash
    just flash-finder
    ```
    Then drag the `.uf2` onto **CPLAYBTBOOT** (onto the **icon**, not into the folder)
-3. The drive must **disappear** — otherwise the flash failed
+3. The drive must **disappear**, otherwise the flash failed
 4. Unplug USB for 5 s, plug in, Reset **1×**
 
 **Rust detected?** At startup, **all NeoPixels orange for 2 seconds**, then **blinking cyan** + red D13.
 
-`just` used to wrongly report "OK" even though CPLAYBTBOOT was still there — it now only reports success when the drive is gone.
+`just` used to wrongly report "OK" even though CPLAYBTBOOT was still there; it now only reports success when the drive is gone.
 
 ---
 
-# Board stays green (bootloader) — recovery
+# Board stays green (bootloader): recovery
 
 **Green = UF2 bootloader.** Your Rust app is not running.
 
@@ -25,8 +25,8 @@ If **CircuitPython** or the **old factory program** is still running after flash
 
 1. **Unplug USB completely**, wait 5 seconds, plug in again  
 2. Do **not** touch any buttons  
-3. Only **Reset (middle) 1×** — **not** 2×  
-4. Expected: **red LED D13** blinks (~500 ms) — **not** permanently green
+3. Only **Reset (middle) 1×**, **not** 2×  
+4. Expected: **red LED D13** blinks (~500 ms), **not** permanently green
 
 ## If it's still only green
 

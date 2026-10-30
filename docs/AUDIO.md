@@ -9,7 +9,7 @@
 
 PWM0 is reserved for NeoPixels.
 
-## Color Picker — UI sounds (default)
+## Color Picker: UI sounds (default)
 
 | Action | Button | Tone | Character |
 |--------|--------|------|-----------|
@@ -26,7 +26,7 @@ One descending tone per second, in sync with the NeoPixels switching off counter
 
 | Second | Tone (approx.) |
 |--------|----------------|
-| 1–10 | 680 → 200 Hz (`src/countdown.rs`) |
+| 1-10 | 680 → 200 Hz (`src/countdown.rs`) |
 
 Implementation: `countdown::run_once` after the random color is shown (`src/receiver.rs`).
 
@@ -47,8 +47,8 @@ cargo build --release --features speaker-demo
 
 | Second | Content |
 |--------|---------|
-| 1 | Guitar strum g–b–e |
-| 2–11 | Descending scale (680 → 200 Hz) |
+| 1 | Guitar strum g-b-e |
+| 2-11 | Descending scale (680 → 200 Hz) |
 | 12 | Explosion (sweep, full second) |
 
 ## Relevant files

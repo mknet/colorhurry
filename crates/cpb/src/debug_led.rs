@@ -1,4 +1,4 @@
-//! D13 (P1.14, active high) — BLE/layout diagnostics without serial.
+//! D13 (P1.14, active high): BLE/layout diagnostics without serial.
 
 use nrf_pac::gpio::vals::{Dir, Input, Pull};
 
@@ -42,7 +42,7 @@ pub fn show_flash_layout() {
     delay_ms(300);
 }
 
-/// SoftDevice active — 1 long blink (blocks the executor — only before task start).
+/// SoftDevice active: 1 long blink (blocks the executor, so only before task start).
 pub fn signal_softdevice_ok() {
     on();
     delay_ms(500);
@@ -56,7 +56,7 @@ pub async fn signal_softdevice_ok_async() {
     off();
 }
 
-/// Advertising error — fast strobe.
+/// Advertising error: fast strobe.
 pub fn signal_advertising_error() {
     for _ in 0..8 {
         on();

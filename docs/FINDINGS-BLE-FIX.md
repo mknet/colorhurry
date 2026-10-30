@@ -6,7 +6,7 @@ Documentation of the debug session for **BLE broadcast** on the **Circuit Playgr
 
 ## Summary
 
-There were **several separate problems**. The color picker already worked — **BLE stayed invisible** because the Nordic SoftDevice stack on the chip did not match the Rust library.
+There were **several separate problems**. The color picker already worked, but **BLE stayed invisible** because the Nordic SoftDevice stack on the chip did not match the Rust library.
 
 | # | Problem | Symptom | Fix |
 |---|---------|---------|-----|
@@ -17,7 +17,7 @@ There were **several separate problems**. The color picker already worked — **
 | 5 | **Task architecture** | Radio stack needs its own async task | `softdevice_task` with `sd.run()` + separate `advertise_loop` |
 | 6 | **Wrong test client** | “Nothing to see” on Mac | **nRF Connect on iPhone/iPad**, not macOS Bluetooth |
 
-**Steps 1 + 2 were decisive.** `nrf-softdevice-s140` 0.1.x binds against **S140 7.0.1**. Adafruit `restore-and-flash` ships **S140 6.1.1**. With 6.1.1, `Softdevice::enable()` and advertising fail silently — the app (color picker) can still run.
+**Steps 1 + 2 were decisive.** `nrf-softdevice-s140` 0.1.x binds against **S140 7.0.1**. Adafruit `restore-and-flash` ships **S140 6.1.1**. With 6.1.1, `Softdevice::enable()` and advertising fail silently; the app (color picker) can still run.
 
 ---
 
@@ -38,7 +38,7 @@ There were **several separate problems**. The color picker already worked — **
 | Adafruit restore / factory | **S140 6.1.1** |
 | Crate `nrf-softdevice-s140` 0.1.2 | **S140 7.0.1** (hardcoded ABI) |
 
-The Rust bindings call SoftDevice APIs with the **7.0.1 symbol table**. If 6.1.1 is in flash, addresses/structures do not match — init or advertising fails, often **without a visible panic** in the UI.
+The Rust bindings call SoftDevice APIs with the **7.0.1 symbol table**. If 6.1.1 is in flash, addresses/structures do not match: init or advertising fails, often **without a visible panic** in the UI.
 
 ### Fix
 
@@ -50,8 +50,8 @@ just setup-ble
 
 This runs:
 
-1. `just upgrade-softdevice-v7` — Serial DFU, package **S140 7.0.1 + bootloader**
-2. `just flash-v7` — app with feature `sd-v7` @ **0x27000**
+1. `just upgrade-softdevice-v7`: Serial DFU, package **S140 7.0.1 + bootloader**
+2. `just flash-v7`: app with feature `sd-v7` @ **0x27000**
 
 Manually:
 
@@ -110,7 +110,7 @@ Without BLE (color picker only): `just restore-and-flash` + `just flash` (6.1.1 
 
 ### Cause
 
-The **Adafruit serial bootloader** expects DFU packages of type **`softdevice_bootloader`** (SoftDevice + bootloader in one package) — as with `just restore-and-flash`. An isolated SoftDevice HEX without a matching bootloader is rejected.
+The **Adafruit serial bootloader** expects DFU packages of type **`softdevice_bootloader`** (SoftDevice + bootloader in one package), as with `just restore-and-flash`. An isolated SoftDevice HEX without a matching bootloader is rejected.
 
 ### Fix
 
@@ -121,7 +121,7 @@ The **Adafruit serial bootloader** expects DFU packages of type **`softdevice_bo
 3. With `adafruit-nrfutil dfu genpkg --bootloader … --softdevice …` produce a **`softdevice_bootloader`** ZIP
 4. Serial DFU: hold button A → reset once → release A
 
-On **macOS**, USB often drops with `Device not configured` — the script retries **3×** and treats a successful reconnect as OK.
+On **macOS**, USB often drops with `Device not configured`; the script retries **3×** and treats a successful reconnect as OK.
 
 ---
 
@@ -145,7 +145,7 @@ On **macOS**, USB often drops with `Device not configured` — the script retrie
 Comment in `time.rs`:
 
 ```rust
-/// **Do not** use in Embassy tasks — blocks SoftDevice and BLE.
+/// **Do not** use in Embassy tasks; blocks SoftDevice and BLE.
 pub fn delay_ms(ms: u32) { … }
 ```
 
@@ -188,8 +188,8 @@ Relevant modules:
 
 ### Scanner
 
-- **iPhone/iPad + nRF Connect** — reliable
-- **macOS Bluetooth** — often shows only the MacBook; CPB missing or as N/A
+- **iPhone/iPad + nRF Connect**: reliable
+- **macOS Bluetooth**: often shows only the MacBook; CPB missing or as N/A
 
 ### Expected advertising data
 
@@ -199,7 +199,7 @@ Relevant modules:
 
 Example red: `53 02 03 FF 00 00`. When skipping in the color picker, **RR GG BB** change within ~50 ms.
 
-Old firmware showed only **`53 01 01`** (CMD_PING v1) — then flash with **`just flash-v7`**.
+Old firmware showed only **`53 01 01`** (CMD_PING v1); then flash with **`just flash-v7`**.
 
 ---
 
@@ -230,9 +230,9 @@ just flash-v7
 
 ## What we did **not** need
 
-- No BLE connect / GATT — **non-connectable scannable advertising** is enough
-- No SWD debugger for the normal case — serial DFU is enough
-- No switch to S140 6.1.1-compatible Rust crates — instead raised SD to 7.0.1
+- No BLE connect / GATT: **non-connectable scannable advertising** is enough
+- No SWD debugger for the normal case: serial DFU is enough
+- No switch to S140 6.1.1-compatible Rust crates; instead raised SD to 7.0.1
 
 ---
 

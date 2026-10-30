@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# UF2 onto CPLAYBTBOOT — on macOS often only possible via Finder.
+# UF2 onto CPLAYBTBOOT; on macOS often only possible via Finder.
 
 set -euo pipefail
 
@@ -72,7 +72,7 @@ while true; do
             sync 2>/dev/null || true
             sleep 1.5
             if flash_ok "$vol"; then
-                echo "→ OK — board is restarting."
+                echo "→ OK, board is restarting."
                 echo "→ Expected: 2 s ORANGE, then blinking cyan."
                 exit 0
             fi

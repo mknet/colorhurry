@@ -19,7 +19,7 @@ pip3 install adafruit-nrfutil
 just flash-serial
 ```
 
-The board can be running **CircuitPython** or anything else — the script wakes the bootloader with a 1200-baud touch and then flashes **without** `--touch` in the same invocation (more stable on macOS).
+The board can be running **CircuitPython** or anything else; the script wakes the bootloader with a 1200-baud touch and then flashes **without** `--touch` in the same invocation (more stable on macOS).
 
 ### "Device not configured" / flash aborts
 
@@ -45,7 +45,7 @@ SERIAL_PORT=/dev/cu.usbmodem14101 just flash-serial
 just flash-finder
 ```
 
-Drag the `.uf2` onto **CPLAYBTBOOT** — the drive must **disappear**.
+Drag the `.uf2` onto **CPLAYBTBOOT**; the drive must **disappear**.
 
 ---
 
@@ -53,7 +53,7 @@ Drag the `.uf2` onto **CPLAYBTBOOT** — the drive must **disappear**.
 
 System Settings → Privacy & Security → **Full Disk Access** → enable Terminal/iTerm → restart the Mac.
 
-Sometimes helps with `cp` to CPLAYBTBOOT — often unreliable.
+Sometimes helps with `cp` to CPLAYBTBOOT, often unreliable.
 
 ---
 
@@ -69,4 +69,4 @@ just flash-probe
 
 ## Recognizing success
 
-After Reset **1×**: D13 blinks **3× short**, then **slowly** — not permanently green (bootloader), not the CircuitPython REPL.
+After Reset **1×**: D13 blinks **3× short**, then **slowly**, not permanently green (bootloader), not the CircuitPython REPL.

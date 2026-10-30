@@ -2,9 +2,9 @@
 
 ## Setup
 
-Position **5–9** on the ring (right half), Button **B** → receiver with channel 0–4.
+Position **5-9** on the ring (right half), Button **B** → receiver with channel 0-4.
 
-The **channel color** serves only as an identity in setup — it does **not** determine the game color.
+The **channel color** serves only as an identity in setup; it does **not** determine the game color.
 
 ## Runtime
 

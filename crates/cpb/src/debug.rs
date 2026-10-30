@@ -1,4 +1,4 @@
-//! Debug checkpoints — stage in RAM + defmt (RTT) when a probe is connected.
+//! Debug checkpoints: stage in RAM + defmt (RTT) when a probe is connected.
 
 use core::sync::atomic::{AtomicU32, Ordering};
 

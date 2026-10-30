@@ -1,4 +1,4 @@
-//! Color Hurry — CPB shell (hardware + SoftDevice) over `color-hurry-core`.
+//! Color Hurry: CPB shell (hardware + SoftDevice) over `color-hurry-core`.
 
 #![no_std]
 #![no_main]

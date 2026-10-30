@@ -14,12 +14,12 @@ const SPEAKER_PIN: u8 = 26;
 const AMP_ENABLE_PIN: usize = 4;
 const PWM_CLK_HZ: u32 = 1_000_000;
 
-/// Color change (button A / skip) — soft, short, rather low.
+/// Color change (button A / skip): soft, short, rather low.
 const SKIP_HZ: u32 = 380;
 const SKIP_MS: u32 = 55;
 const SKIP_DUTY_PCT: u32 = 22;
 
-/// Confirm tone when applying (button B, all LEDs) — higher, enter-like.
+/// Confirm tone when applying (button B, all LEDs): higher, enter-like.
 const APPLY_HZ: u32 = 784;
 const APPLY_MS: u32 = 130;
 const APPLY_DUTY_PCT: u32 = 34;
@@ -65,12 +65,12 @@ pub fn play_tone_ui(freq_hz: u32, duration_ms: u32) {
     play_ui_tone(freq_hz, duration_ms, duty_for_core_tone(freq_hz, duration_ms));
 }
 
-/// Soft tone when switching to the next color — non-blocking.
+/// Soft tone when switching to the next color, non-blocking.
 pub fn play_skip() {
     play_ui_tone(SKIP_HZ, SKIP_MS, Some(SKIP_DUTY_PCT));
 }
 
-/// Confirm tone when applying — non-blocking.
+/// Confirm tone when applying, non-blocking.
 pub fn play_apply() {
     play_ui_tone(APPLY_HZ, APPLY_MS, Some(APPLY_DUTY_PCT));
 }
@@ -210,7 +210,7 @@ fn start_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>, ui_failsafe
     pwm.tasks_stop().write_value(1);
     pwm.enable().write(|w| w.set_enable(false));
     pwm.countertop().write(|w| w.set_countertop(top));
-    // LOOP=0 would be infinite — duration comes from computed repetitions.
+    // LOOP=0 would be infinite; duration comes from computed repetitions.
     pwm.loop_().write(|w| w.set_cnt(LoopCnt::from_bits(loops)));
     pwm.dma()
         .seq(0)

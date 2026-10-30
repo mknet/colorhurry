@@ -1,4 +1,4 @@
-//! WS2812 via nRF52840 PWM @ 16 MHz (like Embassy neopixel.rs — independent of CPU clock).
+//! WS2812 via nRF52840 PWM @ 16 MHz (like Embassy neopixel.rs, independent of CPU clock).
 
 use core::sync::atomic::{compiler_fence, Ordering};
 

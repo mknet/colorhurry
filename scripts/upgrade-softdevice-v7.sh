@@ -66,7 +66,7 @@ do_flash() {
     fi
     # macOS: USB often drops even though the flash is OK afterwards
     if grep -q "Device not configured" "$log"; then
-        echo "→ USB reconnect after DFU (macOS) — checking again shortly …" >&2
+        echo "→ USB reconnect after DFU (macOS), checking again shortly …" >&2
         sleep 5
         if wait_for_port >/dev/null; then
             rm -f "$log"
@@ -163,7 +163,7 @@ for attempt in $(seq 1 3); do
     echo "=== Upgrade attempt $attempt/3 ==="
     port="$(wait_for_port || true)"
     if [[ -z "$port" ]]; then
-        echo "→ No port — check USB, A+Reset for DFU if needed"
+        echo "→ No port: check USB, A+Reset for DFU if needed"
         sleep 3
         continue
     fi
@@ -172,7 +172,7 @@ for attempt in $(seq 1 3); do
         flashed=1
         break
     fi
-    echo "→ Failed — A+Reset for DFU again, then next attempt"
+    echo "→ Failed: A+Reset for DFU again, then next attempt"
     sleep 4
 done
 

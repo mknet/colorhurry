@@ -11,13 +11,13 @@ After a reset, the **setup ring** appears:
 | Button | Action |
 |--------|--------|
 | **A** | Next ring step (CCW, purple left → purple right) |
-| **B** | Start (0–4 = picker, 5–9 = receiver) |
+| **B** | Start (0-4 = picker, 5-9 = receiver) |
 
 Channels: `palette::CHANNEL_COLORS` (5 colors).
 
 ### Color selection (picker mode)
 
-All **10** LEDs = `palette::SPECTRUM` (white … pink), the selected one blinks off — **separate** from the channel setup.
+All **10** LEDs = `palette::SPECTRUM` (white … pink), the selected one blinks off, **separate** from the channel setup.
 
 ## Picker runtime
 
