@@ -76,7 +76,7 @@ class BleService(context: Context) {
                 pickerChannel = null
                 stopAdvertise()
                 startScan()
-                onStatus?.invoke("Receiver ch${op.channel} scanning for ${op.color}…")
+                onStatus?.invoke("Caller ch${op.channel} scanning for ${op.color}…")
             }
             is BleOp.Broadcast -> {
                 if (op.color == null) {

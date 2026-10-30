@@ -39,7 +39,7 @@ pub fn view_model(model: &Model) -> ViewModel {
     let leds = match model.screen {
         Screen::ModeSelect => mode_select_leds(model),
         Screen::Picker => picker_leds(model),
-        Screen::Receiver => receiver_leds(model),
+        Screen::Caller => caller_leds(model),
     };
 
     let (countdown_step, countdown_active) = match model.round {
@@ -120,7 +120,7 @@ fn picker_leds(model: &Model) -> [Rgb; NUM_LEDS] {
     }
 }
 
-fn receiver_leds(model: &Model) -> [Rgb; NUM_LEDS] {
+fn caller_leds(model: &Model) -> [Rgb; NUM_LEDS] {
     let target = match model.round {
         Round::Running { target, .. } => target,
         Round::Waiting => Color::White,

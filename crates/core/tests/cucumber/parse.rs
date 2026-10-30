@@ -22,7 +22,7 @@ pub fn parse_screen(name: &str) -> Result<Screen, String> {
     match name.trim().to_ascii_lowercase().replace(' ', "").as_str() {
         "modeselect" | "mode" => Ok(Screen::ModeSelect),
         "picker" => Ok(Screen::Picker),
-        "receiver" => Ok(Screen::Receiver),
+        "caller" => Ok(Screen::Caller),
         other => Err(format!("unknown screen '{other}'")),
     }
 }

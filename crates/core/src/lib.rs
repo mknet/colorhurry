@@ -140,7 +140,7 @@ impl App for ColorHurry {
         match model.screen {
             Scr::ModeSelect => update_mode_select(event, model),
             Scr::Picker => update_picker(event, model),
-            Scr::Receiver => update_receiver(event, model),
+            Scr::Caller => update_caller(event, model),
         }
     }
 
@@ -322,7 +322,7 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
             let role = if pal::ring_step_is_picker(step) {
                 RoleKind::Picker { channel: ch }
             } else {
-                RoleKind::Receiver { channel: ch }
+                RoleKind::Caller { channel: ch }
             };
             model.role = Some(role);
             model.blink_on = true;
@@ -340,8 +340,8 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
                         .and(render())
                         .and(schedule_blink(model))
                 }
-                RoleKind::Receiver { channel: _ } => {
-                    model.screen = Scr::Receiver;
+                RoleKind::Caller { channel: _ } => {
+                    model.screen = Scr::Caller;
                     model.round = RoundState::Waiting;
                     play_tone(tone::apply())
                         .and(ble(BleOp::Off))
@@ -418,7 +418,7 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
     }
 }
 
-fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
+fn update_caller(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => Command::done(),
         Event::RandomByte(byte) => {
