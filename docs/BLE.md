@@ -42,14 +42,14 @@ MPSL keeps the 16 MHz crystal on for the life of the firmware, so TIMER4 and the
 | Task | Module | Purpose |
 |------|--------|---------|
 | MPSL | `main.rs` | `mpsl.run()`: radio scheduler |
-| BLE | `ble_broadcast.rs` | Advertising with command payload (picker), passive scan (receiver) |
-| UI | `game.rs` | Mode selection → picker or receiver |
+| BLE | `ble_broadcast.rs` | Advertising with command payload (picker), passive scan (caller) |
+| UI | `game.rs` | Mode selection → picker or caller |
 
-### Picker vs. receiver
+### Picker vs. caller
 
 - **Picker:** sends `CMD_COLOR` only after **Button B** (all LEDs in that color), not during selection.
-- **Receiver:** shows a random color, **scans** for a matching `CMD_COLOR`; on a hit, countdown → new random color.
-- **Channel** (0-4, setup color on the left): the picker sends the channel in the payload; the receiver ignores other channels.
+- **Caller:** shows a random color, **scans** for a matching `CMD_COLOR`; on a hit, countdown → new random color.
+- **Channel** (0-4, setup color on the left): the picker sends the channel in the payload; the caller ignores other channels.
 
 ## Device name
 
