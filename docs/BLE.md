@@ -77,7 +77,7 @@ Example channel 2 (green), color red: `53 03 03 02 FF 00 00`. Only the **confirm
 ble_broadcast::set_picker_broadcast(Some(Rgb { r: 255, g: 120, b: 0 }));
 ```
 
-**Live updates while skipping:** the advertisement stays on until the color changes. A new color replaces the advertiser, so `set_color()` reaches the radio. The Picker advertises about every 30 ms, and the Receiver scans passively with a 100 ms interval and a 100 ms window.
+**Live updates while skipping:** the advertisement stays on until the color changes. A new color replaces the advertiser, so `set_color()` reaches the radio. The Picker advertises about every 30 ms, and the Caller scans passively with a 100 ms interval and a 100 ms window.
 
 ## D13 diagnostics (without a phone)
 
