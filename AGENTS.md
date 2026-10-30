@@ -36,3 +36,10 @@ Rules:
 - Separate from the subject with a blank line
 - Complete sentences are fine; explain motivation and trade-offs
 - Still no agent co-author trailers
+
+## OpenSpec
+
+- Feature work starts with a change under `openspec/changes/<name>`
+- Specs live under `openspec/specs`
+- Commit order: `openspec: propose <name>`, then the code, then `openspec: archive <name>`
+- Run `openspec validate --all --strict` before committing
