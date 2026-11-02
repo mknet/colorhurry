@@ -4,6 +4,7 @@ Native SwiftUI app + CoreBluetooth central (scan manufacturer ads), driven by th
 
 ```bash
 just ffi-ios               # from repo root: BoltFFI package + generated Swift types
+cd apps/apple
 xcodegen generate
 open ColorHurry.xcodeproj
 ```

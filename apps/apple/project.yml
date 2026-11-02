@@ -11,17 +11,25 @@ packages:
     path: generated/App
   Shared:
     path: generated/Shared
+# Base.xcconfig reads the signing team from the gitignored Local.xcconfig.
+configFiles:
+  Debug: Base.xcconfig
+  Release: Base.xcconfig
 settings:
   base:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
-    DEVELOPMENT_TEAM: ""
 targets:
   ColorHurry:
     type: application
     platform: iOS
+    # A shared scheme, so `xcodebuild -scheme` does not depend on Xcode user state.
+    scheme: {}
     sources:
-      - path: ColorHurry
+      - path: iOS
+        excludes:
+          - "**/.DS_Store"
+      - path: Shared
         excludes:
           - "**/.DS_Store"
     dependencies:
@@ -31,14 +39,14 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.colorhurry.app
         PRODUCT_NAME: ColorHurry
-        INFOPLIST_FILE: ColorHurry/Info.plist
+        INFOPLIST_FILE: iOS/Info.plist
         GENERATE_INFOPLIST_FILE: false
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 1.0.0
         CODE_SIGN_STYLE: Automatic
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: false
     info:
-      path: ColorHurry/Info.plist
+      path: iOS/Info.plist
       properties:
         CFBundleDisplayName: Color Hurry
         CFBundleName: ColorHurry

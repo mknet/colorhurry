@@ -1,0 +1,8 @@
+// Build settings for all targets.
+//
+// Put your signing team in Local.xcconfig, next to this file:
+//
+//     DEVELOPMENT_TEAM = <your team ID>
+//
+// Git ignores Local.xcconfig. If the file is missing, the build uses no team.
+#include? "Local.xcconfig"

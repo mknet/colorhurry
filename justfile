@@ -36,7 +36,7 @@ ffi: ffi-ios ffi-android
 
 ffi-ios:
     cd crates/ffi && boltffi pack apple
-    cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language swift --output-dir apps/ios/generated
+    cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language swift --output-dir apps/apple/generated
 
 # Uses ANDROID_NDK_HOME, else the newest NDK under ~/Library/Android/sdk/ndk
 ffi-android:
@@ -48,10 +48,10 @@ ffi-android:
 
 # Native iOS (SwiftUI): regenerate Xcode project then open
 ios: ffi-ios
-    cd apps/ios && xcodegen generate && open ColorHurry.xcodeproj
+    cd apps/apple && xcodegen generate && open ColorHurry.xcodeproj
 
 ios-build: ffi-ios
-    cd apps/ios && xcodegen generate && xcodebuild -scheme ColorHurry -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+    cd apps/apple && xcodegen generate && xcodebuild -scheme ColorHurry -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
 
 # Native Android (Kotlin/Compose): needs JDK 17/21
 android: ffi-android

@@ -27,7 +27,7 @@ just ffi        # or just ffi-ios / just ffi-android
 
 ```bash
 just ffi-ios
-cd apps/ios
+cd apps/apple
 xcodegen generate          # regenerates ColorHurry.xcodeproj from project.yml
 open ColorHurry.xcodeproj  # or: just ios
 ```

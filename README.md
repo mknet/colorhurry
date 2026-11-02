@@ -7,7 +7,7 @@ crates/core    Event / Model / Effect / update / view  (no_std)
 crates/cpb     Hardware shell (Embassy, Bluetooth, NeoPixels, Audio)
 crates/web     Browser shell (one receiver board + experimental live BLE scan)
 crates/ffi     Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
-apps/ios       Native SwiftUI + CoreBluetooth shell on the Rust core
+apps/apple     Native SwiftUI + CoreBluetooth shell on the Rust core
 apps/android   Native Kotlin Compose + Android BLE shell on the Rust core
 ```
 
