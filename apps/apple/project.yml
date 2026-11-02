@@ -19,6 +19,9 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
+    # The FFI core has no x86_64 simulator slice.
+    EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
+    EXCLUDED_ARCHS[sdk=watchsimulator*]: x86_64
 targets:
   ColorHurry:
     type: application

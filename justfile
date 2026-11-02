@@ -32,11 +32,16 @@ web-build:
 
 # Rust core for the native apps: BoltFFI packages + generated Swift/Kotlin types
 # Needs `cargo install boltffi_cli --version '=0.30.1' --locked`
-ffi: ffi-ios ffi-android
+ffi: ffi-apple ffi-android
 
-ffi-ios:
-    cd crates/ffi && boltffi pack apple
+# Builds the core for iOS, macOS and watchOS. BoltFFI makes the iOS and macOS slices, and
+# scripts/xcframework_watchos.rs adds the watchOS slices (needs nightly rust-src).
+ffi-apple:
+    cd crates/ffi && boltffi pack apple --release
+    ./scripts/xcframework_watchos.rs
     cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language swift --output-dir apps/apple/generated
+
+alias ffi-ios := ffi-apple
 
 # Uses ANDROID_NDK_HOME, else the newest NDK under ~/Library/Android/sdk/ndk
 ffi-android:
@@ -47,10 +52,10 @@ ffi-android:
     cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language kotlin --output-dir apps/android/generated
 
 # Native iOS (SwiftUI): regenerate Xcode project then open
-ios: ffi-ios
+ios: ffi-apple
     cd apps/apple && xcodegen generate && open ColorHurry.xcodeproj
 
-ios-build: ffi-ios
+ios-build: ffi-apple
     cd apps/apple && xcodegen generate && xcodebuild -scheme ColorHurry -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
 
 # Native Android (Kotlin/Compose): needs JDK 17/21
