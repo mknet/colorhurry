@@ -21,6 +21,6 @@
 
 ## 3. Device checks
 
-- [ ] 3.1 Press Change mode on the watch during a countdown, and check that the tones and haptic clicks stop and the game page shows mode select at the last choice
+- [x] 3.1 Press Change mode on the watch during a countdown, and check that the tones and haptic clicks stop and the game page shows mode select at the last choice
 - [ ] 3.2 Press Mode on the iOS and Android apps during a countdown, and check that the tones stop and one Apply enters the same Receiver again
 - [ ] 3.3 Press Mode on an Android Picker that broadcasts, and check that a board Receiver no longer sees the color
