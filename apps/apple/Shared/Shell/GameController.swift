@@ -23,7 +23,15 @@ final class GameController {
     var view: ViewModel { core.view }
     var bleStatus: String { handler.bleService.status }
 
-    func boot() { core.update(.boot) }
+    /// Starts the core. If the platform cannot broadcast a color, the core
+    /// first learns that mode select must offer only Receiver.
+    func boot() {
+        if !Platform.canBroadcast {
+            core.update(.receiverOnly)
+        }
+        core.update(.boot)
+    }
+
     func skip() { core.update(.skip) }
     func activate() { core.update(.activateColor) }
 

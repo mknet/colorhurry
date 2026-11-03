@@ -15,7 +15,7 @@ All four apps mirror the board entry (**Skip** / **Apply** → Mode select → P
 2. Phone, Mac or watch: Skip to **Receiver** on the same channel, Apply.
 3. CPB: Picker on that channel, Apply a color → the countdown on the phone, Mac or watch resets on match.
 
-**iOS, macOS and watchOS as Picker:** CoreBluetooth cannot put Adafruit manufacturer data on the air the way the board expects. In Picker, these apps show that they cannot broadcast. Use a CPB (or Android) as Picker. **Android as Picker** can advertise.
+**iOS, macOS and watchOS are Receiver only.** CoreBluetooth on iOS and macOS cannot advertise manufacturer data, and watchOS cannot advertise at all. Thus mode select in these apps offers only Receiver. It starts at Receiver on channel 0, which matches the channel on which a board Picker starts. Skip then cycles the Receiver channels 4, 3, 2, 1 and 0. Use a CPB (or Android) as Picker. **Android as Picker** can advertise.
 
 ## Build / run
 

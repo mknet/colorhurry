@@ -55,6 +55,8 @@ pub struct Model {
     pub(crate) beat_gen: u32,
     /// True between `Pause` and `Resume`.
     pub(crate) paused: bool,
+    /// True after `ReceiverOnly`. Mode select then offers only Receiver choices.
+    pub(crate) receiver_only: bool,
 }
 
 impl Default for Model {
@@ -78,6 +80,7 @@ impl Model {
             round: Round::Waiting,
             beat_gen: 0,
             paused: false,
+            receiver_only: false,
         }
     }
 

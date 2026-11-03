@@ -8,6 +8,12 @@ import WatchKit
 enum Platform {
     static let name = "watchOS"
 
+    /// The watchOS app cannot be Picker, so this value is false. watchOS cannot
+    /// advertise over Bluetooth at all, so a board Receiver never sees the
+    /// color. `GameController.boot()` then sends `ReceiverOnly`, and mode
+    /// select offers only Receiver.
+    static let canBroadcast = false
+
     /// Lets tones play with other audio.
     static func prepareAudio() throws {
         try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])

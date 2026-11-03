@@ -38,6 +38,16 @@ async fn fresh(world: &mut ColorHurryWorld) {
     *world = ColorHurryWorld::default();
 }
 
+#[given("the shell cannot broadcast")]
+async fn cannot_broadcast(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::ReceiverOnly);
+}
+
+#[when("the shell says that it cannot broadcast")]
+async fn says_cannot_broadcast(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::ReceiverOnly);
+}
+
 #[given("the game has been booted")]
 async fn booted(world: &mut ColorHurryWorld) {
     world.harness.send(Event::Boot);

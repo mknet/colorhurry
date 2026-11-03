@@ -63,6 +63,10 @@ pub enum Event {
     /// radio, and mode select starts at the role and channel that the player
     /// entered last.
     Reset,
+    /// The shell cannot broadcast a color, so it cannot be Picker. The shell
+    /// sends this event once, before `Boot`. After it, mode select offers only
+    /// Receiver choices. No event turns it off again.
+    ReceiverOnly,
 }
 
 #[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -119,11 +123,14 @@ impl App for ColorHurry {
         match event {
             Event::Pause => return pause(model),
             Event::Resume => return resume(model),
+            // A shell capability, not a game action, so the core accepts it
+            // also while paused.
+            Event::ReceiverOnly => return receiver_only(model),
             _ => {}
         }
-        // While paused, the core ignores every event except `Resume`. A
-        // `RandomByte` from a request that was in flight is dropped too,
-        // because `Resume` requests a new byte.
+        // While paused, the core ignores every event except `Resume` and
+        // `ReceiverOnly`. A `RandomByte` from a request that was in flight is
+        // dropped too, because `Resume` requests a new byte.
         if model.paused {
             return Command::done();
         }
@@ -269,6 +276,26 @@ fn reset(model: &mut Model) -> Command<Effect, Event> {
     ble(BleOp::Off).and(render()).and(schedule_blink(model))
 }
 
+/// Limits mode select to the Receiver choices.
+///
+/// While `receiver_only` is set, `mode_step` is always a Receiver step. Skip
+/// keeps this rule, so `ActivateColor`, the view and `reset` need no change.
+/// If the current step is a Picker step, mode select moves to Receiver on
+/// channel 0, because the board Picker starts on channel 0. The current screen
+/// does not change.
+fn receiver_only(model: &mut Model) -> Command<Effect, Event> {
+    model.receiver_only = true;
+    if !pal::ring_step_is_picker(model.mode_step as usize) {
+        return Command::done();
+    }
+    model.mode_step = pal::RECEIVER_ONLY_START_STEP;
+    if model.screen == Scr::ModeSelect && !model.paused {
+        render()
+    } else {
+        Command::done()
+    }
+}
+
 fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => render().and(schedule_blink(model)),
@@ -278,7 +305,11 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
         }
         Event::BlinkDone(_) => Command::done(),
         Event::Skip => {
-            model.mode_step = (model.mode_step + 1) % NUM_LEDS as u8;
+            let mut next = (model.mode_step + 1) % NUM_LEDS as u8;
+            if model.receiver_only && pal::ring_step_is_picker(next as usize) {
+                next = pal::FIRST_RECEIVER_STEP;
+            }
+            model.mode_step = next;
             model.blink_on = false;
             model.blink_counter = 0;
             play_tone(tone::skip())
@@ -328,7 +359,7 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
             Command::done()
         }
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume | Event::Reset => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
     }
 }
 
@@ -383,7 +414,7 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
         | Event::BeatDone(_)
         | Event::ExplosionDone(_) => Command::done(),
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume | Event::Reset => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
     }
 }
 
@@ -429,7 +460,7 @@ fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
         }
         Event::BlinkDone(_) => Command::done(),
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume | Event::Reset => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
     }
 }
 
