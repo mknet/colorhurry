@@ -1,13 +1,13 @@
 # Color Hurry
 
-Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit**, **Browser (WASM)** and **iOS / Android** (FFI).
+Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit**, **Browser (WASM)** and **iOS / macOS / watchOS / Android** (FFI).
 
 ```text
 crates/core    Event / Model / Effect / update / view  (no_std)
 crates/cpb     Hardware shell (Embassy, Bluetooth, NeoPixels, Audio)
 crates/web     Browser shell (one receiver board + experimental live BLE scan)
 crates/ffi     Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
-apps/apple     Native SwiftUI + CoreBluetooth shell on the Rust core
+apps/apple     Native SwiftUI + CoreBluetooth shells (iOS, macOS, watchOS) on the Rust core
 apps/android   Native Kotlin Compose + Android BLE shell on the Rust core
 ```
 
@@ -47,10 +47,10 @@ just board        # print the SoftDevice of the board and the matching layout
 just flash-uf2    # build, convert and copy the UF2 with the matching layout
 cargo test -p color-hurry-core
 just web-serve    # browser: http://127.0.0.1:8080
-just ios / just android   # native apps (builds the core via `just ffi`, Xcode / JDK 17|21)
+just apple / just android   # native apps (builds the core via `just ffi`, Xcode / JDK 17|21)
 ```
 
-**Native apps (iOS + Android):** same entry as on the board (Skip/Apply → Picker/Receiver), UI like the web shell. Demo: CPB as picker, phone as receiver. See [apps/README.md](apps/README.md).
+**Native apps (iOS, macOS, watchOS + Android):** same entry as on the board (Skip/Apply → Picker/Receiver), UI like the web shell. Demo: CPB as picker, phone, Mac or watch as receiver. The Apple apps cannot be Picker. See [apps/README.md](apps/README.md).
 
 Browser **Live BLE** (unstable POC, receiver only): Chrome/Edge, flag
 `chrome://flags/#enable-experimental-web-platform-features`, then “Live BLE scan”.
