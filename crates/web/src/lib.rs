@@ -75,8 +75,15 @@ impl Shell {
             .dyn_into::<HtmlButtonElement>()?;
         btn_b.set_id("btn-b");
         btn_b.set_inner_text("Button B (apply)");
+        let btn_mode = doc
+            .create_element("button")?
+            .dyn_into::<HtmlButtonElement>()?;
+        btn_mode.set_id("btn-mode");
+        btn_mode.set_class_name("secondary");
+        btn_mode.set_inner_text("Mode");
         actions.append_child(&btn_a)?;
         actions.append_child(&btn_b)?;
+        actions.append_child(&btn_mode)?;
         root.append_child(&actions)?;
         parent.append_child(&root)?;
 
@@ -267,6 +274,11 @@ pub fn start() -> Result<(), JsValue> {
         let shell = shell.clone();
         move || shell.borrow_mut().process(Event::ActivateColor)
     })?;
+    // The Mode button goes back to mode select.
+    bind_button(&doc, "btn-mode", {
+        let shell = shell.clone();
+        move || shell.borrow_mut().process(Event::Reset)
+    })?;
 
     {
         let shell = shell.clone();
@@ -348,6 +360,23 @@ pub fn start() -> Result<(), JsValue> {
             });
         }) as Box<dyn FnMut()>);
         ble_btn.set_onclick(Some(closure.as_ref().unchecked_ref()));
+        closure.forget();
+    }
+
+    // Pause the game while the tab is hidden, and resume it when the tab is
+    // visible again.
+    {
+        let shell = shell.clone();
+        let doc_cb = doc.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            let event = if doc_cb.hidden() {
+                Event::Pause
+            } else {
+                Event::Resume
+            };
+            shell.borrow_mut().process(event);
+        }) as Box<dyn FnMut()>);
+        doc.set_onvisibilitychange(Some(closure.as_ref().unchecked_ref()));
         closure.forget();
     }
 

@@ -60,27 +60,6 @@ pub fn duty_for_core_tone(freq_hz: u32, duration_ms: u32) -> Option<u32> {
     }
 }
 
-/// Short non-blocking UI tone (hz/ms from the core).
-pub fn play_tone_ui(freq_hz: u32, duration_ms: u32) {
-    play_ui_tone(freq_hz, duration_ms, duty_for_core_tone(freq_hz, duration_ms));
-}
-
-/// Soft tone when switching to the next color, non-blocking.
-pub fn play_skip() {
-    play_ui_tone(SKIP_HZ, SKIP_MS, Some(SKIP_DUTY_PCT));
-}
-
-/// Confirm tone when applying, non-blocking.
-pub fn play_apply() {
-    play_ui_tone(APPLY_HZ, APPLY_MS, Some(APPLY_DUTY_PCT));
-}
-
-fn play_ui_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>) {
-    ensure_init();
-    stop_tone();
-    start_tone(freq_hz, duration_ms, duty_pct, true);
-}
-
 /// Call from every UI loop (before and after `render`).
 pub fn tone_service() {
     if !unsafe { TONE_ACTIVE } {
@@ -105,7 +84,8 @@ pub fn tone_service() {
     }
 }
 
-/// Descending “explosion” sweep (after countdown without a hit).
+/// Descending “explosion” sweep (after countdown without a hit). Only the speaker demo uses it.
+#[cfg(feature = "speaker-demo")]
 pub async fn play_explosion() {
     const STEPS: u32 = 10;
     const START_HZ: u32 = 180;
@@ -149,9 +129,9 @@ fn tone_duty_pct(freq_hz: u32) -> u32 {
 
 fn enable_amp() {
     nrf_pac::P1.pin_cnf(AMP_ENABLE_PIN).write(|w| {
-        w.set_dir(Dir::OUTPUT);
-        w.set_input(Input::DISCONNECT);
-        w.set_pull(Pull::DISABLED);
+        w.set_dir(Dir::Output);
+        w.set_input(Input::Disconnect);
+        w.set_pull(Pull::Disabled);
     });
     nrf_pac::P1
         .outset()
@@ -172,19 +152,19 @@ fn init_pwm1() {
     pwm.psel().out(0).write(|w| {
         w.set_pin(SPEAKER_PIN);
         w.set_port(false);
-        w.set_connect(Connect::CONNECTED);
+        w.set_connect(Connect::Connected);
     });
     for ch in 1..4 {
-        pwm.psel().out(ch).write(|w| w.set_connect(Connect::DISCONNECTED));
+        pwm.psel().out(ch).write(|w| w.set_connect(Connect::Disconnected));
     }
 
     pwm.decoder().write(|w| {
-        w.set_load(vals::Load::COMMON);
-        w.set_mode(vals::Mode::REFRESH_COUNT);
+        w.set_load(vals::Load::Common);
+        w.set_mode(vals::Mode::RefreshCount);
     });
-    pwm.mode().write(|w| w.set_updown(vals::Updown::UP));
+    pwm.mode().write(|w| w.set_updown(vals::Updown::Up));
     pwm.prescaler()
-        .write(|w| w.set_prescaler(vals::Prescaler::DIV_16));
+        .write(|w| w.set_prescaler(vals::Prescaler::Div16));
 }
 
 fn start_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>, ui_failsafe: bool) {
@@ -220,7 +200,7 @@ fn start_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>, ui_failsafe
     pwm.dma()
         .seq(0)
         .ptr()
-        .write_value(unsafe { TONE_SEQ.as_ptr() as u32 });
+        .write_value((&raw const TONE_SEQ) as u32);
     pwm.dma()
         .seq(0)
         .maxcnt()

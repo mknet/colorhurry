@@ -3,7 +3,7 @@
 mod harness;
 mod parse;
 
-use color_hurry_core::{BleOp, Event, Screen};
+use color_hurry_core::{BleOp, Event, ModeChoice, ModeRole, Screen};
 use cucumber::{given, then, when, World};
 use harness::Harness;
 use parse::{parse_color, parse_screen};
@@ -38,6 +38,16 @@ async fn fresh(world: &mut ColorHurryWorld) {
     *world = ColorHurryWorld::default();
 }
 
+#[given("the shell cannot broadcast")]
+async fn cannot_broadcast(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::ReceiverOnly);
+}
+
+#[when("the shell says that it cannot broadcast")]
+async fn says_cannot_broadcast(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::ReceiverOnly);
+}
+
 #[given("the game has been booted")]
 async fn booted(world: &mut ColorHurryWorld) {
     world.harness.send(Event::Boot);
@@ -48,7 +58,37 @@ async fn next_random(world: &mut ColorHurryWorld, list: String) {
     world.harness.push_random_many(parse_byte_list(&list));
 }
 
+#[when("the shell holds random requests")]
+async fn hold_random(world: &mut ColorHurryWorld) {
+    world.harness.hold_random(true);
+}
+
+#[when("the shell answers random requests at once")]
+async fn answer_random(world: &mut ColorHurryWorld) {
+    world.harness.hold_random(false);
+}
+
 // ----- When -----
+
+#[when("the app goes to the background")]
+async fn pause(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::Pause);
+}
+
+#[when("the app comes back")]
+async fn resume(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::Resume);
+}
+
+#[when("I go back to mode select")]
+async fn reset(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::Reset);
+}
+
+#[when(regex = r"^the shell answers the held random request with (\d+)$")]
+async fn answer_held(world: &mut ColorHurryWorld, byte: u8) {
+    world.harness.answer_held_random(byte);
+}
 
 #[when("I apply")]
 async fn apply(world: &mut ColorHurryWorld) {
@@ -123,6 +163,38 @@ async fn screen_is(world: &mut ColorHurryWorld, name: String) {
 #[then(regex = r"^the channel should be (\d+)$")]
 async fn channel_is(world: &mut ColorHurryWorld, channel: u8) {
     assert_eq!(world.harness.view().channel, channel);
+}
+
+#[then(regex = r"^the mode choice should be (Picker|Receiver) channel (\d+)$")]
+async fn mode_choice_is(world: &mut ColorHurryWorld, role: String, channel: u8) {
+    let role = if role == "Picker" {
+        ModeRole::Picker
+    } else {
+        ModeRole::Receiver
+    };
+    assert_eq!(
+        world.harness.view().mode_choice,
+        Some(ModeChoice { role, channel })
+    );
+}
+
+#[then("there should be no mode choice")]
+async fn no_mode_choice(world: &mut ColorHurryWorld) {
+    assert_eq!(world.harness.view().mode_choice, None);
+}
+
+#[then(regex = r"^the picker should name (.+) as (selected|applied)$")]
+async fn picker_names(world: &mut ColorHurryWorld, color: String, state: String) {
+    let view = world.harness.view();
+    assert_eq!(view.picker_color, Some(parse_color(&color).expect("color")));
+    assert_eq!(view.picker_applied, state == "applied");
+}
+
+#[then("there should be no picker color")]
+async fn no_picker_color(world: &mut ColorHurryWorld) {
+    let view = world.harness.view();
+    assert_eq!(view.picker_color, None);
+    assert!(!view.picker_applied);
 }
 
 #[then("the countdown should be active")]
@@ -205,6 +277,30 @@ async fn ble_off(world: &mut ColorHurryWorld) {
     );
 }
 
+#[then("BLE should not have received a Receiver op")]
+async fn ble_no_receiver(world: &mut ColorHurryWorld) {
+    assert!(
+        !world
+            .harness
+            .ble_log()
+            .iter()
+            .any(|op| matches!(op, BleOp::Receiver { .. })),
+        "ble log: {:?}",
+        world.harness.ble_log()
+    );
+}
+
+#[then(regex = r"^BLE should have received (\d+) Receiver ops?$")]
+async fn ble_receiver_count(world: &mut ColorHurryWorld, n: usize) {
+    let count = world
+        .harness
+        .ble_log()
+        .iter()
+        .filter(|op| matches!(op, BleOp::Receiver { .. }))
+        .count();
+    assert_eq!(count, n, "ble log: {:?}", world.harness.ble_log());
+}
+
 #[then("BLE should not have received any new ops")]
 async fn ble_empty(world: &mut ColorHurryWorld) {
     assert!(
@@ -266,6 +362,33 @@ async fn delay_requested_n(world: &mut ColorHurryWorld, ms: u32, n: usize) {
         .filter(|d| **d == ms)
         .count();
     assert!(count >= n, "expected >= {n} delays of {ms}, got {count}");
+}
+
+#[then("no tone should have been played")]
+async fn no_tone(world: &mut ColorHurryWorld) {
+    assert!(
+        world.harness.tone_log().is_empty(),
+        "tones: {:?}",
+        world.harness.tone_log()
+    );
+}
+
+#[then("no explosion tone should have been played")]
+async fn no_explosion(world: &mut ColorHurryWorld) {
+    assert!(
+        !world.harness.tone_log().iter().any(|t| t.is_explosion()),
+        "tones: {:?}",
+        world.harness.tone_log()
+    );
+}
+
+#[then("no delay should have been requested")]
+async fn no_delay(world: &mut ColorHurryWorld) {
+    assert!(
+        world.harness.delay_log().is_empty(),
+        "delays: {:?}",
+        world.harness.delay_log()
+    );
 }
 
 #[then(regex = r"^all LEDs should show (.+)$")]

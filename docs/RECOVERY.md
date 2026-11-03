@@ -38,7 +38,9 @@ Earlier firmware could jump into the bootloader via a button (`GPREGRET = 0x57`)
 
 ### B) SoftDevice damaged by a wrong flash
 
-If it was previously flashed at address **0x0**, the **SoftDevice** region may be corrupted. The bootloader (green) still works, the app at **0x27000** does not.
+If it was previously flashed at address **0x0**, the **SoftDevice** region may be corrupted. The bootloader (green) still works, the app at **0x26000** (S140 6.x) or **0x27000** (S140 7.x) does not.
+
+The app needs a working SoftDevice region in flash, even though the app never enables the SoftDevice. The app starts only if the bootloader and the memory layout match the SoftDevice of the board.
 
 **Repair (UF2, NeoPixels green):**
 
@@ -49,7 +51,7 @@ If it was previously flashed at address **0x0**, the **SoftDevice** region may b
 **Or test with CircuitPython:**
 
 - [CircuitPython UF2 for CPB](https://circuitpython.org/board/circuitplayground_bluefruit/)  
-- If **CIRCUITPY** appears afterwards: hardware is OK → flash Rust again with `just flash-now`
+- If **CIRCUITPY** appears afterwards: hardware is OK → flash Rust again with `just flash-uf2`
 
 ### C) Flash didn't actually write
 
@@ -61,10 +63,10 @@ If it was previously flashed at address **0x0**, the **SoftDevice** region may b
 ## Then flash Rust
 
 ```bash
-just flash-clean
+just flash-uf2
 ```
 
-(or, while in the bootloader: `just flash-now`)
+This recipe reads the SoftDevice of the board from `INFO_UF2.TXT` and flashes the matching layout. For serial DFU, run `just flash` (v6) or `just flash-v7` (v7).
 
 ## Re-enabling NeoPixels
 

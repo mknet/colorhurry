@@ -112,12 +112,13 @@ do_flash() {
     fi
 
     set +e
+    # Bash 3.2 with `set -u` treats an empty array as unbound, so guard the expansion.
     adafruit-nrfutil --verbose dfu serial \
         --package "$pkg" \
         -p "$port" \
         -b 115200 \
         --singlebank \
-        "${touch_flag[@]}" 2>&1 | tee "$log"
+        ${touch_flag[@]+"${touch_flag[@]}"} 2>&1 | tee "$log"
     set -e
 
     if grep -q "Device programmed\." "$log"; then
@@ -130,16 +131,8 @@ do_flash() {
 
 echo "→ Layout: $layout (app @ $flash_base, --sd-req $sd_req, --features $features)"
 
-stamp="$root/target/.cpb-memory-layout"
-if [[ -f "$stamp" ]] && [[ "$(cat "$stamp")" != "$layout" ]]; then
-    echo "→ Different layout than last time: cargo clean"
-    (cd "$root" && cargo clean)
-fi
-mkdir -p "$root/target"
-echo "$layout" > "$stamp"
-
-echo "→ cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --features $features"
-(cd "$root" && cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --features "$features")
+echo "→ cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --no-default-features --features $features"
+(cd "$root" && cargo build --release -p color-hurry-cpb --target thumbv7em-none-eabihf --no-default-features --features "$features")
 
 echo "→ ELF sections (vector table should start at $flash_base):"
 arm-none-eabi-objdump -h "$elf" 2>/dev/null | grep -E "vector|Idx" || llvm-objdump -h "$elf" | grep -E "vector|Idx"

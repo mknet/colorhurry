@@ -18,7 +18,7 @@ codegen = ["dep:anyhow", "dep:clap", "color-hurry-core/facet_typegen"]
 
 [dependencies]
 color-hurry-core = { path = "../core" }
-crux_core = { path = "../../../../../crux/crux_core", features = ["bridge"] }
+crux_core = { workspace = true, features = ["std", "bridge", "crux_macros"] }
 boltffi = "=0.30.1"
 bincode = "=1.3"
 

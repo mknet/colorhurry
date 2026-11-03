@@ -11,19 +11,35 @@ import kotlin.math.sin
 class TonePlayer {
     @Volatile private var busy = false
 
+    // The lock guards `generation` and `current`. Each call to `stop()` starts a new
+    // generation. A sequence keeps the generation from the time it was played, and
+    // does not start if `stop()` came after it.
+    private val lock = Any()
+    private var generation = 0L
+    private var current: AudioTrack? = null
+
     fun play(steps: List<ToneStep>) {
         if (steps.isEmpty() || busy) return
         busy = true
+        val gen = synchronized(lock) { generation }
         thread(name = "tones") {
             try {
-                render(steps)
+                render(steps, gen)
             } finally {
                 busy = false
             }
         }
     }
 
-    private fun render(steps: List<ToneStep>) {
+    /// Stops the tone that plays and drops the sequences that have not started.
+    fun stop() {
+        synchronized(lock) {
+            generation++
+            current?.let { track -> runCatching { track.stop() } }
+        }
+    }
+
+    private fun render(steps: List<ToneStep>, gen: Long) {
         val sampleRate = 22_050
         val samples = ArrayList<Short>()
         for (step in steps) {
@@ -60,10 +76,23 @@ class TonePlayer {
             .build()
         val buf = ShortArray(samples.size) { samples[it] }
         track.write(buf, 0, buf.size)
-        track.play()
-        val totalMs = steps.sumOf { it.ms.toLong() }
-        Thread.sleep(totalMs + 30)
-        track.stop()
+        val started = synchronized(lock) {
+            if (gen == generation) {
+                current = track
+                track.play()
+                true
+            } else {
+                false
+            }
+        }
+        if (started) {
+            val totalMs = steps.sumOf { it.ms.toLong() }
+            Thread.sleep(totalMs + 30)
+            synchronized(lock) {
+                if (current === track) current = null
+                runCatching { track.stop() }
+            }
+        }
         track.release()
     }
 }

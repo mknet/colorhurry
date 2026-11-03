@@ -12,13 +12,13 @@ autotests = false
 facet_typegen = ["crux_core/facet_typegen"]
 
 [dependencies]
-crux_core = { path = "../../../../../crux/crux_core", default-features = false, features = ["crux_macros", "critical-section"] }
+crux_core = { workspace = true, features = ["crux_macros", "critical-section"] }
 facet = { version = "=0.46.5", default-features = false, features = ["alloc"] }
 serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 critical-section = { version = "1.2", features = ["std"] }
-crux_core = { path = "../../../../../crux/crux_core", default-features = false, features = ["crux_macros", "critical-section", "testing"] }
+crux_core = { workspace = true, features = ["crux_macros", "critical-section", "testing"] }
 cucumber = "0.21"
 futures = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

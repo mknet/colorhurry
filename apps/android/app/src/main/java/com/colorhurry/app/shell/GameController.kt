@@ -4,10 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.colorhurry.shared.Ble
+import com.colorhurry.shared.Color as SpectrumColor
 import com.colorhurry.shared.Core
 import com.colorhurry.shared.Delay
 import com.colorhurry.shared.EffectHandler
 import com.colorhurry.shared.Event
+import com.colorhurry.shared.ModeRole
 import com.colorhurry.shared.PlayTone
 import com.colorhurry.shared.Random
 import com.colorhurry.shared.Screen
@@ -59,6 +61,23 @@ class GameController(app: Application) : AndroidViewModel(app) {
     fun skip() = core.update(Event.Skip)
     fun activate() = core.update(Event.ActivateColor)
 
+    /// Stops the tone that plays, then pauses the core. The core stops its
+    /// timers and the radio.
+    fun pause() {
+        tones.stop()
+        core.update(Event.Pause)
+    }
+
+    /// Lets the core continue where it stopped.
+    fun resume() = core.update(Event.Resume)
+
+    /// Stops the tone that plays, then sends the player back to mode select.
+    /// The core stops the round and the radio.
+    fun reset() {
+        tones.stop()
+        core.update(Event.Reset)
+    }
+
     /// Manufacturer payload after the company ID; the core owns the wire format.
     private fun received(payload: ByteArray) {
         val bytes = colorReceivedEvent(payload)
@@ -67,8 +86,18 @@ class GameController(app: Application) : AndroidViewModel(app) {
     }
 
     fun modeHint(view: ViewModel): String = when (view.screen) {
-        Screen.MODESELECT -> "Mode select · Skip cycles role/channel · Apply enters"
-        Screen.PICKER -> "Picker ch${view.channel} · Skip color · Apply broadcasts or withdraws"
+        Screen.MODESELECT -> view.modeChoice?.let { choice ->
+            val role = if (choice.role == ModeRole.PICKER) "Picker" else "Receiver"
+            "Apply enters $role ch${choice.channel} · Skip for next"
+        } ?: "Mode select · Skip cycles role/channel · Apply enters"
+        Screen.PICKER -> {
+            val color = view.pickerColor?.let(::colorName) ?: "?"
+            if (view.pickerApplied) {
+                "Picker ch${view.channel} · broadcasting $color · Skip or Apply stops"
+            } else {
+                "Picker ch${view.channel} · $color · Skip for next · Apply broadcasts"
+            }
+        }
         Screen.RECEIVER -> if (view.countdownActive) {
             "Receiver ch${view.channel} · countdown ${view.countdownStep}/10"
         } else {
@@ -77,7 +106,22 @@ class GameController(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        tones.stop()
         bleService.stopAll()
         super.onCleared()
     }
+}
+
+/** Reader-friendly name, for example "Light green". */
+private fun colorName(color: SpectrumColor): String = when (color) {
+    SpectrumColor.WHITE -> "White"
+    SpectrumColor.RED -> "Red"
+    SpectrumColor.ORANGE -> "Orange"
+    SpectrumColor.YELLOW -> "Yellow"
+    SpectrumColor.LIGHTGREEN -> "Light green"
+    SpectrumColor.GREEN -> "Green"
+    SpectrumColor.LIGHTBLUE -> "Light blue"
+    SpectrumColor.BLUE -> "Blue"
+    SpectrumColor.PURPLE -> "Purple"
+    SpectrumColor.PINK -> "Pink"
 }

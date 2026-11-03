@@ -23,7 +23,7 @@ pub use protocol::{
     decode_color, encode_color, COMPANY_ID, CMD_COLOR, MAGIC, PAYLOAD_LEN, VERSION,
 };
 pub use tones::{ToneSequence, ToneStep};
-pub use view::ViewModel;
+pub use view::{ModeChoice, ModeRole, ViewModel};
 
 use crux_core::{
     App, Command,
@@ -53,6 +53,20 @@ pub enum Event {
     BlinkDone(u32),
     /// Countdown beat delay finished for generation `id`.
     BeatDone(u32),
+    /// The last beat tone and the explosion finished for generation `id`.
+    ExplosionDone(u32),
+    /// The app went to the background. The core stops its timers and the radio.
+    Pause,
+    /// The app came back from the background. The core continues where it stopped.
+    Resume,
+    /// The player goes back to mode select. The core stops the round and the
+    /// radio, and mode select starts at the role and channel that the player
+    /// entered last.
+    Reset,
+    /// The shell cannot broadcast a color, so it cannot be Picker. The shell
+    /// sends this event once, before `Boot`. After it, mode select offers only
+    /// Receiver choices. No event turns it off again.
+    ReceiverOnly,
 }
 
 #[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -106,6 +120,23 @@ impl App for ColorHurry {
     type Effect = Effect;
 
     fn update(&self, event: Event, model: &mut Model) -> Command<Effect, Event> {
+        match event {
+            Event::Pause => return pause(model),
+            Event::Resume => return resume(model),
+            // A shell capability, not a game action, so the core accepts it
+            // also while paused.
+            Event::ReceiverOnly => return receiver_only(model),
+            _ => {}
+        }
+        // While paused, the core ignores every event except `Resume` and
+        // `ReceiverOnly`. A `RandomByte` from a request that was in flight is
+        // dropped too, because `Resume` requests a new byte.
+        if model.paused {
+            return Command::done();
+        }
+        if event == Event::Reset {
+            return reset(model);
+        }
         match model.screen {
             Scr::ModeSelect => update_mode_select(event, model),
             Scr::Picker => update_picker(event, model),
@@ -147,6 +178,16 @@ fn schedule_beat_ms(model: &mut Model, millis: u32) -> Command<Effect, Event> {
     })
 }
 
+/// Wait for the queued tones to finish, then send `ExplosionDone`.
+fn schedule_explosion_done(model: &mut Model, millis: u32) -> Command<Effect, Event> {
+    model.beat_gen = model.beat_gen.wrapping_add(1);
+    let id = model.beat_gen;
+    Command::new(move |ctx| async move {
+        ctx.request_from_shell(Delay { millis }).await;
+        ctx.send_event(Event::ExplosionDone(id));
+    })
+}
+
 fn request_random() -> Command<Effect, Event> {
     Command::request_from_shell(Random).then_send(Event::RandomByte)
 }
@@ -159,6 +200,102 @@ fn advance_blink(model: &mut Model) {
     }
 }
 
+/// Stops every timer and the radio, and remembers that the game is paused.
+///
+/// The new generations make the core ignore the `BlinkDone`, `BeatDone` and
+/// `ExplosionDone` events of delays that are still pending in the shell.
+fn pause(model: &mut Model) -> Command<Effect, Event> {
+    if model.paused {
+        return Command::done();
+    }
+    model.paused = true;
+    model.blink_gen = model.blink_gen.wrapping_add(1);
+    model.beat_gen = model.beat_gen.wrapping_add(1);
+    ble(BleOp::Off)
+}
+
+/// Sends the radio op of the current screen again and restarts its timers.
+///
+/// A running countdown continues at the same step, and its next beat comes one
+/// full `BEAT_PERIOD_MS` later. A Receiver with no running round requests a new
+/// random byte. This starts the next round after an explosion (with no second
+/// explosion) and after a random byte that the pause dropped.
+fn resume(model: &mut Model) -> Command<Effect, Event> {
+    if !model.paused {
+        return Command::done();
+    }
+    model.paused = false;
+    match model.screen {
+        Scr::ModeSelect => render().and(schedule_blink(model)),
+        Scr::Picker => {
+            let channel = model.channel();
+            let color = match model.picker_phase {
+                Phase::Selecting => None,
+                Phase::Applied => Some(model.picker_applied),
+            };
+            let cmd = ble(BleOp::Picker { channel })
+                .and(ble(BleOp::Broadcast { color }))
+                .and(render());
+            match model.picker_phase {
+                Phase::Selecting => cmd.and(schedule_blink(model)),
+                Phase::Applied => cmd,
+            }
+        }
+        Scr::Receiver => match model.round {
+            RoundState::Running { target, .. } => {
+                let channel = model.channel();
+                ble(BleOp::Receiver {
+                    channel,
+                    color: target,
+                })
+                .and(render())
+                .and(schedule_beat_ms(model, BEAT_PERIOD_MS))
+            }
+            RoundState::Waiting => render().and(request_random()),
+        },
+    }
+}
+
+/// Stops every timer, the round and the radio, and goes back to mode select.
+///
+/// `ActivateColor` does not change `mode_step`, so mode select starts at the
+/// role and channel that the player entered last. The new beat generation
+/// makes the core ignore the `BeatDone` and `ExplosionDone` events of delays
+/// that are still pending in the shell. `schedule_blink` makes a new blink
+/// generation.
+fn reset(model: &mut Model) -> Command<Effect, Event> {
+    model.screen = Scr::ModeSelect;
+    model.role = None;
+    model.picker_selected = 0;
+    model.picker_phase = Phase::Selecting;
+    model.picker_applied = Color::White;
+    model.round = RoundState::Waiting;
+    model.beat_gen = model.beat_gen.wrapping_add(1);
+    model.blink_on = true;
+    model.blink_counter = 0;
+    ble(BleOp::Off).and(render()).and(schedule_blink(model))
+}
+
+/// Limits mode select to the Receiver choices.
+///
+/// While `receiver_only` is set, `mode_step` is always a Receiver step. Skip
+/// keeps this rule, so `ActivateColor`, the view and `reset` need no change.
+/// If the current step is a Picker step, mode select moves to Receiver on
+/// channel 0, because the board Picker starts on channel 0. The current screen
+/// does not change.
+fn receiver_only(model: &mut Model) -> Command<Effect, Event> {
+    model.receiver_only = true;
+    if !pal::ring_step_is_picker(model.mode_step as usize) {
+        return Command::done();
+    }
+    model.mode_step = pal::RECEIVER_ONLY_START_STEP;
+    if model.screen == Scr::ModeSelect && !model.paused {
+        render()
+    } else {
+        Command::done()
+    }
+}
+
 fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => render().and(schedule_blink(model)),
@@ -168,7 +305,11 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
         }
         Event::BlinkDone(_) => Command::done(),
         Event::Skip => {
-            model.mode_step = (model.mode_step + 1) % NUM_LEDS as u8;
+            let mut next = (model.mode_step + 1) % NUM_LEDS as u8;
+            if model.receiver_only && pal::ring_step_is_picker(next as usize) {
+                next = pal::FIRST_RECEIVER_STEP;
+            }
+            model.mode_step = next;
             model.blink_on = false;
             model.blink_counter = 0;
             play_tone(tone::skip())
@@ -209,11 +350,16 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
                 }
             }
         }
-        Event::ColorReceived { .. } | Event::RandomByte(_) | Event::BeatDone(_) => {
+        Event::ColorReceived { .. }
+        | Event::RandomByte(_)
+        | Event::BeatDone(_)
+        | Event::ExplosionDone(_) => {
             // First blink kick: shells may send BlinkDone only after we schedule.
             // Also allow an initial Skip/Activate without prior blink.
             Command::done()
         }
+        // `update` handles these before it dispatches to a screen.
+        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
     }
 }
 
@@ -263,7 +409,12 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
                     .and(schedule_blink(model))
             }
         },
-        Event::ColorReceived { .. } | Event::RandomByte(_) | Event::BeatDone(_) => Command::done(),
+        Event::ColorReceived { .. }
+        | Event::RandomByte(_)
+        | Event::BeatDone(_)
+        | Event::ExplosionDone(_) => Command::done(),
+        // `update` handles these before it dispatches to a screen.
+        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
     }
 }
 
@@ -278,6 +429,10 @@ fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
         }
         Event::BeatDone(id) if id == model.beat_gen => countdown_beat(model),
         Event::BeatDone(_) => Command::done(),
+        // Only the countdown that expired can start the next round. A newer
+        // generation means the round state changed during the explosion.
+        Event::ExplosionDone(id) if id == model.beat_gen => request_random(),
+        Event::ExplosionDone(_) => Command::done(),
         Event::Skip => {
             if matches!(model.round, RoundState::Running { .. }) {
                 model.round = RoundState::Waiting;
@@ -304,6 +459,8 @@ fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
                 .and(request_random())
         }
         Event::BlinkDone(_) => Command::done(),
+        // `update` handles these before it dispatches to a screen.
+        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
     }
 }
 
@@ -326,16 +483,20 @@ fn countdown_beat(model: &mut Model) -> Command<Effect, Event> {
     let RoundState::Running { target, step } = model.round else {
         return Command::done();
     };
-    let tone_cmd = play_tone(tone::countdown_step(step));
+    let last_tone = tone::countdown_step(step);
+    let explosion = tone::explosion();
+    let tone_cmd = play_tone(last_tone);
     let next = step.saturating_add(1);
     if next >= COUNTDOWN_STEPS {
         model.round = RoundState::Waiting;
-        model.beat_gen = model.beat_gen.wrapping_add(1);
+        // The shell queues tones, so the next round must wait for the last
+        // beat tone and the explosion to finish playing.
+        let wait_ms = last_tone.total_ms() + explosion.total_ms();
         tone_cmd
-            .and(play_tone(tone::explosion()))
+            .and(play_tone(explosion))
             .and(ble(BleOp::Off))
             .and(render())
-            .and(request_random())
+            .and(schedule_explosion_done(model, wait_ms))
     } else {
         model.round = RoundState::Running {
             target,

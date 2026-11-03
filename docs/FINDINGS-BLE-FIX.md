@@ -1,5 +1,7 @@
 # Findings: BLE sends nothing → advertising works
 
+> **Note:** This file describes the earlier `nrf-softdevice` stack, which needed S140 7.0.1. The board now runs Bluetooth on the SoftDevice Controller on S140 6.1.1 and 7.x. See [BLE.md](BLE.md).
+
 Documentation of the debug session for **BLE broadcast** on the **Circuit Playground Bluefruit (CPB)** in this repo.
 
 ---

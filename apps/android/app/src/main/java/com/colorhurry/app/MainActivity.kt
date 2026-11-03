@@ -24,4 +24,15 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    // Before `Boot`, the core is not paused, so this first `Resume` does nothing.
+    override fun onStart() {
+        super.onStart()
+        game.resume()
+    }
+
+    override fun onStop() {
+        game.pause()
+        super.onStop()
+    }
 }

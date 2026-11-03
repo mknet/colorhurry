@@ -5,8 +5,10 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [targets.apple]
-output = "../../apps/ios/generated/Shared"
-include_macos = false
+output = "../../apps/apple/generated/Shared"
+include_macos = true
+macos_architectures = ["arm64"]
+simulator_architectures = ["arm64"]
 
 [targets.apple.swift]
 module_name = "Shared"

@@ -9,9 +9,9 @@ const PIN_RIGHT: usize = 15; // Button B = D5
 
 fn init_pin(pin: usize) {
     nrf_pac::P1.pin_cnf(pin).write(|w| {
-        w.set_dir(Dir::INPUT);
-        w.set_input(Input::CONNECT);
-        w.set_pull(Pull::PULLDOWN);
+        w.set_dir(Dir::Input);
+        w.set_input(Input::Connect);
+        w.set_pull(Pull::Pulldown);
     });
 }
 

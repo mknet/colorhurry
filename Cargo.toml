@@ -8,6 +8,10 @@ members = [
 ]
 default-members = ["crates/cpb"]
 
+[workspace.dependencies]
+# The no_std spike of Crux (redbadger/crux, branch spike/no-std).
+crux_core = { git = "https://github.com/redbadger/crux", rev = "9d56ad116e61a935c4f74c5d12061917eb21f9ff", default-features = false }
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

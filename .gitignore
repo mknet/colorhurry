@@ -17,8 +17,10 @@ apps/android/.idea/
 apps/android/captures/
 apps/android/generated/
 
-# Native iOS
-apps/ios/**/xcuserdata/
-apps/ios/**/DerivedData/
-apps/ios/*.xcworkspace/xcuserdata/
-apps/ios/generated/
+# Native Apple
+apps/apple/ColorHurry.xcodeproj/
+apps/apple/Local.xcconfig
+apps/apple/**/xcuserdata/
+apps/apple/**/DerivedData/
+apps/apple/*.xcworkspace/xcuserdata/
+apps/apple/generated/

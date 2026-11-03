@@ -66,7 +66,7 @@ system_profiler SPUSBDataType | grep -A6 -i "239A\|Circuit"
 
 The board is still in the **UF2 bootloader**, the app isn't running. Common causes:
 
-1. **Wrong flash address**: the app must be linked at `0x27000` (`memory.x`). After a change: `just flash-clean`
+1. **Wrong flash address**: the app must be linked at `0x26000` (S140 6.x) or `0x27000` (S140 7.x), as the board needs. Run `just flash-uf2` to pick the layout from the board.
 2. **GPREGRET / Button A**: older firmware jumped into the bootloader immediately when A was held. Current firmware sets GPREGRET to 0 at startup.
 3. **Hands off Button A** during the reset after flashing.
 

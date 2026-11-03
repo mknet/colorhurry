@@ -53,15 +53,38 @@ Feature: Receiver round
     And the countdown should be active
     And BLE should have received a Receiver op for channel 3 and Orange
 
-  Scenario: Full countdown explodes then starts a new round
+  Scenario: Next round starts only after the explosion has played
     Given the next random bytes are 0, 5
     When I enter receiver on channel 0
     And I clear effect logs
-    When the full countdown runs
+    # Beats 1 to 9 run at 1000 ms steps. The ninth beat expires the countdown.
+    When I advance time by 9000 ms
     Then an explosion tone should have been played
     And BLE should have received Off
-    And the countdown should be active
+    And the countdown should not be active
+    # Last beat tone (200 ms) plus explosion (10 x 100 ms).
+    And a delay of 1200 ms should have been requested
+    And BLE should not have received a Receiver op
+    When I advance time by 1199 ms
+    Then the countdown should not be active
+    And BLE should not have received a Receiver op
+    When I advance time by 1 ms
+    Then the countdown should be active
     And BLE should have received a Receiver op for channel 0 and Green
+
+  Scenario: Skip during the explosion does not start a second round
+    Given the next random bytes are 0, 5, 6
+    When I enter receiver on channel 0
+    And I advance time by 9000 ms
+    And I clear effect logs
+    And I skip
+    Then the countdown should not be active
+    And BLE should not have received a Receiver op
+    When I advance time by 1200 ms
+    Then the countdown should be active
+    And BLE should have received 1 Receiver ops
+    When I advance time by 100 ms
+    Then BLE should have received 1 Receiver ops
 
   Scenario: After the 0 ms kick, the next beat uses BEAT_PERIOD_MS
     Given the next random bytes are 0
