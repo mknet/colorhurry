@@ -2,42 +2,47 @@
 
 In parallel with the **Color Picker**, the board sends a BLE command via **non-connectable advertising** (manufacturer data in the advertising packet). No connection required.
 
-> **Background / troubleshooting:** Why BLE was initially invisible and what it took to fix it (SoftDevice 7.0.1, flash layout, DFU package, async tasks) → [FINDINGS-BLE-FIX.md](FINDINGS-BLE-FIX.md)
+> **Earlier stack:** The debug notes for the `nrf-softdevice` stack are in [FINDINGS-BLE-FIX.md](FINDINGS-BLE-FIX.md).
 
-## Important: SoftDevice version
+## SoftDevice versions
 
-| On the chip (Adafruit restore) | Rust library `nrf-softdevice-s140` |
-|----------------------------------|----------------------------------------|
-| **S140 6.1.1** (default)         | **S140 7.0.1**                         |
+Bluetooth works on boards with S140 6.1.1 (the Adafruit factory version) and on boards with S140 7.x. You do not update the SoftDevice or the bootloader.
 
-**This is why you don't see `ColorHurry-CPB`** even though the Color Picker is running: `Softdevice::enable()` / advertising fail silently with 6.1.1: nothing useful shows up on your phone (only foreign **N/A** entries).
+The firmware uses Nordic's SoftDevice Controller (`nrf-sdc` with `nrf-mpsl`) and the `trouble-host` host. The firmware links this stack into its own image and never enables the resident SoftDevice. The version of the resident SoftDevice therefore does not matter to the code.
 
-### One-time setup for BLE
+A board starts the app right after its SoftDevice, so only the memory layout depends on the version:
 
-```bash
-just setup-ble
-```
+| SoftDevice | App @ | Cargo feature | Serial DFU |
+|------------|-------|---------------|------------|
+| S140 6.1.1 | **0x26000** | `sd-v6` | `just flash` |
+| S140 7.x | **0x27000** | `sd-v7` (default) | `just flash-v7` |
 
-This does:
+RAM starts at `0x20006000` in both layouts.
 
-1. `upgrade-softdevice-v7`: SoftDevice **7.0.1** via serial DFU (Button A + Reset)
-2. `flash-v7`: app @ **0x27000** (`sd-v7`)
+### Flash the matching layout
 
-**Manually:**
+With the board in the UF2 bootloader (`CPLAYBTBOOT` mounted), the UF2 recipes read `INFO_UF2.TXT` and pick the layout:
 
 ```bash
-just upgrade-softdevice-v7   # only swap the SoftDevice
-just flash-v7                # build + flash the app
+just board       # print the SoftDevice of the board and the matching layout
+just flash-uf2   # build, convert and copy the UF2
+just flash-uf2 v6   # choose the layout yourself
 ```
 
-Without BLE (Color Picker only, as before): keep using `just restore-and-flash` + `just flash` (v6 / 6.1.1).
+Serial DFU (`just flash`, `just flash-v7`) cannot read the SoftDevice. You choose the recipe that matches your board.
+
+### Radio resources
+
+MPSL owns RADIO, RTC0, TIMER0, TEMP, CLOCK/POWER, EGU0, RNG and PPI channels 17 to 31. `embassy-time` uses RTC1. TIMER4 is the app time base.
+
+MPSL keeps the 16 MHz crystal on for the life of the firmware, so TIMER4 and the PWM tones keep their timing.
 
 ## Architecture
 
 | Task | Module | Purpose |
 |------|--------|---------|
-| SoftDevice | `main.rs` | `sd.run()`: radio stack |
-| BLE | `ble_broadcast.rs` | Advertising with command payload (picker) |
+| MPSL | `main.rs` | `mpsl.run()`: radio scheduler |
+| BLE | `ble_broadcast.rs` | Advertising with command payload (picker), passive scan (receiver) |
 | UI | `game.rs` | Mode selection → picker or receiver |
 
 ### Picker vs. receiver
@@ -48,7 +53,7 @@ Without BLE (Color Picker only, as before): keep using `just restore-and-flash` 
 
 ## Device name
 
-**`ColorHurry-CPB`**: in the advertising packet (`full_name`) and in the GAP stack (`gap_device_name`). In nRF Connect the name should appear **by name** (not just N/A).
+The advertisement carries the short name **`ColHurry`**. The scan response carries the full name **`ColorHurry-CPB`**. The advertisement is non-connectable and scannable, so a scanner that asks for the scan response shows the full name. A passive scanner shows the short name.
 
 ## Protocol (manufacturer data)
 
@@ -72,7 +77,7 @@ Example channel 2 (green), color red: `53 03 03 02 FF 00 00`. Only the **confirm
 ble_broadcast::set_picker_broadcast(Some(Rgb { r: 255, g: 120, b: 0 }));
 ```
 
-**Live updates while skipping:** advertising is restarted every **~50 ms** (`config.timeout = 5`) so that `set_color()` actually reaches the radio. Without the timeout, the manufacturer data would stay at the initial value (red).
+**Live updates while skipping:** the advertisement stays on until the color changes. A new color replaces the advertiser, so `set_color()` reaches the radio. The Picker advertises about every 30 ms, and the Receiver scans passively with a 100 ms interval and a 100 ms window.
 
 ## D13 diagnostics (without a phone)
 
@@ -80,13 +85,13 @@ After a reset, watch the **red D13 LED** (next to USB) once:
 
 | D13 pattern | Meaning |
 |-------------|---------|
-| **4× short** at startup | Firmware **v7** (0x27000), correct for BLE |
-| **2× short** at startup | Firmware **v6** (0x26000), **wrong for BLE** → `just flash-v7` |
-| **1× long** (~0.5 s) | SoftDevice OK |
-| **Quiet afterwards** | Advertising is running (payload refresh every ~50 ms, no D13 feedback) |
-| **Fast strobe** (8×) | Advertising error: SD version doesn't match |
-| **Only 4×, nothing else** | SoftDevice init fails (panic); SD upgrade needed |
-| **Constant flickering** | Old firmware: D13 blink per adv timeout; `just flash-v7` |
+| **2× short** at startup | Firmware **v6** layout (0x26000) |
+| **4× short** at startup | Firmware **v7** layout (0x27000) |
+| **1× long** (~0.5 s) | Bluetooth is ready |
+| **Quiet afterwards** | Advertising or scanning is running (no D13 feedback) |
+| **Fast strobe** (8×) | The radio set-up or the radio failed. The game runs without Bluetooth. |
+
+Both layouts have Bluetooth. A 2× or 4× pattern only tells you which layout the firmware uses. If the pattern does not match the SoftDevice of your board, the app does not start. Flash the layout that matches the board.
 
 NeoPixels (Color Picker) may blink **at the same time**; that is normal.
 
@@ -94,25 +99,9 @@ NeoPixels (Color Picker) may blink **at the same time**; that is normal.
 
 **Important:** Scan on an **iPhone/iPad** with the **nRF Connect** app, not on the Mac. macOS often shows only the MacBook's name; CPB devices are missing or appear as N/A.
 
-1. `just setup-ble` (once) or, after an SD upgrade: `just flash-v7`
-2. Scanner → **`ColorHurry-CPB`** or **`ColHurry`**
-3. Manufacturer data: **`0x239A`**, payload e.g. **`53 03 03 00 FF 00 00`** (channel 0, red); changes while skipping in the Color Picker
-
-## Error: "Device not configured" during upgrade
-
-The Adafruit serial bootloader needs a **`softdevice_bootloader`** DFU package (SoftDevice + bootloader together), as with `just restore-and-flash`, not a SoftDevice-only package.
-
-On **macOS**, USB often drops briefly (`Device not configured`). The script tries **3×**. Manually:
-
-1. **Hold Button A → Reset 1× → release A** (DFU mode)
-2. Immediately:
-
-```bash
-DFU_MANUAL=1 just upgrade-softdevice-v7
-just flash-v7
-```
-
-Success: message `Device programmed.`, then unplug USB, wait 5 s, plug in, Reset 1×.
+1. `just flash-uf2` (or `just flash` for v6, `just flash-v7` for v7)
+2. Scanner → **`ColHurry`** or **`ColorHurry-CPB`**
+3. Manufacturer data: **`0x239A`**, payload e.g. **`53 03 03 00 FF 00 00`** (channel 0, red); changes when the Picker applies a color
 
 ## Changing the command (firmware)
 
@@ -124,8 +113,8 @@ ble_broadcast::set_command(ble_broadcast::protocol::CMD_READY);
 
 | File | Role |
 |------|------|
-| [FINDINGS-BLE-FIX.md](FINDINGS-BLE-FIX.md) | Debug session: all fixes in chronological order |
-| `src/ble_broadcast.rs` | SoftDevice, advertising, name, protocol |
-| `src/main.rs` | Embassy tasks |
-| `memory-s140-v7.x` | App @ `0x27000` (with S140 7.x) |
-| `scripts/upgrade-softdevice-v7.sh` | SD 6.1.1 → 7.0.1 |
+| [FINDINGS-BLE-FIX.md](FINDINGS-BLE-FIX.md) | History: the debug session of the earlier `nrf-softdevice` stack |
+| `crates/cpb/src/ble_broadcast.rs` | Host, advertising, scanning, name, protocol |
+| `crates/cpb/src/main.rs` | MPSL and SoftDevice Controller start, Embassy tasks |
+| `crates/cpb/memory-s140-v6.x` | App @ `0x26000` (S140 6.x) |
+| `crates/cpb/memory-s140-v7.x` | App @ `0x27000` (S140 7.x) |

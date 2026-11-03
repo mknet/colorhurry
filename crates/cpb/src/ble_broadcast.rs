@@ -192,7 +192,7 @@ async fn wait_for_change(current: Radio) {
 
 /// The static random address of the board, from the factory address in FICR.
 ///
-/// This is the address that the SoftDevice used, so each board keeps its own address.
+/// This is the factory address, so each board keeps its own address.
 fn device_address() -> Address {
     let low = nrf_pac::FICR.deviceaddr(0).read().to_le_bytes();
     let high = nrf_pac::FICR.deviceaddr(1).read().to_le_bytes();

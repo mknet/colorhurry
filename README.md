@@ -4,7 +4,7 @@ Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for 
 
 ```text
 crates/core    Event / Model / Effect / update / view  (no_std)
-crates/cpb     Hardware shell (Embassy, SoftDevice, NeoPixels, Audio)
+crates/cpb     Hardware shell (Embassy, Bluetooth, NeoPixels, Audio)
 crates/web     Browser shell (one receiver board + experimental live BLE scan)
 crates/ffi     Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
 apps/ios       Native SwiftUI + CoreBluetooth shell on the Rust core
@@ -19,7 +19,8 @@ Tests: `just test` runs unit tests and Gherkin integration tests in `crates/core
 - [Rust](https://rustup.rs/) (stable)
 - Target `thumbv7em-none-eabihf` (board) and `wasm32-unknown-unknown` (web)
 - [just](https://github.com/casey/just), [trunk](https://trunkrs.dev/) (`brew install trunk` or `cargo install trunk`)
-- [elf2flash](https://crates.io/crates/elf2flash) for flashing (`just install-tools`)
+- [elf2flash](https://crates.io/crates/elf2flash) for `cargo run --release` and the experimental `just flash-deploy` (`just install-tools`)
+- `rust-objcopy` (from `cargo install cargo-binutils`) and `python3` for the UF2 recipes
 
 ```bash
 rustup target add thumbv7em-none-eabihf wasm32-unknown-unknown
@@ -28,13 +29,22 @@ just install-tools   # once
 
 Optional (only with an external SWD debugger): [probe-rs](https://probe.rs/), `just flash-probe`
 
-## BLE (SoftDevice S140 7.0.1)
+## BLE (works on S140 6.1.1 and 7.x)
 
-Default build: feature **`sd-v7`**, app @ **0x27000**. Adafruit restore ships **S140 6.1.1**; BLE will **not** transmit with that. Once:
+The board runs Bluetooth on Nordic's SoftDevice Controller (`nrf-sdc`), which is linked into the app. The app never enables the resident SoftDevice. Boards with the factory **S140 6.1.1** and boards with **S140 7.x** both have Bluetooth. You do not update the SoftDevice or the bootloader.
+
+A board starts the app right after its SoftDevice, so the memory layout must match the board:
+
+| SoftDevice | App @ | Feature | Serial DFU |
+|------------|-------|---------|------------|
+| S140 6.1.1 | **0x26000** | `sd-v6` | `just flash` |
+| S140 7.x | **0x27000** | `sd-v7` (default) | `just flash-v7` |
+
+With the board in the UF2 bootloader (`CPLAYBTBOOT` mounted), `just board` prints the SoftDevice and the matching layout. `just flash-uf2` reads `INFO_UF2.TXT`, picks the layout, and copies the UF2 to the board. To choose the layout, run `just flash-uf2 v6` or `just flash-uf2 v7`.
 
 ```bash
-just setup-ble    # SD 6.1.1 → 7.0.1 + flash app
-just flash-v7     # app only after that
+just board        # print the SoftDevice of the board and the matching layout
+just flash-uf2    # build, convert and copy the UF2 with the matching layout
 cargo test -p color-hurry-core
 just web-serve    # browser: http://127.0.0.1:8080
 just ios / just android   # native apps (builds the core via `just ffi`, Xcode / JDK 17|21)
@@ -46,9 +56,7 @@ Browser **Live BLE** (unstable POC, receiver only): Chrome/Edge, flag
 `chrome://flags/#enable-experimental-web-platform-features`, then “Live BLE scan”.
 Picker advertising from the tab is not possible; only ads from real CPBs are received.
 
-Details: [docs/BLE.md](docs/BLE.md), troubleshooting: [docs/FINDINGS-BLE-FIX.md](docs/FINDINGS-BLE-FIX.md)
-
-Without BLE (color picker only): `just restore-and-flash` + `just flash` (6.1.1 @ 0x26000).
+Details: [docs/BLE.md](docs/BLE.md)
 
 Audio (skip/apply tones): [docs/AUDIO.md](docs/AUDIO.md). Demo sequence: feature `speaker-demo`.
 
@@ -65,17 +73,15 @@ Connect the board with a **USB data cable** (charge-only cables are not enough).
 Then:
 
 ```bash
-just          # builds (release), creates .uf2, copies to CPLAYBTBOOT
-# or:
-just flash
-just build    # compile only
+just flash-uf2   # builds (release), creates the .uf2 for the layout of the board, copies it to CPLAYBTBOOT
+just flash       # serial DFU, v6 layout (S140 6.1.1)
+just flash-v7    # serial DFU, v7 layout (S140 7.x), also the default for `just`
+just build       # compile only
 ```
 
-`just` waits up to 60 s for the BOOT volume (reset can happen after start).
+`just flash-uf2` stops with a message if `CPLAYBTBOOT` is not mounted. Serial DFU cannot read the SoftDevice, so you choose the layout with `just flash` or `just flash-v7`.
 
 Alternatively: `cargo run --release` (same flow via `scripts/cargo-uf2-runner.sh`).
-
-Without rebuild: `just flash-bin`.
 
 Experimental (often broken on macOS): `just flash-deploy` (`elf2flash deploy` → `BlockDeviceOpenFail`).
 

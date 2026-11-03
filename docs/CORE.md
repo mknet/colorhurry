@@ -34,7 +34,7 @@ Beat duration, blink period in milliseconds, tone Hz/ms, and Random are intended
 |---------|-----|-----|
 | Clocks / timers | `crates/cpb/src/time.rs`, Embassy delays in `shell.rs` | `setInterval` 50 ms / 1000 ms in `web/src/lib.rs` |
 | Entropy source | LCG in `shell::next_entropy` (should become real RNG + `Random` effect) | Same LCG in `Shell::next_entropy` |
-| Radio stack | SoftDevice, `ble_broadcast::radio_loop`, advertise/scan | Web Bluetooth chooser, `watchAdvertisements` |
+| Radio stack | SoftDevice Controller (`nrf-sdc`) and `trouble-host`, `ble_broadcast::radio_loop`, advertise/scan | Web Bluetooth chooser, `watchAdvertisements` |
 | Device name / filters | `DEVICE_NAME`, short name `ColHurry` | Name prefixes and company-id filters in `web/src/ble.rs` |
 | GPIO, debounce | `buttons.rs` | DOM buttons |
 | NeoPixel PWM + **dimming** | `neopixel_pwm::scale_channel`, `MAX_CHANNEL = 8` | DOM/CSS LED circle (layout is shell) |
@@ -57,7 +57,7 @@ Checked against the code. Items that refine or extend the brief:
 7. **`NUM_LEDS` is duplicated** in `cpb/src/neopixel_pwm.rs` (`pub const NUM_LEDS: usize = 10`) alongside `color_hurry_core::NUM_LEDS`. Hardware buffer size can stay local; the game constant should have a single source of truth in core.
 8. **Beat length is approximately 1 s but assembled differently.** Web: 1000 ms `setInterval` → `Event::Tick`. CPB: `dispatch(Tick)` (plays ~200 ms countdown tone) then `poll_match_or_abort(800)`. Same product, different ownership; should become core-requested `Delay { millis }`.
 9. **UI blink period:** both shells use 50 ms; with `BLINK_TICKS = 6` that is ~300 ms per half blink. The 50 ms value is not in core today.
-10. **SoftDevice bootstrap reads the model.** After mode select, `Shell::bootstrap_radio` uses `view(...).screen` and `model.channel()` to re-apply radio setup. That is another model peek the Crux port should replace with effects already emitted (or re-emitted) when BLE becomes ready.
+10. **Radio bootstrap reads the model.** After mode select, `Shell::bootstrap_radio` uses `view(...).screen` and `model.channel()` to re-apply radio setup. That is another model peek the Crux port should replace with effects already emitted (or re-emitted) when BLE becomes ready.
 
 ---
 
