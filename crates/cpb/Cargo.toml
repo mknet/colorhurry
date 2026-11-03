@@ -18,17 +18,28 @@ crux_core = { workspace = true, features = ["crux_macros", "critical-section"] }
 cortex-m = "0.7"
 cortex-m-rt = "0.7"
 embedded-alloc = "0.7"
-nrf-pac = { version = "0.3", features = ["nrf52840"] }
+nrf-pac = { version = "0.4", features = ["nrf52840"] }
 panic-halt = "0.2"
 
-embassy-executor = { version = "0.7", features = ["arch-cortex-m", "executor-thread"] }
-embassy-futures = "0.1"
-nrf-softdevice = { version = "0.1", features = [
-    "nrf52840",
-    "s140",
-    "ble-central",
-    "ble-peripheral",
-    "critical-section-impl",
-] }
+embassy-executor = { version = "0.10", features = ["platform-cortex-m", "executor-thread"] }
+embassy-futures = "0.1.2"
+# The game keeps its own TIMER4 time base (`time.rs`). trouble-host needs embassy-time
+# (RTC1), and the debug LED uses it too.
+embassy-nrf = { version = "0.11", features = ["nrf52840", "time-driver-rtc1", "gpiote", "time", "unstable-pac", "rt"] }
+embassy-sync = "0.8"
+embassy-time = "0.5.1"
 critical-section = "1.2"
-nrf-softdevice-s140 = "0.1"
+static_cell = "2.1"
+
+# Bluetooth: the trouble-host host on Nordic's SoftDevice Controller, linked into this image.
+# The resident SoftDevice on the board (S140 6.x or 7.x) stays disabled.
+# There are no connections, so there is no GATT, no security and no pairing.
+# `peripheral` gives the advertiser. `scan` gives the scanner (trouble-host declares
+# `scan = ["central"]`).
+trouble-host = { version = "0.8", default-features = false, features = ["peripheral", "scan", "default-packet-pool"] }
+# `peripheral` gives `support_adv()` and `central` gives `support_scan()`. With both,
+# nrf-sdc-sys links the multirole controller library.
+nrf-sdc = { version = "0.4", default-features = false, features = ["nrf52840", "peripheral", "central"] }
+# Provides the critical section, so cortex-m must not have `critical-section-single-core`.
+nrf-mpsl = { version = "0.4", default-features = false, features = ["nrf52840", "critical-section-impl"] }
+bt-hci = { version = "0.10", default-features = false }

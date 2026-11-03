@@ -60,11 +60,11 @@ android-build: ffi-android
 test:
     cargo test -p color-hurry-core -p color-hurry-ffi
 
-# Serial-DFU v7 (S140 7.x @ 0x27000): for BLE / nrf-softdevice
+# Serial-DFU v7 (S140 7.x @ 0x27000)
 flash-v7:
     DFU_MANUAL=1 CPB_MEMORY=v7 ./scripts/flash-serial.sh
 
-# Serial-DFU v6 (S140 6.1.1 @ 0x26000): Color Picker only, without BLE
+# Serial-DFU v6 (S140 6.1.1 @ 0x26000)
 flash:
     DFU_MANUAL=1 ./scripts/flash-serial.sh
 
@@ -152,7 +152,7 @@ restore-bootloader:
 restore-and-flash: restore-bootloader
     just flash
 
-# SoftDevice 6.1.1 → 7.0.1 (for BLE / nrf-softdevice), then app v7
+# SoftDevice 6.1.1 → 7.0.1, then app v7
 upgrade-softdevice-v7:
     chmod +x ./scripts/upgrade-softdevice-v7.sh
     ./scripts/upgrade-softdevice-v7.sh

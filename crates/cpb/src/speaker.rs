@@ -149,9 +149,9 @@ fn tone_duty_pct(freq_hz: u32) -> u32 {
 
 fn enable_amp() {
     nrf_pac::P1.pin_cnf(AMP_ENABLE_PIN).write(|w| {
-        w.set_dir(Dir::OUTPUT);
-        w.set_input(Input::DISCONNECT);
-        w.set_pull(Pull::DISABLED);
+        w.set_dir(Dir::Output);
+        w.set_input(Input::Disconnect);
+        w.set_pull(Pull::Disabled);
     });
     nrf_pac::P1
         .outset()
@@ -172,19 +172,19 @@ fn init_pwm1() {
     pwm.psel().out(0).write(|w| {
         w.set_pin(SPEAKER_PIN);
         w.set_port(false);
-        w.set_connect(Connect::CONNECTED);
+        w.set_connect(Connect::Connected);
     });
     for ch in 1..4 {
-        pwm.psel().out(ch).write(|w| w.set_connect(Connect::DISCONNECTED));
+        pwm.psel().out(ch).write(|w| w.set_connect(Connect::Disconnected));
     }
 
     pwm.decoder().write(|w| {
-        w.set_load(vals::Load::COMMON);
-        w.set_mode(vals::Mode::REFRESH_COUNT);
+        w.set_load(vals::Load::Common);
+        w.set_mode(vals::Mode::RefreshCount);
     });
-    pwm.mode().write(|w| w.set_updown(vals::Updown::UP));
+    pwm.mode().write(|w| w.set_updown(vals::Updown::Up));
     pwm.prescaler()
-        .write(|w| w.set_prescaler(vals::Prescaler::DIV_16));
+        .write(|w| w.set_prescaler(vals::Prescaler::Div16));
 }
 
 fn start_tone(freq_hz: u32, duration_ms: u32, duty_pct: Option<u32>, ui_failsafe: bool) {

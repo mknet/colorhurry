@@ -1,23 +1,28 @@
 //! BLE: Picker advertises `CMD_COLOR` (protocol v4); receiver scans and forwards parses.
+//!
+//! The stack is the `trouble-host` host on Nordic's SoftDevice Controller (`nrf-sdc`). The
+//! board uses no connections: the Picker sends non-connectable advertisements, and the
+//! Receiver runs a passive scan. Because there are no connections, there is no pairing.
 
 use core::cell::RefCell;
-use core::mem;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use critical_section::Mutex;
-use nrf_softdevice::ble::advertisement_builder::{
-    AdvertisementDataType, Flag, LegacyAdvertisementBuilder, LegacyAdvertisementPayload,
-};
-use nrf_softdevice::ble::central::{self, ScanConfig, ScanError};
-use nrf_softdevice::ble::peripheral::{self, AdvertiseError};
-use nrf_softdevice::{raw, Softdevice};
+use embassy_futures::join::join;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::signal::Signal;
+use embassy_time::{Duration, Timer};
+use nrf_sdc::SoftdeviceController;
+use trouble_host::prelude::*;
+use trouble_host::scan::LeAdvReportsIter;
 
-use color_hurry_core::{
-    decode_color, encode_color, Color, CHANNELS, COMPANY_ID, PAYLOAD_LEN,
-};
+use color_hurry_core::{decode_color, encode_color, Color, CHANNELS, COMPANY_ID, PAYLOAD_LEN};
 
-/// Visible BLE device name (scan response + GAP).
+/// Visible BLE device name (scan response).
 pub const DEVICE_NAME: &str = "ColorHurry-CPB";
+
+/// Short name in the advertisement.
+const SHORT_NAME: &[u8] = b"ColHurry";
 
 static BLE_STACK_READY: AtomicBool = AtomicBool::new(false);
 
@@ -33,8 +38,6 @@ pub async fn wait_until_ready() {
 
 const AD_TYPE_MANUFACTURER: u8 = 0xFF;
 
-static mut CMD_PAYLOAD: [u8; PAYLOAD_LEN] = [0; PAYLOAD_LEN];
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum RadioMode {
     Off,
@@ -46,6 +49,8 @@ struct BleShared {
     mode: RadioMode,
     picker_color: Option<Color>,
     picker_channel: usize,
+    /// The v4 payload that the Picker advertises.
+    picker_payload: [u8; PAYLOAD_LEN],
     /// Last parsed advertisement for the core (unfiltered).
     received: Option<(u8, Color)>,
 }
@@ -54,10 +59,15 @@ static BLE: Mutex<RefCell<BleShared>> = Mutex::new(RefCell::new(BleShared {
     mode: RadioMode::Off,
     picker_color: None,
     picker_channel: 0,
+    picker_payload: [0; PAYLOAD_LEN],
     received: None,
 }));
 
 static RECEIVER_ARMED: AtomicBool = AtomicBool::new(false);
+
+/// Each setter raises this signal. `radio_loop` then compares the new state with what the
+/// radio does now.
+static RADIO_CHANGED: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 fn with_ble<R>(f: impl FnOnce(&mut BleShared) -> R) -> R {
     critical_section::with(|cs| f(&mut *BLE.borrow(cs).borrow_mut()))
@@ -70,6 +80,7 @@ pub fn set_radio_off() {
         s.received = None;
     });
     RECEIVER_ARMED.store(false, Ordering::Release);
+    RADIO_CHANGED.signal(());
 }
 
 pub fn set_radio_picker(channel: usize) {
@@ -80,14 +91,19 @@ pub fn set_radio_picker(channel: usize) {
         s.received = None;
     });
     RECEIVER_ARMED.store(false, Ordering::Release);
+    RADIO_CHANGED.signal(());
 }
 
 pub fn set_picker_broadcast(color: Option<Color>) {
-    if let Some(c) = color {
-        let ch = with_ble(|s| s.picker_channel) as u8;
-        set_color(c, ch);
-    }
-    with_ble(|s| s.picker_color = color);
+    with_ble(|s| {
+        if let Some(c) = color {
+            if let Some(bytes) = encode_color(s.picker_channel as u8, c) {
+                s.picker_payload = bytes;
+            }
+        }
+        s.picker_color = color;
+    });
+    RADIO_CHANGED.signal(());
 }
 
 /// Arm scan; core decides matches. `channel` kept for future directed scan filters.
@@ -98,42 +114,11 @@ pub fn set_radio_receiver(_channel: usize) {
         s.received = None;
     });
     RECEIVER_ARMED.store(true, Ordering::Release);
+    RADIO_CHANGED.signal(());
 }
 
 pub fn take_color_received() -> Option<(u8, Color)> {
     with_ble(|s| s.received.take())
-}
-
-fn set_color(color: Color, channel: u8) {
-    if let Some(bytes) = encode_color(channel, color) {
-        unsafe {
-            CMD_PAYLOAD = bytes;
-        }
-    }
-}
-
-fn manufacturer_bytes() -> [u8; 2 + PAYLOAD_LEN] {
-    let mut mfg = [0u8; 2 + PAYLOAD_LEN];
-    mfg[0] = (COMPANY_ID & 0xFF) as u8;
-    mfg[1] = (COMPANY_ID >> 8) as u8;
-    let payload = unsafe { CMD_PAYLOAD };
-    mfg[2..].copy_from_slice(&payload);
-    mfg
-}
-
-fn adv_data() -> LegacyAdvertisementPayload {
-    let mfg = manufacturer_bytes();
-    LegacyAdvertisementBuilder::new()
-        .flags(&[Flag::GeneralDiscovery, Flag::LE_Only])
-        .short_name("ColHurry")
-        .raw(AdvertisementDataType::MANUFACTURER_SPECIFIC_DATA, &mfg)
-        .build()
-}
-
-fn scan_data() -> LegacyAdvertisementPayload {
-    LegacyAdvertisementBuilder::new()
-        .full_name(DEVICE_NAME)
-        .build()
 }
 
 pub fn parse_color_from_adv(data: &[u8]) -> Option<(u8, Color)> {
@@ -160,114 +145,180 @@ pub fn parse_color_from_adv(data: &[u8]) -> Option<(u8, Color)> {
     None
 }
 
-fn on_adv_report(report: &raw::ble_gap_evt_adv_report_t) -> Option<()> {
-    if !RECEIVER_ARMED.load(Ordering::Acquire) {
-        return None;
+/// Receives the advertising reports from the host runner.
+///
+/// The runner calls this handler synchronously, so the handler only stores the result.
+struct Reports;
+
+impl EventHandler for Reports {
+    fn on_adv_reports(&self, reports: LeAdvReportsIter) {
+        if !RECEIVER_ARMED.load(Ordering::Acquire) {
+            return;
+        }
+        // `flatten` skips a report that does not parse. The iterator then stops.
+        for report in reports.flatten() {
+            if let Some(parsed) = parse_color_from_adv(report.data) {
+                with_ble(|s| s.received = Some(parsed));
+            }
+        }
     }
-    let len = report.data.len as usize;
-    if len == 0 {
-        return None;
-    }
-    let data = unsafe { core::slice::from_raw_parts(report.data.p_data, len) };
-    let parsed = parse_color_from_adv(data)?;
-    with_ble(|s| s.received = Some(parsed));
-    Some(())
 }
 
-pub fn enable() -> &'static Softdevice {
-    static GAP_NAME: &[u8] = b"ColorHurry-CPB";
+/// What the radio must do for the current state.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Radio {
+    Off,
+    Advertise([u8; PAYLOAD_LEN]),
+    Scan,
+}
 
-    let config = nrf_softdevice::Config {
-        clock: Some(raw::nrf_clock_lf_cfg_t {
-            source: raw::NRF_CLOCK_LF_SRC_RC as u8,
-            rc_ctiv: 16,
-            rc_temp_ctiv: 2,
-            accuracy: raw::NRF_CLOCK_LF_ACCURACY_500_PPM as u8,
-        }),
-        conn_gap: Some(raw::ble_gap_conn_cfg_t {
-            conn_count: 1,
-            event_length: 24,
-        }),
-        gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
-            adv_set_count: 1,
-            periph_role_count: 1,
-            central_role_count: 1,
-            central_sec_count: 0,
-            _bitfield_1: raw::ble_gap_cfg_role_count_t::new_bitfield_1(0),
-        }),
-        gap_device_name: Some(raw::ble_gap_cfg_device_name_t {
-            p_value: GAP_NAME.as_ptr() as _,
-            current_len: GAP_NAME.len() as u16,
-            max_len: GAP_NAME.len() as u16,
-            write_perm: unsafe { mem::zeroed() },
-            _bitfield_1: raw::ble_gap_cfg_device_name_t::new_bitfield_1(
-                raw::BLE_GATTS_VLOC_STACK as u8,
-            ),
-        }),
-        ..Default::default()
+fn wanted() -> Radio {
+    with_ble(|s| match s.mode {
+        RadioMode::Picker if s.picker_color.is_some() => Radio::Advertise(s.picker_payload),
+        RadioMode::Receiver => Radio::Scan,
+        RadioMode::Off | RadioMode::Picker => Radio::Off,
+    })
+}
+
+/// Waits until the state needs something other than `current`.
+async fn wait_for_change(current: Radio) {
+    loop {
+        RADIO_CHANGED.wait().await;
+        if wanted() != current {
+            return;
+        }
+    }
+}
+
+/// The static random address of the board, from the factory address in FICR.
+///
+/// This is the address that the SoftDevice used, so each board keeps its own address.
+fn device_address() -> Address {
+    let low = nrf_pac::FICR.deviceaddr(0).read().to_le_bytes();
+    let high = nrf_pac::FICR.deviceaddr(1).read().to_le_bytes();
+    // A static random address has the two most significant bits set.
+    Address::random([low[0], low[1], low[2], low[3], high[0], high[1] | 0xC0])
+}
+
+/// Write the advertisement and the scan response for `payload`. Returns their lengths.
+fn encode_packets(
+    payload: &[u8; PAYLOAD_LEN],
+    adv: &mut [u8; 31],
+    scan: &mut [u8; 31],
+) -> Result<(usize, usize), trouble_host::Error> {
+    let adv_len = AdStructure::encode_slice(
+        &[
+            AdStructure::Flags(LE_GENERAL_DISCOVERABLE | BR_EDR_NOT_SUPPORTED),
+            AdStructure::ShortenedLocalName(SHORT_NAME),
+            AdStructure::ManufacturerSpecificData {
+                company_identifier: COMPANY_ID,
+                payload,
+            },
+        ],
+        &mut adv[..],
+    )?;
+    let scan_len = AdStructure::encode_slice(
+        &[AdStructure::CompleteLocalName(DEVICE_NAME.as_bytes())],
+        &mut scan[..],
+    )?;
+    Ok((adv_len, scan_len))
+}
+
+/// Start the host on `controller`, and run the radio forever.
+///
+/// If `controller` is `None`, the radio set-up failed in `main`. The game then runs
+/// without Bluetooth.
+pub async fn run(controller: Option<SoftdeviceController<'static>>) -> ! {
+    let Some(controller) = controller else {
+        crate::debug_led::signal_radio_error().await;
+        mark_stack_ready();
+        core::future::pending::<()>().await;
+        unreachable!()
     };
 
-    Softdevice::enable(&config)
+    // No connections and no L2CAP channels.
+    let mut resources: HostResources<DefaultPacketPool, 0, 0> = HostResources::new();
+    let stack = trouble_host::new(controller, &mut resources)
+        .set_random_address(device_address())
+        .build();
+    let mut runner = stack.runner();
+
+    crate::debug_led::signal_radio_ok().await;
+    // The host waits for the runner to initialize the controller before it sends a command.
+    mark_stack_ready();
+
+    join(
+        async {
+            // The runner stops only if the controller fails.
+            let _ = runner.run_with_handler(&Reports).await;
+            loop {
+                crate::debug_led::signal_radio_error().await;
+                Timer::after_secs(2).await;
+            }
+        },
+        radio_loop(&stack),
+    )
+    .await;
+    unreachable!()
 }
 
-async fn advertise_once(sd: &Softdevice) {
-    let mut config = peripheral::Config::default();
-    config.interval = 48;
-    config.timeout = Some(5);
+async fn radio_loop(stack: &Stack<'_, SoftdeviceController<'static>, DefaultPacketPool>) -> ! {
+    let mut peripheral = stack.peripheral();
+    let mut central = stack.central();
+    let mut scanner = Scanner::new(&mut central);
 
-    let adv = adv_data();
-    let scan = scan_data();
-    let packet = peripheral::NonconnectableAdvertisement::ScannableUndirected {
-        adv_data: &adv,
-        scan_data: &scan,
+    // 48 × 0.625 ms, as before.
+    let adv_params = AdvertisementParameters {
+        interval_min: Duration::from_millis(30),
+        interval_max: Duration::from_millis(30),
+        ..AdvertisementParameters::default()
     };
-
-    match peripheral::advertise(sd, packet, &config).await {
-        Err(AdvertiseError::Timeout) => {}
-        Err(_) => crate::debug_led::signal_advertising_error(),
-        Ok(()) => {}
-    }
-}
-
-async fn scan_once(sd: &Softdevice) {
-    let config = ScanConfig {
-        extended: false,
-        active: true,
-        interval: 160,
-        window: 160,
-        timeout: 100,
+    // Passive scan. The color is in the advertisement, so the scan response is not needed.
+    let scan_config = ScanConfig {
+        active: false,
+        interval: Duration::from_millis(100),
+        window: Duration::from_millis(100),
         ..ScanConfig::default()
     };
 
-    match central::scan(sd, &config, on_adv_report).await {
-        Err(ScanError::Timeout) => {}
-        Err(ScanError::Raw(_)) => crate::debug_led::signal_advertising_error(),
-        Ok(()) => {}
-    }
-}
-
-fn current_mode() -> RadioMode {
-    with_ble(|s| s.mode)
-}
-
-fn picker_should_advertise() -> bool {
-    with_ble(|s| s.mode == RadioMode::Picker && s.picker_color.is_some())
-}
-
-pub async fn radio_loop(sd: &'static Softdevice) -> ! {
     loop {
-        match current_mode() {
-            RadioMode::Off => {
-                embassy_futures::yield_now().await;
-            }
-            RadioMode::Picker => {
-                if picker_should_advertise() {
-                    advertise_once(sd).await;
-                } else {
-                    embassy_futures::yield_now().await;
+        let current = wanted();
+        match current {
+            Radio::Off => RADIO_CHANGED.wait().await,
+            Radio::Advertise(payload) => {
+                let mut adv = [0; 31];
+                let mut scan = [0; 31];
+                let Ok((adv_len, scan_len)) = encode_packets(&payload, &mut adv, &mut scan) else {
+                    radio_error().await;
+                    continue;
+                };
+                let advertisement = Advertisement::NonconnectableScannableUndirected {
+                    adv_data: &adv[..adv_len],
+                    scan_data: &scan[..scan_len],
+                };
+                match peripheral.advertise(&adv_params, advertisement).await {
+                    // The advertisement stays on until the advertiser is dropped.
+                    Ok(advertiser) => {
+                        wait_for_change(current).await;
+                        drop(advertiser);
+                    }
+                    Err(_) => radio_error().await,
                 }
             }
-            RadioMode::Receiver => scan_once(sd).await,
+            Radio::Scan => match scanner.scan(&scan_config).await {
+                // The scan stays on until the session is dropped.
+                Ok(session) => {
+                    wait_for_change(current).await;
+                    drop(session);
+                }
+                Err(_) => radio_error().await,
+            },
         }
     }
+}
+
+/// Show the error, then wait before the next attempt.
+async fn radio_error() {
+    crate::debug_led::signal_radio_error().await;
+    Timer::after_secs(1).await;
 }

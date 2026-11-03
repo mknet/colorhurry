@@ -7,6 +7,10 @@ use std::path::PathBuf;
 
 fn main() {
     let v7 = env::var("CARGO_FEATURE_SD_V7").is_ok();
+    // `sd-v7` is a default feature, so a v6 build must turn the default features off.
+    if v7 && env::var("CARGO_FEATURE_SD_V6").is_ok() {
+        panic!("sd-v6 and sd-v7 are both on: for sd-v6, build with --no-default-features --features sd-v6");
+    }
     let manifest = env::var("CARGO_MANIFEST_DIR").unwrap();
     let memory_name = if v7 {
         "memory-s140-v7.x"

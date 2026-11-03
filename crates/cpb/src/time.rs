@@ -1,6 +1,12 @@
 //! App time base: TIMER4 @ 1 MHz.
 //!
-//! With S140, TIMER2/TIMER3 are claimed by the SoftDevice; TIMER4 is free for the app.
+//! MPSL and the SoftDevice Controller use TIMER0 and RTC0, and `embassy-time` uses RTC1.
+//! TIMER4 is free for the app.
+//!
+//! MPSL owns the CLOCK peripheral, so this module does not start HFCLK. At boot, `main`
+//! asks MPSL to keep the 16 MHz crystal (HFXO) on for the life of the firmware, so the
+//! crystal clocks TIMER4 at 1 MHz. If MPSL does not start, there is no crystal request.
+//! TIMER4 then counts at 1 MHz from the internal oscillator (HFINT), which is less accurate.
 
 use nrf_pac::timer::vals::{Bitmode, Mode};
 
@@ -14,21 +20,18 @@ fn init() {
         READY = true;
     }
 
-    nrf_pac::CLOCK.tasks_hfclkstart().write_value(1);
-    while nrf_pac::CLOCK.events_hfclkstarted().read() == 0 {
-        core::hint::spin_loop();
-    }
-
     let t = nrf_pac::TIMER4;
     t.tasks_stop().write_value(1);
-    t.mode().write(|w| w.set_mode(Mode::TIMER));
-    t.bitmode().write(|w| w.set_bitmode(Bitmode::_32BIT));
+    t.mode().write(|w| w.set_mode(Mode::Timer));
+    t.bitmode().write(|w| w.set_bitmode(Bitmode::_32bit));
     t.prescaler().write(|w| w.set_prescaler(4)); // 16 MHz → 1 MHz
 }
 
 /// Blocks for `ms` milliseconds (hardware-timed).
 ///
-/// **Only before SoftDevice start**, or from ISR-free contexts without a running SD stack.
+/// This function blocks the executor, so the radio tasks do not run while it waits. Use it
+/// only where no other task must run.
+#[allow(dead_code)]
 pub fn delay_ms(ms: u32) {
     if ms == 0 {
         return;
@@ -46,7 +49,9 @@ pub fn delay_ms(ms: u32) {
     t.tasks_stop().write_value(1);
 }
 
-/// Async wait for UI/game/countdown (TIMER4, SoftDevice-safe).
+/// Async wait for UI/game/countdown (TIMER4).
+///
+/// TIMER4 has one compare channel for all callers, so only one task at a time can wait.
 pub async fn delay_ms_async(ms: u32) {
     if ms == 0 {
         return;

@@ -75,10 +75,10 @@ fn build_pixels(seq: &mut [u16; SEQ_LEN], colors: &[Rgb; NUM_LEDS]) {
 
 fn configure_neo_pin() {
     nrf_pac::P0.pin_cnf(13).write(|w| {
-        w.set_dir(Dir::OUTPUT);
-        w.set_input(Input::DISCONNECT);
-        w.set_drive(Drive::H0H1);
-        w.set_pull(Pull::DISABLED);
+        w.set_dir(Dir::Output);
+        w.set_input(Input::Disconnect);
+        w.set_drive(Drive::H0h1);
+        w.set_pull(Pull::Disabled);
     });
 }
 
@@ -97,19 +97,19 @@ fn init_pwm0() {
     pwm.psel().out(0).write(|w| {
         w.set_pin(13);
         w.set_port(false);
-        w.set_connect(Connect::CONNECTED);
+        w.set_connect(Connect::Connected);
     });
     for ch in 1..4 {
-        pwm.psel().out(ch).write(|w| w.set_connect(Connect::DISCONNECTED));
+        pwm.psel().out(ch).write(|w| w.set_connect(Connect::Disconnected));
     }
 
     pwm.decoder().write(|w| {
-        w.set_load(vals::Load::COMMON);
-        w.set_mode(vals::Mode::REFRESH_COUNT);
+        w.set_load(vals::Load::Common);
+        w.set_mode(vals::Mode::RefreshCount);
     });
-    pwm.mode().write(|w| w.set_updown(vals::Updown::UP));
+    pwm.mode().write(|w| w.set_updown(vals::Updown::Up));
     pwm.prescaler()
-        .write(|w| w.set_prescaler(vals::Prescaler::DIV_1));
+        .write(|w| w.set_prescaler(vals::Prescaler::Div1));
     pwm.countertop().write(|w| w.set_countertop(20));
 }
 
@@ -142,10 +142,10 @@ fn play_sequence(seq: &[u16; SEQ_LEN]) {
 /// NeoPixel-Stromversorgung einschalten (D35 / P0.06, LOW = an).
 pub fn power_on() {
     nrf_pac::P0.pin_cnf(6).write(|w| {
-        w.set_dir(Dir::OUTPUT);
-        w.set_input(Input::DISCONNECT);
-        w.set_drive(Drive::S0S1);
-        w.set_pull(Pull::DISABLED);
+        w.set_dir(Dir::Output);
+        w.set_input(Input::Disconnect);
+        w.set_drive(Drive::S0s1);
+        w.set_pull(Pull::Disabled);
     });
     nrf_pac::P0.outclr().write_value(nrf_pac::gpio::regs::Outclr(1 << 6));
 }
