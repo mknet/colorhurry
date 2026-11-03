@@ -13,5 +13,5 @@ enum Platform {
     }
 
     /// The phone speaker plays the tones, so iOS gives no other feedback.
-    static func toneFeedback(_ steps: [ToneStep]) {}
+    static func toneFeedback(_ steps: [ToneStep], isCancelled: @escaping @Sendable () -> Bool) {}
 }

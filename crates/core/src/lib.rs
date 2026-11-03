@@ -55,6 +55,10 @@ pub enum Event {
     BeatDone(u32),
     /// The last beat tone and the explosion finished for generation `id`.
     ExplosionDone(u32),
+    /// The app went to the background. The core stops its timers and the radio.
+    Pause,
+    /// The app came back from the background. The core continues where it stopped.
+    Resume,
 }
 
 #[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -108,6 +112,17 @@ impl App for ColorHurry {
     type Effect = Effect;
 
     fn update(&self, event: Event, model: &mut Model) -> Command<Effect, Event> {
+        match event {
+            Event::Pause => return pause(model),
+            Event::Resume => return resume(model),
+            _ => {}
+        }
+        // While paused, the core ignores every event except `Resume`. A
+        // `RandomByte` from a request that was in flight is dropped too,
+        // because `Resume` requests a new byte.
+        if model.paused {
+            return Command::done();
+        }
         match model.screen {
             Scr::ModeSelect => update_mode_select(event, model),
             Scr::Picker => update_picker(event, model),
@@ -171,6 +186,62 @@ fn advance_blink(model: &mut Model) {
     }
 }
 
+/// Stops every timer and the radio, and remembers that the game is paused.
+///
+/// The new generations make the core ignore the `BlinkDone`, `BeatDone` and
+/// `ExplosionDone` events of delays that are still pending in the shell.
+fn pause(model: &mut Model) -> Command<Effect, Event> {
+    if model.paused {
+        return Command::done();
+    }
+    model.paused = true;
+    model.blink_gen = model.blink_gen.wrapping_add(1);
+    model.beat_gen = model.beat_gen.wrapping_add(1);
+    ble(BleOp::Off)
+}
+
+/// Sends the radio op of the current screen again and restarts its timers.
+///
+/// A running countdown continues at the same step, and its next beat comes one
+/// full `BEAT_PERIOD_MS` later. A Receiver with no running round requests a new
+/// random byte. This starts the next round after an explosion (with no second
+/// explosion) and after a random byte that the pause dropped.
+fn resume(model: &mut Model) -> Command<Effect, Event> {
+    if !model.paused {
+        return Command::done();
+    }
+    model.paused = false;
+    match model.screen {
+        Scr::ModeSelect => render().and(schedule_blink(model)),
+        Scr::Picker => {
+            let channel = model.channel();
+            let color = match model.picker_phase {
+                Phase::Selecting => None,
+                Phase::Applied => Some(model.picker_applied),
+            };
+            let cmd = ble(BleOp::Picker { channel })
+                .and(ble(BleOp::Broadcast { color }))
+                .and(render());
+            match model.picker_phase {
+                Phase::Selecting => cmd.and(schedule_blink(model)),
+                Phase::Applied => cmd,
+            }
+        }
+        Scr::Receiver => match model.round {
+            RoundState::Running { target, .. } => {
+                let channel = model.channel();
+                ble(BleOp::Receiver {
+                    channel,
+                    color: target,
+                })
+                .and(render())
+                .and(schedule_beat_ms(model, BEAT_PERIOD_MS))
+            }
+            RoundState::Waiting => render().and(request_random()),
+        },
+    }
+}
+
 fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => render().and(schedule_blink(model)),
@@ -229,6 +300,8 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
             // Also allow an initial Skip/Activate without prior blink.
             Command::done()
         }
+        // `update` handles these before it dispatches to a screen.
+        Event::Pause | Event::Resume => Command::done(),
     }
 }
 
@@ -282,6 +355,8 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
         | Event::RandomByte(_)
         | Event::BeatDone(_)
         | Event::ExplosionDone(_) => Command::done(),
+        // `update` handles these before it dispatches to a screen.
+        Event::Pause | Event::Resume => Command::done(),
     }
 }
 
@@ -326,6 +401,8 @@ fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
                 .and(request_random())
         }
         Event::BlinkDone(_) => Command::done(),
+        // `update` handles these before it dispatches to a screen.
+        Event::Pause | Event::Resume => Command::done(),
     }
 }
 

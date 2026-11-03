@@ -16,6 +16,7 @@ struct WatchContentView: View {
         }
         .background(AppTheme.bg)
         .onAppear { game.boot() }
+        .pausesInBackground(game)
     }
 
     private var gamePage: some View {

@@ -351,6 +351,23 @@ pub fn start() -> Result<(), JsValue> {
         closure.forget();
     }
 
+    // Pause the game while the tab is hidden, and resume it when the tab is
+    // visible again.
+    {
+        let shell = shell.clone();
+        let doc_cb = doc.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            let event = if doc_cb.hidden() {
+                Event::Pause
+            } else {
+                Event::Resume
+            };
+            shell.borrow_mut().process(event);
+        }) as Box<dyn FnMut()>);
+        doc.set_onvisibilitychange(Some(closure.as_ref().unchecked_ref()));
+        closure.forget();
+    }
+
     // Resolve Delay effects only (blink + beat); no model peeks.
     let shell_tick = shell;
     let tick_cb = Closure::wrap(Box::new(move || {

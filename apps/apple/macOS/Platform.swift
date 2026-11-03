@@ -9,5 +9,5 @@ enum Platform {
     static func prepareAudio() throws {}
 
     /// The Mac speaker plays the tones, so macOS gives no other feedback.
-    static func toneFeedback(_ steps: [ToneStep]) {}
+    static func toneFeedback(_ steps: [ToneStep], isCancelled: @escaping @Sendable () -> Bool) {}
 }

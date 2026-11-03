@@ -8,8 +8,8 @@ use std::collections::VecDeque;
 use std::fmt;
 
 use color_hurry_core::{
-    BleOp, Color, ColorHurry, Delay, Effect, Event, ToneSequence, ViewModel, BEAT_PERIOD_MS,
-    NUM_LEDS, Rgb,
+    BleOp, Color, ColorHurry, Delay, Effect, Event, Random, ToneSequence, ViewModel,
+    BEAT_PERIOD_MS, NUM_LEDS, Rgb,
 };
 use crux_core::{Core, Request};
 
@@ -52,6 +52,9 @@ pub struct Harness {
     now_ms: u64,
     delays: VecDeque<PendingDelay>,
     random_queue: VecDeque<u8>,
+    /// When true, `Random` requests wait in `held_random` until a step answers them.
+    hold_random: bool,
+    held_random: VecDeque<Request<Random>>,
     ble_log: Vec<BleOp>,
     tone_log: Vec<ObservedTone>,
     delay_log: Vec<u32>,
@@ -64,6 +67,7 @@ impl fmt::Debug for Harness {
             .field("view", &self.view())
             .field("pending_delays", &self.delays.len())
             .field("random_queue", &self.random_queue)
+            .field("held_random", &self.held_random.len())
             .field("ble_log", &self.ble_log)
             .field("tone_log", &self.tone_log)
             .field("delay_log", &self.delay_log)
@@ -84,6 +88,8 @@ impl Harness {
             now_ms: 0,
             delays: VecDeque::new(),
             random_queue: VecDeque::new(),
+            hold_random: false,
+            held_random: VecDeque::new(),
             ble_log: Vec::new(),
             tone_log: Vec::new(),
             delay_log: Vec::new(),
@@ -118,6 +124,21 @@ impl Harness {
 
     pub fn push_random_many(&mut self, bytes: impl IntoIterator<Item = u8>) {
         self.random_queue.extend(bytes);
+    }
+
+    /// Keep later `Random` requests in flight until [`Self::answer_held_random`].
+    pub fn hold_random(&mut self, hold: bool) {
+        self.hold_random = hold;
+    }
+
+    /// Answer the oldest held `Random` request with `byte`.
+    pub fn answer_held_random(&mut self, byte: u8) {
+        let mut request = self
+            .held_random
+            .pop_front()
+            .expect("no Random request is held");
+        let more = self.core.resolve(&mut request, byte).unwrap_or_default();
+        self.handle(more);
     }
 
     /// Deliver a domain event and drain resulting effects (including 0 ms delays).
@@ -185,6 +206,9 @@ impl Harness {
                     self.delay_log.push(millis);
                     let due = self.now_ms.saturating_add(u64::from(millis));
                     self.delays.push_back(PendingDelay { due_ms: due, request });
+                }
+                Effect::Random(request) if self.hold_random => {
+                    self.held_random.push_back(request);
                 }
                 Effect::Random(mut request) => {
                     let byte = self.random_queue.pop_front().unwrap_or_else(|| {

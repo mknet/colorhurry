@@ -53,6 +53,8 @@ pub struct Model {
     pub(crate) round: Round,
     /// Generation so stale countdown delays are ignored.
     pub(crate) beat_gen: u32,
+    /// True between `Pause` and `Resume`.
+    pub(crate) paused: bool,
 }
 
 impl Default for Model {
@@ -75,6 +77,7 @@ impl Model {
             picker_applied: Color::White,
             round: Round::Waiting,
             beat_gen: 0,
+            paused: false,
         }
     }
 

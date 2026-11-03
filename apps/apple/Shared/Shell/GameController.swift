@@ -27,6 +27,16 @@ final class GameController {
     func skip() { core.update(.skip) }
     func activate() { core.update(.activateColor) }
 
+    /// Stops the tones and haptics that are queued, then pauses the core.
+    /// The core stops its timers and the radio.
+    func pause() {
+        handler.tones.stop()
+        core.update(.pause)
+    }
+
+    /// Lets the core continue where it stopped.
+    func resume() { core.update(.resume) }
+
     /// Manufacturer payload after the company ID; the core owns the wire format.
     private func received(_ payload: Data) {
         let bytes = colorReceivedEvent(payload: payload)

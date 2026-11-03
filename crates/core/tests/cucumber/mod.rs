@@ -48,7 +48,32 @@ async fn next_random(world: &mut ColorHurryWorld, list: String) {
     world.harness.push_random_many(parse_byte_list(&list));
 }
 
+#[when("the shell holds random requests")]
+async fn hold_random(world: &mut ColorHurryWorld) {
+    world.harness.hold_random(true);
+}
+
+#[when("the shell answers random requests at once")]
+async fn answer_random(world: &mut ColorHurryWorld) {
+    world.harness.hold_random(false);
+}
+
 // ----- When -----
+
+#[when("the app goes to the background")]
+async fn pause(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::Pause);
+}
+
+#[when("the app comes back")]
+async fn resume(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::Resume);
+}
+
+#[when(regex = r"^the shell answers the held random request with (\d+)$")]
+async fn answer_held(world: &mut ColorHurryWorld, byte: u8) {
+    world.harness.answer_held_random(byte);
+}
 
 #[when("I apply")]
 async fn apply(world: &mut ColorHurryWorld) {
@@ -322,6 +347,33 @@ async fn delay_requested_n(world: &mut ColorHurryWorld, ms: u32, n: usize) {
         .filter(|d| **d == ms)
         .count();
     assert!(count >= n, "expected >= {n} delays of {ms}, got {count}");
+}
+
+#[then("no tone should have been played")]
+async fn no_tone(world: &mut ColorHurryWorld) {
+    assert!(
+        world.harness.tone_log().is_empty(),
+        "tones: {:?}",
+        world.harness.tone_log()
+    );
+}
+
+#[then("no explosion tone should have been played")]
+async fn no_explosion(world: &mut ColorHurryWorld) {
+    assert!(
+        !world.harness.tone_log().iter().any(|t| t.is_explosion()),
+        "tones: {:?}",
+        world.harness.tone_log()
+    );
+}
+
+#[then("no delay should have been requested")]
+async fn no_delay(world: &mut ColorHurryWorld) {
+    assert!(
+        world.harness.delay_log().is_empty(),
+        "delays: {:?}",
+        world.harness.delay_log()
+    );
 }
 
 #[then(regex = r"^all LEDs should show (.+)$")]

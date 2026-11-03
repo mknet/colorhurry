@@ -23,14 +23,38 @@ final class TonePlayer {
     // or at the current time if the audio has already ended.
     private var queuedUntil = Date.distantPast
 
+    // Each call to `stop()` starts a new generation. A sequence keeps the generation
+    // from the time it was played. A sequence or a haptic click from an older
+    // generation does not play.
+    private let generation = ToneGeneration()
+
     func play(_ steps: [ToneStep]) {
         guard !steps.isEmpty else { return }
+        let current = generation.value
         queue.async { [weak self] in
-            self?.enqueue(steps)
+            self?.enqueue(steps, generation: current)
         }
     }
 
-    private func enqueue(_ steps: [ToneStep]) {
+    /// Stops the sound at once and drops every queued sequence and haptic click.
+    /// The next call to `play(_:)` starts the engine again.
+    func stop() {
+        generation.advance()
+        queue.async { [weak self] in
+            self?.halt()
+        }
+    }
+
+    private func halt() {
+        // `stop()` on the player node also drops the scheduled buffers.
+        player?.stop()
+        engine?.stop()
+        needsRestart = true
+        queuedUntil = .distantPast
+    }
+
+    private func enqueue(_ steps: [ToneStep], generation current: UInt64) {
+        guard generation.value == current else { return }
         let buffer = render(steps)
         let audioReady = ensureEngineRunning()
 
@@ -41,8 +65,11 @@ final class TonePlayer {
 
         // The feedback starts with the sound and does not depend on audio,
         // so it runs at the start time even when audio fails.
+        let generation = self.generation
         queue.asyncAfter(deadline: .now() + start.timeIntervalSince(now)) {
-            Platform.toneFeedback(steps)
+            let isCancelled: @Sendable () -> Bool = { generation.value != current }
+            guard !isCancelled() else { return }
+            Platform.toneFeedback(steps, isCancelled: isCancelled)
         }
 
         if audioReady {
@@ -114,5 +141,23 @@ final class TonePlayer {
             }
         }
         return buffer
+    }
+}
+
+/// A counter that several threads can read and advance.
+private final class ToneGeneration: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: UInt64 = 0
+
+    var value: UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        return current
+    }
+
+    func advance() {
+        lock.lock()
+        current &+= 1
+        lock.unlock()
     }
 }

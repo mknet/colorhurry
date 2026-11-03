@@ -61,6 +61,16 @@ class GameController(app: Application) : AndroidViewModel(app) {
     fun skip() = core.update(Event.Skip)
     fun activate() = core.update(Event.ActivateColor)
 
+    /// Stops the tone that plays, then pauses the core. The core stops its
+    /// timers and the radio.
+    fun pause() {
+        tones.stop()
+        core.update(Event.Pause)
+    }
+
+    /// Lets the core continue where it stopped.
+    fun resume() = core.update(Event.Resume)
+
     /// Manufacturer payload after the company ID; the core owns the wire format.
     private fun received(payload: ByteArray) {
         val bytes = colorReceivedEvent(payload)
@@ -89,6 +99,7 @@ class GameController(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        tones.stop()
         bleService.stopAll()
         super.onCleared()
     }

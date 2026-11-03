@@ -58,6 +58,7 @@ struct ContentView: View {
             .padding(16)
         }
         .onAppear { game.boot() }
+        .pausesInBackground(game)
     }
 
     private var title: String {
