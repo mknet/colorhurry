@@ -42,10 +42,6 @@ impl Rgb {
         b: 0x00,
     };
 
-    pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b }
-    }
-
     #[inline(never)]
     pub fn dimmed(self) -> Self {
         Self {
