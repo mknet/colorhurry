@@ -10,4 +10,4 @@
 ## 2. Shells
 
 - [x] 2.1 Regenerate the Swift types and show the choice in `modeHint`, verify the iOS, macOS and watchOS builds
-- [ ] 2.2 Show the choice in the Android `modeHint`, verify with `./gradlew :app:assembleDebug`
+- [x] 2.2 Show the choice in the Android `modeHint`, verify with `./gradlew :app:assembleDebug`
