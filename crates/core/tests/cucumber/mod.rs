@@ -205,6 +205,30 @@ async fn ble_off(world: &mut ColorHurryWorld) {
     );
 }
 
+#[then("BLE should not have received a Receiver op")]
+async fn ble_no_receiver(world: &mut ColorHurryWorld) {
+    assert!(
+        !world
+            .harness
+            .ble_log()
+            .iter()
+            .any(|op| matches!(op, BleOp::Receiver { .. })),
+        "ble log: {:?}",
+        world.harness.ble_log()
+    );
+}
+
+#[then(regex = r"^BLE should have received (\d+) Receiver ops?$")]
+async fn ble_receiver_count(world: &mut ColorHurryWorld, n: usize) {
+    let count = world
+        .harness
+        .ble_log()
+        .iter()
+        .filter(|op| matches!(op, BleOp::Receiver { .. }))
+        .count();
+    assert_eq!(count, n, "ble log: {:?}", world.harness.ble_log());
+}
+
 #[then("BLE should not have received any new ops")]
 async fn ble_empty(world: &mut ColorHurryWorld) {
     assert!(

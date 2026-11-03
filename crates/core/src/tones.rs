@@ -53,6 +53,11 @@ impl ToneSequence {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+
+    /// Total play time of all steps, in milliseconds.
+    pub fn total_ms(&self) -> u32 {
+        self.steps().iter().map(|s| s.ms).sum()
+    }
 }
 
 pub fn skip() -> ToneSequence {

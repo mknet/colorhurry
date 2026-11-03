@@ -53,6 +53,8 @@ pub enum Event {
     BlinkDone(u32),
     /// Countdown beat delay finished for generation `id`.
     BeatDone(u32),
+    /// The last beat tone and the explosion finished for generation `id`.
+    ExplosionDone(u32),
 }
 
 #[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -147,6 +149,16 @@ fn schedule_beat_ms(model: &mut Model, millis: u32) -> Command<Effect, Event> {
     })
 }
 
+/// Wait for the queued tones to finish, then send `ExplosionDone`.
+fn schedule_explosion_done(model: &mut Model, millis: u32) -> Command<Effect, Event> {
+    model.beat_gen = model.beat_gen.wrapping_add(1);
+    let id = model.beat_gen;
+    Command::new(move |ctx| async move {
+        ctx.request_from_shell(Delay { millis }).await;
+        ctx.send_event(Event::ExplosionDone(id));
+    })
+}
+
 fn request_random() -> Command<Effect, Event> {
     Command::request_from_shell(Random).then_send(Event::RandomByte)
 }
@@ -209,7 +221,10 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
                 }
             }
         }
-        Event::ColorReceived { .. } | Event::RandomByte(_) | Event::BeatDone(_) => {
+        Event::ColorReceived { .. }
+        | Event::RandomByte(_)
+        | Event::BeatDone(_)
+        | Event::ExplosionDone(_) => {
             // First blink kick: shells may send BlinkDone only after we schedule.
             // Also allow an initial Skip/Activate without prior blink.
             Command::done()
@@ -263,7 +278,10 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
                     .and(schedule_blink(model))
             }
         },
-        Event::ColorReceived { .. } | Event::RandomByte(_) | Event::BeatDone(_) => Command::done(),
+        Event::ColorReceived { .. }
+        | Event::RandomByte(_)
+        | Event::BeatDone(_)
+        | Event::ExplosionDone(_) => Command::done(),
     }
 }
 
@@ -278,6 +296,10 @@ fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
         }
         Event::BeatDone(id) if id == model.beat_gen => countdown_beat(model),
         Event::BeatDone(_) => Command::done(),
+        // Only the countdown that expired can start the next round. A newer
+        // generation means the round state changed during the explosion.
+        Event::ExplosionDone(id) if id == model.beat_gen => request_random(),
+        Event::ExplosionDone(_) => Command::done(),
         Event::Skip => {
             if matches!(model.round, RoundState::Running { .. }) {
                 model.round = RoundState::Waiting;
@@ -326,16 +348,20 @@ fn countdown_beat(model: &mut Model) -> Command<Effect, Event> {
     let RoundState::Running { target, step } = model.round else {
         return Command::done();
     };
-    let tone_cmd = play_tone(tone::countdown_step(step));
+    let last_tone = tone::countdown_step(step);
+    let explosion = tone::explosion();
+    let tone_cmd = play_tone(last_tone);
     let next = step.saturating_add(1);
     if next >= COUNTDOWN_STEPS {
         model.round = RoundState::Waiting;
-        model.beat_gen = model.beat_gen.wrapping_add(1);
+        // The shell queues tones, so the next round must wait for the last
+        // beat tone and the explosion to finish playing.
+        let wait_ms = last_tone.total_ms() + explosion.total_ms();
         tone_cmd
-            .and(play_tone(tone::explosion()))
+            .and(play_tone(explosion))
             .and(ble(BleOp::Off))
             .and(render())
-            .and(request_random())
+            .and(schedule_explosion_done(model, wait_ms))
     } else {
         model.round = RoundState::Running {
             target,

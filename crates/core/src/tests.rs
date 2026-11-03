@@ -143,8 +143,26 @@ fn after_beats_explosion_then_random() {
         last_effs = effects(&mut cmd);
     }
     assert!(matches!(model.round, Round::Waiting));
-    assert!(last_effs.iter().any(|e| matches!(e, Effect::Random(_))));
     assert!(last_effs.iter().any(|e| matches!(e, Effect::PlayTone(_))));
+    // The next round waits for the last beat tone and the explosion.
+    assert!(!last_effs.iter().any(|e| matches!(e, Effect::Random(_))));
+    let wait_ms = last_effs.iter().find_map(|e| match e {
+        Effect::Delay(d) => Some(d.operation.millis),
+        _ => None,
+    });
+    assert_eq!(
+        wait_ms,
+        Some(crate::tones::countdown_step(COUNTDOWN_STEPS - 1).total_ms()
+            + crate::tones::explosion().total_ms())
+    );
+
+    let id = model.beat_gen;
+    let mut stale = app.update(Event::ExplosionDone(id.wrapping_add(1)), &mut model);
+    assert!(effects(&mut stale).is_empty());
+    let mut cmd = app.update(Event::ExplosionDone(id), &mut model);
+    assert!(effects(&mut cmd)
+        .iter()
+        .any(|e| matches!(e, Effect::Random(_))));
 }
 
 #[test]
