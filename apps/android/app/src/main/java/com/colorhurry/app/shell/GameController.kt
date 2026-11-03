@@ -4,10 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.colorhurry.shared.Ble
+import com.colorhurry.shared.Color as SpectrumColor
 import com.colorhurry.shared.Core
 import com.colorhurry.shared.Delay
 import com.colorhurry.shared.EffectHandler
 import com.colorhurry.shared.Event
+import com.colorhurry.shared.ModeRole
 import com.colorhurry.shared.PlayTone
 import com.colorhurry.shared.Random
 import com.colorhurry.shared.Screen
@@ -67,8 +69,18 @@ class GameController(app: Application) : AndroidViewModel(app) {
     }
 
     fun modeHint(view: ViewModel): String = when (view.screen) {
-        Screen.MODESELECT -> "Mode select · Skip cycles role/channel · Apply enters"
-        Screen.PICKER -> "Picker ch${view.channel} · Skip color · Apply broadcasts or withdraws"
+        Screen.MODESELECT -> view.modeChoice?.let { choice ->
+            val role = if (choice.role == ModeRole.PICKER) "Picker" else "Receiver"
+            "Apply enters $role ch${choice.channel} · Skip for next"
+        } ?: "Mode select · Skip cycles role/channel · Apply enters"
+        Screen.PICKER -> {
+            val color = view.pickerColor?.let(::colorName) ?: "?"
+            if (view.pickerApplied) {
+                "Picker ch${view.channel} · broadcasting $color · Skip or Apply stops"
+            } else {
+                "Picker ch${view.channel} · $color · Skip for next · Apply broadcasts"
+            }
+        }
         Screen.RECEIVER -> if (view.countdownActive) {
             "Receiver ch${view.channel} · countdown ${view.countdownStep}/10"
         } else {
@@ -80,4 +92,18 @@ class GameController(app: Application) : AndroidViewModel(app) {
         bleService.stopAll()
         super.onCleared()
     }
+}
+
+/** Reader-friendly name, for example "Light green". */
+private fun colorName(color: SpectrumColor): String = when (color) {
+    SpectrumColor.WHITE -> "White"
+    SpectrumColor.RED -> "Red"
+    SpectrumColor.ORANGE -> "Orange"
+    SpectrumColor.YELLOW -> "Yellow"
+    SpectrumColor.LIGHTGREEN -> "Light green"
+    SpectrumColor.GREEN -> "Green"
+    SpectrumColor.LIGHTBLUE -> "Light blue"
+    SpectrumColor.BLUE -> "Blue"
+    SpectrumColor.PURPLE -> "Purple"
+    SpectrumColor.PINK -> "Pink"
 }

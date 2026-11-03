@@ -10,6 +10,17 @@ Feature: Mode select
     Then the screen should be ModeSelect
     And the channel should be 0
 
+  Scenario: Boot names Picker channel 0
+    Then the mode choice should be Picker channel 0
+
+  Scenario: Six Skips name Receiver channel 3
+    When I skip 6 times
+    Then the mode choice should be Receiver channel 3
+
+  Scenario: Apply clears the mode choice
+    When I apply
+    Then there should be no mode choice
+
   Scenario: Apply without Skip enters Picker on channel 0
     When I apply
     Then the screen should be Picker

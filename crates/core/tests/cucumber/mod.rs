@@ -3,7 +3,7 @@
 mod harness;
 mod parse;
 
-use color_hurry_core::{BleOp, Event, Screen};
+use color_hurry_core::{BleOp, Event, ModeChoice, ModeRole, Screen};
 use cucumber::{given, then, when, World};
 use harness::Harness;
 use parse::{parse_color, parse_screen};
@@ -123,6 +123,38 @@ async fn screen_is(world: &mut ColorHurryWorld, name: String) {
 #[then(regex = r"^the channel should be (\d+)$")]
 async fn channel_is(world: &mut ColorHurryWorld, channel: u8) {
     assert_eq!(world.harness.view().channel, channel);
+}
+
+#[then(regex = r"^the mode choice should be (Picker|Receiver) channel (\d+)$")]
+async fn mode_choice_is(world: &mut ColorHurryWorld, role: String, channel: u8) {
+    let role = if role == "Picker" {
+        ModeRole::Picker
+    } else {
+        ModeRole::Receiver
+    };
+    assert_eq!(
+        world.harness.view().mode_choice,
+        Some(ModeChoice { role, channel })
+    );
+}
+
+#[then("there should be no mode choice")]
+async fn no_mode_choice(world: &mut ColorHurryWorld) {
+    assert_eq!(world.harness.view().mode_choice, None);
+}
+
+#[then(regex = r"^the picker should name (.+) as (selected|applied)$")]
+async fn picker_names(world: &mut ColorHurryWorld, color: String, state: String) {
+    let view = world.harness.view();
+    assert_eq!(view.picker_color, Some(parse_color(&color).expect("color")));
+    assert_eq!(view.picker_applied, state == "applied");
+}
+
+#[then("there should be no picker color")]
+async fn no_picker_color(world: &mut ColorHurryWorld) {
+    let view = world.harness.view();
+    assert_eq!(view.picker_color, None);
+    assert!(!view.picker_applied);
 }
 
 #[then("the countdown should be active")]

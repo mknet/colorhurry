@@ -23,7 +23,7 @@ pub use protocol::{
     decode_color, encode_color, COMPANY_ID, CMD_COLOR, MAGIC, PAYLOAD_LEN, VERSION,
 };
 pub use tones::{ToneSequence, ToneStep};
-pub use view::ViewModel;
+pub use view::{ModeChoice, ModeRole, ViewModel};
 
 use crux_core::{
     App, Command,

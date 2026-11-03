@@ -20,9 +20,9 @@ struct WatchContentView: View {
 
     private var gamePage: some View {
         LedRingView(leds: game.view.leds) {
-            Text(game.modeHint)
-                .font(.system(size: 11))
-                .foregroundStyle(AppTheme.muted)
+            Text(game.watchHint)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppTheme.text)
                 .lineLimit(2)
                 .minimumScaleFactor(0.5)
                 .multilineTextAlignment(.center)

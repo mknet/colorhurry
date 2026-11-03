@@ -5,6 +5,21 @@ use crate::color::{Color, Rgb};
 use crate::model::{Model, PickerPhase, Round, Screen, NUM_LEDS};
 use crate::palette::{self, CHANNELS};
 
+/// The role that `ActivateColor` enters from mode select.
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub enum ModeRole {
+    Picker,
+    Receiver,
+}
+
+/// The role and channel that `ActivateColor` enters from mode select.
+#[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ModeChoice {
+    pub role: ModeRole,
+    pub channel: u8,
+}
+
 #[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ViewModel {
     pub screen: Screen,
@@ -12,6 +27,12 @@ pub struct ViewModel {
     pub channel: u8,
     pub countdown_step: u8,
     pub countdown_active: bool,
+    /// `Some` only on mode select.
+    pub mode_choice: Option<ModeChoice>,
+    /// The selected spectrum color. `Some` only in Picker.
+    pub picker_color: Option<Color>,
+    /// True when Apply has locked `picker_color`. False outside Picker.
+    pub picker_applied: bool,
 }
 
 pub fn view_model(model: &Model) -> ViewModel {
@@ -32,7 +53,37 @@ pub fn view_model(model: &Model) -> ViewModel {
         channel: model.channel(),
         countdown_step,
         countdown_active,
+        mode_choice: mode_choice(model),
+        picker_color: picker_color(model),
+        picker_applied: model.screen == Screen::Picker
+            && model.picker_phase == PickerPhase::Applied,
     }
+}
+
+fn picker_color(model: &Model) -> Option<Color> {
+    if model.screen != Screen::Picker {
+        return None;
+    }
+    Some(match model.picker_phase {
+        PickerPhase::Selecting => palette::spectrum_color_at(model.picker_selected as usize),
+        PickerPhase::Applied => model.picker_applied,
+    })
+}
+
+fn mode_choice(model: &Model) -> Option<ModeChoice> {
+    if model.screen != Screen::ModeSelect {
+        return None;
+    }
+    let step = model.mode_step as usize;
+    let role = if palette::ring_step_is_picker(step) {
+        ModeRole::Picker
+    } else {
+        ModeRole::Receiver
+    };
+    Some(ModeChoice {
+        role,
+        channel: palette::ring_step_channel(step) as u8,
+    })
 }
 
 fn mode_select_leds(model: &Model) -> [Rgb; NUM_LEDS] {

@@ -39,9 +39,16 @@ final class GameController {
     var modeHint: String {
         switch view.screen {
         case .modeSelect:
-            return "Mode select · Skip cycles role/channel · Apply enters"
+            guard let choice = view.modeChoice else {
+                return "Mode select · Skip cycles role/channel · Apply enters"
+            }
+            let role = choice.role == .picker ? "Picker" : "Receiver"
+            return "Apply enters \(role) ch\(choice.channel) · Skip for next"
         case .picker:
-            return "Picker ch\(view.channel) · Skip color · Apply broadcasts or withdraws"
+            let color = view.pickerColor?.displayName ?? "?"
+            return view.pickerApplied
+                ? "Picker ch\(view.channel) · \(Platform.name) cannot send \(color) · use a board as Picker"
+                : "Picker ch\(view.channel) · \(color) · Skip for next · Apply broadcasts"
         case .receiver:
             return view.countdownActive
                 ? "Receiver ch\(view.channel) · countdown \(view.countdownStep)/10"
@@ -74,5 +81,23 @@ final class GameHandler: EffectHandler, @unchecked Sendable {
     func ble(_ operation: Ble) {
         // `Core` dispatches notifications on the main actor.
         MainActor.assumeIsolated { bleService.apply(operation.op) }
+    }
+}
+
+extension Color {
+    /// Reader-friendly name, for example "Light green".
+    var displayName: String {
+        switch self {
+        case .white: "White"
+        case .red: "Red"
+        case .orange: "Orange"
+        case .yellow: "Yellow"
+        case .lightGreen: "Light green"
+        case .green: "Green"
+        case .lightBlue: "Light blue"
+        case .blue: "Blue"
+        case .purple: "Purple"
+        case .pink: "Pink"
+        }
     }
 }

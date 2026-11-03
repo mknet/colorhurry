@@ -69,3 +69,20 @@ Feature: Color Picker
     When a color Red is received on channel 0
     Then BLE should not have received any new ops
     And the screen should be Picker
+
+  Scenario: Entering Picker on channel 2 names Orange as selected
+    When I enter picker on channel 2
+    Then the picker should name Orange as selected
+
+  Scenario: One Skip names Yellow
+    When I enter picker on channel 2
+    And I skip
+    Then the picker should name Yellow as selected
+
+  Scenario: Apply keeps the name and marks it applied
+    When I enter picker on channel 2
+    And I apply
+    Then the picker should name Orange as applied
+
+  Scenario: Mode select names no picker color
+    Then there should be no picker color
