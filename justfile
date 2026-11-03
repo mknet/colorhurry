@@ -51,12 +51,31 @@ ffi-android:
     (cd crates/ffi && boltffi pack android)
     cargo run -p color-hurry-ffi --features codegen --bin codegen -- --language kotlin --output-dir apps/android/generated
 
-# Native iOS (SwiftUI): regenerate Xcode project then open
-ios: ffi-apple
+# Native iOS, macOS and watchOS (SwiftUI): regenerate the Xcode project, then open it
+apple: ffi-apple
     cd apps/apple && xcodegen generate && open ColorHurry.xcodeproj
+
+ios: apple
 
 ios-build: ffi-apple
     cd apps/apple && xcodegen generate && xcodebuild -scheme ColorHurry -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+
+mac-build: ffi-apple
+    cd apps/apple && xcodegen generate && xcodebuild -scheme ColorHurryMac -destination 'platform=macOS' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+
+watch-build: ffi-apple
+    cd apps/apple && xcodegen generate && xcodebuild -scheme ColorHurryWatch -destination 'generic/platform=watchOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+
+# Run the watch app on a 40 mm watch simulator (the screen size of a Series 6). Creates the simulator the first time.
+watch_sim := "ColorHurry Watch 40mm"
+watch-sim: ffi-apple
+    xcrun simctl list devices | grep -q "{{watch_sim}}" || xcrun simctl create "{{watch_sim}}" com.apple.CoreSimulator.SimDeviceType.Apple-Watch-SE-3-40mm
+    xcrun simctl boot "{{watch_sim}}" 2>/dev/null || true
+    open "$(xcode-select -p)/../Applications/DeviceHub.app"
+    cd apps/apple && xcodegen generate && xcodebuild -scheme ColorHurryWatch -destination 'platform=watchOS Simulator,name={{watch_sim}}' -configuration Debug -derivedDataPath ../../target/xcode CODE_SIGNING_ALLOWED=NO build
+    xcrun simctl bootstatus "{{watch_sim}}"
+    xcrun simctl install "{{watch_sim}}" target/xcode/Build/Products/Debug-watchsimulator/ColorHurry.app
+    xcrun simctl launch --terminate-running-process "{{watch_sim}}" com.colorhurry.app.watch
 
 # Native Android (Kotlin/Compose): needs JDK 17/21
 android: ffi-android

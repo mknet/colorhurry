@@ -1,8 +1,18 @@
 import App
 import SwiftUI
 
-struct LedRingView: View {
+/// The LED ring. The optional `center` view fills the space inside the LEDs and
+/// replaces the small hub circle. Without it, the ring draws the hub circle.
+struct LedRingView<Center: View>: View {
     let leds: [Rgb]
+    private let hasCenter: Bool
+    private let center: Center
+
+    init(leds: [Rgb], @ViewBuilder center: () -> Center) {
+        self.leds = leds
+        self.hasCenter = true
+        self.center = center()
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -24,9 +34,14 @@ struct LedRingView: View {
                     .overlay(Circle().stroke(SwiftUI.Color(red: 0.23, green: 0.29, blue: 0.36), lineWidth: 3))
                     .frame(width: size, height: size)
 
-                Circle()
-                    .fill(SwiftUI.Color(red: 0.16, green: 0.21, blue: 0.26))
-                    .frame(width: size * 0.18, height: size * 0.18)
+                if hasCenter {
+                    center
+                        .frame(width: size * 0.48, height: size * 0.32)
+                } else {
+                    Circle()
+                        .fill(SwiftUI.Color(red: 0.16, green: 0.21, blue: 0.26))
+                        .frame(width: size * 0.18, height: size * 0.18)
+                }
 
                 ForEach(0..<leds.count, id: \.self) { i in
                     let angle = -90.0 + Double(i) * (360.0 / Double(leds.count))
@@ -44,5 +59,13 @@ struct LedRingView: View {
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
+    }
+}
+
+extension LedRingView where Center == EmptyView {
+    init(leds: [Rgb]) {
+        self.leds = leds
+        self.hasCenter = false
+        self.center = EmptyView()
     }
 }

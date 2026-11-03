@@ -4,8 +4,8 @@ import Foundation
 import Observation
 import Shared
 
-/// Central-only on iOS: scan manufacturer ads from CPB / Android pickers.
-/// iOS cannot advertise custom manufacturer data that boards understand.
+/// Central-only on iOS, macOS and watchOS: scan manufacturer ads from CPB / Android pickers.
+/// CoreBluetooth cannot advertise custom manufacturer data that boards understand.
 /// Payloads go to the Rust core undecoded; this class only moves bytes.
 @Observable
 final class BleService: NSObject {
@@ -29,7 +29,7 @@ final class BleService: NSObject {
         case .picker(let channel):
             pickerChannel = channel
             stopScan()
-            status = "Picker ch\(channel): iOS cannot advertise manufacturer data; use a CPB (or Android) as Picker"
+            status = "Picker ch\(channel): \(Platform.name) cannot advertise manufacturer data; use a CPB (or Android) as Picker"
         case .receiver(let channel, let color):
             pickerChannel = nil
             startScan()
@@ -38,7 +38,7 @@ final class BleService: NSObject {
             if color == nil {
                 status = pickerChannel.map { "Picker ch\($0): selecting (not broadcasting)" } ?? "Broadcast cleared"
             } else if let color {
-                status = "Cannot broadcast \(color) from iOS (no manufacturer AD). Pair with CPB Picker instead."
+                status = "Cannot broadcast \(color) from \(Platform.name) (no manufacturer AD). Pair with CPB Picker instead."
             }
         }
     }

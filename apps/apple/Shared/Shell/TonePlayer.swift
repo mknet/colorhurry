@@ -9,6 +9,8 @@ final class TonePlayer {
     func play(_ steps: [ToneStep]) {
         guard !steps.isEmpty, !busy else { return }
         busy = true
+        // The feedback does not depend on audio, so it runs even when audio fails.
+        Platform.toneFeedback(steps)
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.renderAndPlay(steps)
             self?.busy = false
@@ -41,8 +43,7 @@ final class TonePlayer {
             let player = AVAudioPlayerNode()
             engine.attach(player)
             engine.connect(player, to: engine.mainMixerNode, format: format)
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            try Platform.prepareAudio()
             try engine.start()
             player.scheduleBuffer(buffer, completionHandler: nil)
             player.play()

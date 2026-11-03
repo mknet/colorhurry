@@ -1,8 +1,10 @@
 import App
 import SwiftUI
 
+/// The main screen on iOS and macOS. The app owns the `GameController`, so a
+/// platform wrapper view can send events to the same game.
 struct ContentView: View {
-    @State private var game = GameController()
+    let game: GameController
 
     var body: some View {
         ZStack {
