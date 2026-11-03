@@ -17,9 +17,23 @@ struct ContentView: View {
             .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Color Hurry")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(AppTheme.text)
+                HStack {
+                    Text("Color Hurry")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(AppTheme.text)
+                    Spacer()
+                    Button(action: game.reset) {
+                        Text("Mode")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(AppTheme.secondary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Goes back to mode select")
+                }
 
                 Text("Same entry as the board: Skip cycles role/channel, Apply starts. Match a CPB over BLE (protocol v4).")
                     .font(.system(size: 13))

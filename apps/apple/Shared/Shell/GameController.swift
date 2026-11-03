@@ -37,6 +37,13 @@ final class GameController {
     /// Lets the core continue where it stopped.
     func resume() { core.update(.resume) }
 
+    /// Stops the tones and haptics that are queued, then sends the player
+    /// back to mode select. The core stops the round and the radio.
+    func reset() {
+        handler.tones.stop()
+        core.update(.reset)
+    }
+
     /// Manufacturer payload after the company ID; the core owns the wire format.
     private func received(_ payload: Data) {
         let bytes = colorReceivedEvent(payload: payload)

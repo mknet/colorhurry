@@ -71,6 +71,13 @@ class GameController(app: Application) : AndroidViewModel(app) {
     /// Lets the core continue where it stopped.
     fun resume() = core.update(Event.Resume)
 
+    /// Stops the tone that plays, then sends the player back to mode select.
+    /// The core stops the round and the radio.
+    fun reset() {
+        tones.stop()
+        core.update(Event.Reset)
+    }
+
     /// Manufacturer payload after the company ID; the core owns the wire format.
     private fun received(payload: ByteArray) {
         val bytes = colorReceivedEvent(payload)

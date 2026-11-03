@@ -2,15 +2,18 @@ import App
 import SwiftUI
 
 /// The watch screen. The first page shows the LED ring with the mode line in its
-/// centre. Skip and Apply are the bottom corner buttons. The second page shows the Bluetooth status.
+/// centre. Skip and Apply are the bottom corner buttons. The second page shows the Bluetooth status
+/// and the button that goes back to mode select.
 struct WatchContentView: View {
     @State private var game = GameController()
+    /// The visible page: 0 is the game page and 1 is the status page.
+    @State private var page = 0
 
     var body: some View {
         NavigationStack {
-            TabView {
-                gamePage
-                statusPage
+            TabView(selection: $page) {
+                gamePage.tag(0)
+                statusPage.tag(1)
             }
             .tabViewStyle(.verticalPage)
         }
@@ -54,6 +57,12 @@ struct WatchContentView: View {
             Text(game.bleStatus)
                 .font(.system(size: 13))
                 .foregroundStyle(AppTheme.muted)
+            Button("Change mode") {
+                game.reset()
+                withAnimation { page = 0 }
+            }
+            .tint(AppTheme.secondary)
+            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 6)

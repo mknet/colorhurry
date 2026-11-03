@@ -70,6 +70,11 @@ async fn resume(world: &mut ColorHurryWorld) {
     world.harness.send(Event::Resume);
 }
 
+#[when("I go back to mode select")]
+async fn reset(world: &mut ColorHurryWorld) {
+    world.harness.send(Event::Reset);
+}
+
 #[when(regex = r"^the shell answers the held random request with (\d+)$")]
 async fn answer_held(world: &mut ColorHurryWorld, byte: u8) {
     world.harness.answer_held_random(byte);

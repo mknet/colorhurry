@@ -50,7 +50,7 @@ just web-serve    # browser: http://127.0.0.1:8080
 just apple / just android   # native apps (builds the core via `just ffi`, Xcode / JDK 17|21)
 ```
 
-**Native apps (iOS, macOS, watchOS + Android):** same entry as on the board (Skip/Apply → Picker/Receiver), UI like the web shell. Demo: CPB as picker, phone, Mac or watch as receiver. The Apple apps cannot be Picker. See [apps/README.md](apps/README.md).
+**Native apps (iOS, macOS, watchOS + Android):** same entry as on the board (Skip/Apply → Picker/Receiver), UI like the web shell. The Mode button goes back to mode select. Demo: CPB as picker, phone, Mac or watch as receiver. The Apple apps cannot be Picker. See [apps/README.md](apps/README.md).
 
 Browser **Live BLE** (unstable POC, receiver only): Chrome/Edge, flag
 `chrome://flags/#enable-experimental-web-platform-features`, then “Live BLE scan”.

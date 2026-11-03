@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The shared `ContentView` with keyboard shortcuts for the two board buttons.
-/// Skip uses A and the left arrow. Apply uses B and Return.
+/// Skip uses A and the left arrow. Apply uses B and Return. Escape goes back
+/// to mode select, as the Mode button does.
 struct MacContentView: View {
     @State private var game = GameController()
 
@@ -16,6 +17,7 @@ struct MacContentView: View {
                     shortcut(.leftArrow, action: game.skip)
                     shortcut("b", action: game.activate)
                     shortcut(.return, action: game.activate)
+                    shortcut(.escape, action: game.reset)
                 }
                 .opacity(0)
                 .frame(width: 0, height: 0)

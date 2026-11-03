@@ -7,7 +7,7 @@
 | watchOS (10+) | SwiftUI + CoreBluetooth | [`apple/`](apple/) |
 | Android | Kotlin + Jetpack Compose + Android BLE | [`android/`](android/) |
 
-All four apps mirror the board entry (**Skip** / **Apply** → Mode select → Picker or Receiver) and the web dark LED-ring UI. Game rules, tones and the BLE protocol **v4** come from the Rust core in `crates/core`.
+All four apps mirror the board entry (**Skip** / **Apply** → Mode select → Picker or Receiver) and the web dark LED-ring UI. The **Mode** button (**Change mode** on the watch) goes back to mode select from any screen. Mode select then starts at the role and channel that you entered last, so one Apply enters them again. Game rules, tones and the BLE protocol **v4** come from the Rust core in `crates/core`.
 
 ## Typical play
 
@@ -57,8 +57,8 @@ DEVELOPMENT_TEAM = <your team ID>
 Git ignores `Local.xcconfig` and `ColorHurry.xcodeproj`. `xcodegen generate` makes the project again from `project.yml`, so do not set the team in Xcode. Xcode does not keep it.
 
 - **iOS:** needs the signing team for a physical device (BLE).
-- **macOS:** needs the signing team for Bluetooth (sandbox and Bluetooth entitlement). Press `a` or the left arrow for Skip, and `b` or Return for Apply.
-- **watchOS:** page 1 shows the ring at full screen with the mode line in its centre. Skip (bottom left) and Apply (bottom right) are corner buttons. Scroll down for the Bluetooth status on page 2. Each tone step gives a haptic click. A real watch needs the signing team.
+- **macOS:** needs the signing team for Bluetooth (sandbox and Bluetooth entitlement). Press `a` or the left arrow for Skip, `b` or Return for Apply, and Escape for Mode.
+- **watchOS:** page 1 shows the ring at full screen with the mode line in its centre. Skip (bottom left) and Apply (bottom right) are corner buttons. Scroll down for the Bluetooth status and the **Change mode** button on page 2. **Change mode** goes back to mode select and scrolls back to page 1. Each tone step gives a haptic click. A real watch needs the signing team.
 
 ### Android
 
@@ -78,7 +78,7 @@ Install the debug APK from `app/build/outputs/apk/debug/`.
 
 All four shells link the Rust core through the Crux bridge and BoltFFI (`crates/ffi`). The shells contain no game logic:
 
-- `GameController` holds the generated `Core`, maps buttons and BLE ads onto domain events (`Skip`, `ActivateColor`, `ColorReceived`) and draws the `ViewModel`.
+- `GameController` holds the generated `Core`, maps buttons and BLE ads onto domain events (`Skip`, `ActivateColor`, `Reset`, `ColorReceived`) and draws the `ViewModel`.
 - An `EffectHandler` performs what the core asks for: `Delay` (timer), `Random` (secure random byte), `PlayTone` (audio), `Ble` (scan / advertise).
 - BLE payloads are parsed and built in Rust (`color_received_event`, `color_advertisement`), so the wire format exists only once.
 

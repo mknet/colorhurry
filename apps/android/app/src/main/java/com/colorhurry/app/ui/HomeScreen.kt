@@ -79,12 +79,19 @@ fun HomeScreen(game: GameController) {
                 .fillMaxSize()
                 .padding(16.dp),
         ) {
-            Text(
-                text = "Color Hurry",
-                color = AppColors.Text,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Color Hurry",
+                    color = AppColors.Text,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                ModeButton(onClick = game::reset)
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "Same entry as the board: Skip cycles role/channel, Apply starts. Match a CPB over BLE (protocol v4).",
@@ -132,6 +139,21 @@ fun HomeScreen(game: GameController) {
                 }
             }
         }
+    }
+}
+
+/** The small header button that goes back to mode select. */
+@Composable
+private fun ModeButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(AppColors.Secondary)
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp, horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = "Mode", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
     }
 }
 

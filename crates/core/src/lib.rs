@@ -59,6 +59,10 @@ pub enum Event {
     Pause,
     /// The app came back from the background. The core continues where it stopped.
     Resume,
+    /// The player goes back to mode select. The core stops the round and the
+    /// radio, and mode select starts at the role and channel that the player
+    /// entered last.
+    Reset,
 }
 
 #[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -122,6 +126,9 @@ impl App for ColorHurry {
         // because `Resume` requests a new byte.
         if model.paused {
             return Command::done();
+        }
+        if event == Event::Reset {
+            return reset(model);
         }
         match model.screen {
             Scr::ModeSelect => update_mode_select(event, model),
@@ -242,6 +249,26 @@ fn resume(model: &mut Model) -> Command<Effect, Event> {
     }
 }
 
+/// Stops every timer, the round and the radio, and goes back to mode select.
+///
+/// `ActivateColor` does not change `mode_step`, so mode select starts at the
+/// role and channel that the player entered last. The new beat generation
+/// makes the core ignore the `BeatDone` and `ExplosionDone` events of delays
+/// that are still pending in the shell. `schedule_blink` makes a new blink
+/// generation.
+fn reset(model: &mut Model) -> Command<Effect, Event> {
+    model.screen = Scr::ModeSelect;
+    model.role = None;
+    model.picker_selected = 0;
+    model.picker_phase = Phase::Selecting;
+    model.picker_applied = Color::White;
+    model.round = RoundState::Waiting;
+    model.beat_gen = model.beat_gen.wrapping_add(1);
+    model.blink_on = true;
+    model.blink_counter = 0;
+    ble(BleOp::Off).and(render()).and(schedule_blink(model))
+}
+
 fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => render().and(schedule_blink(model)),
@@ -301,7 +328,7 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
             Command::done()
         }
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset => Command::done(),
     }
 }
 
@@ -356,7 +383,7 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
         | Event::BeatDone(_)
         | Event::ExplosionDone(_) => Command::done(),
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset => Command::done(),
     }
 }
 
@@ -402,7 +429,7 @@ fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
         }
         Event::BlinkDone(_) => Command::done(),
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset => Command::done(),
     }
 }
 
