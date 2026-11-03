@@ -1,14 +1,24 @@
 # Color Hurry CPB: Build & Flash
 #
-# Default on macOS: serial DFU (no CPLAYBTBOOT needed)
+# A board starts the app right after its SoftDevice. S140 6.x needs the v6 layout
+# (0x26000) and S140 7.x needs the v7 layout (0x27000). Bluetooth works with both.
+#
+# UF2 recipes (CPLAYBTBOOT mounted): read the board's SoftDevice and pick the layout.
+#   just board       → print the SoftDevice and the matching layout
+#   just flash-uf2   → build, convert and copy the UF2 (override: just flash-uf2 v6)
+# Serial DFU (no CPLAYBTBOOT needed) cannot read the SoftDevice, so you choose.
 #   just flash       → v6 @ 0x26000
 #   just flash-v7    → v7 @ 0x27000
 
 target  := "thumbv7em-none-eabihf"
 profile := "release"
 elf     := "target" / target / profile / "color-hurry-cpb"
-uf2     := elf + ".uf2"
+uf2_file   := "target/color-hurry-cpb.uf2"
+uf2_family := "0xADA52840"
+uf2_tools  := "target/uf2-tools"
 board   := "circuit_playground_bluefruit"
+# The board's bootloader drive. Override with CPB_DRIVE=/path/to/CPLAYBTBOOT.
+drive   := env("CPB_DRIVE", if os() == "macos" { "/Volumes/CPLAYBTBOOT" } else { "/media/" + env("USER", "") + "/CPLAYBTBOOT" })
 
 default: flash-v7
 
@@ -60,6 +70,10 @@ android-build: ffi-android
 test:
     cargo test -p color-hurry-core -p color-hurry-ffi
 
+# Serial DFU cannot read the SoftDevice version, so you choose the layout:
+# `flash` for v6 and `flash-v7` for v7. The UF2 recipes (`board`, `uf2`, `flash-uf2`)
+# detect the layout from the board.
+
 # Serial-DFU v7 (S140 7.x @ 0x27000)
 flash-v7:
     DFU_MANUAL=1 CPB_MEMORY=v7 ./scripts/flash-serial.sh
@@ -79,19 +93,86 @@ flash-clean:
     cargo clean
     just flash
 
-rebuild:
-    cargo build --release -p color-hurry-cpb --target {{target}} --features sd-v7
-    @arm-none-eabi-objdump -h {{elf}} 2>/dev/null | grep vector || true
+# --- UF2 (needs CPLAYBTBOOT mounted: double-press reset) ---
 
-# --- UF2 (only if CPLAYBTBOOT mounts again) ---
+# Print the board's SoftDevice and the matching layout (builds and flashes nothing)
+[script('bash')]
+board:
+    set -euo pipefail
+    {{ just_executable() }} _sd-layout auto report > /dev/null
 
-flash-uf2: rebuild
-    @echo "→ NeoPixels GREEN? Finder: drag .uf2 onto CPLAYBTBOOT (see docs/RECOVERY.md)"
-    @echo "→ After flash: unplug USB for 5 s, plug in, Reset 1× (not 2×), no buttons"
-    elf2flash convert --board {{board}} {{elf}} {{uf2}}
-    ./scripts/copy-uf2.sh {{uf2}}
+# (internal) print v6 or v7 on stdout. sd is auto (read INFO_UF2.TXT on the board), v6 or v7.
+[script('bash')]
+_sd-layout sd="auto" report="":
+    set -euo pipefail
+    sd='{{ sd }}'
+    if [ "$sd" = auto ]; then
+        info='{{ drive }}/INFO_UF2.TXT'
+        if [ ! -f "$info" ]; then
+            echo '✗ {{ drive }} is not mounted: double-press the reset button, set CPB_DRIVE, or pass v6 or v7 as the sd argument' >&2
+            exit 1
+        fi
+        line=$(grep -m1 '^SoftDevice:' "$info" || true)
+        version=$(printf '%s\n' "$line" | sed -n 's/^SoftDevice: S140 \([0-9][0-9.]*\).*/\1/p')
+        case "$version" in
+            6.*) sd=v6 ;;
+            7.*) sd=v7 ;;
+            *)
+                echo "✗ unsupported SoftDevice in $info: '${line:-no SoftDevice line}' (expected S140 6.x or 7.x). Pass v6 or v7 as the sd argument to choose." >&2
+                exit 1
+                ;;
+        esac
+        if [ -n '{{ report }}' ]; then
+            if [ "$sd" = v6 ]; then origin=0x26000; else origin=0x27000; fi
+            echo "SoftDevice S140 $version: layout $sd (flash origin $origin)" >&2
+        fi
+    elif [ "$sd" != v6 ] && [ "$sd" != v7 ]; then
+        echo "✗ unknown sd '$sd': use auto, v6 or v7" >&2
+        exit 1
+    fi
+    echo "$sd"
 
-# Check whether the BOOT drive / USB is visible (macOS)
+# (internal) fetch Microsoft's uf2conv.py into target/ (not committed)
+[script('bash')]
+_uf2-tools:
+    set -euo pipefail
+    mkdir -p {{ uf2_tools }}
+    for file in uf2conv.py uf2families.json; do
+        [ -f {{ uf2_tools }}/$file ] || curl -fsSL -o {{ uf2_tools }}/$file https://raw.githubusercontent.com/microsoft/uf2/master/utils/$file
+    done
+
+# Make target/color-hurry-cpb.uf2. sd: auto reads the board, or v6 or v7 (just uf2 v6)
+[script('bash')]
+uf2 sd="auto": _uf2-tools
+    set -euo pipefail
+    layout=$({{ just_executable() }} _sd-layout {{ sd }} report)
+    if [ "$layout" = v6 ]; then
+        base=0x26000
+        features='--no-default-features --features sd-v6'
+    else
+        base=0x27000
+        features='--no-default-features --features sd-v7'
+    fi
+    cargo build --{{ profile }} -p color-hurry-cpb --target {{ target }} $features
+    rust-objcopy -O binary {{ elf }} target/color-hurry-cpb.bin
+    echo "UF2 base $base ($layout)"
+    python3 -I {{ uf2_tools }}/uf2conv.py target/color-hurry-cpb.bin -c -b "$base" -f {{ uf2_family }} -o {{ uf2_file }}
+
+# Make the UF2 and copy it to the board (double-press reset first). sd: auto, v6 or v7 (just flash-uf2 v6)
+[script('bash')]
+flash-uf2 sd="auto": (uf2 sd)
+    set -euo pipefail
+    if [ ! -d '{{ drive }}' ]; then
+        echo '✗ {{ drive }} is not mounted: double-press the reset button, or set CPB_DRIVE'
+        exit 1
+    fi
+    # The board resets as soon as it has the image, so the copy can report an error
+    # writing metadata. On macOS, -X skips the extended attributes.
+    if [ '{{ os() }}' = macos ]; then cp -X {{ uf2_file }} '{{ drive }}/'; else cp {{ uf2_file }} '{{ drive }}/'; fi
+    echo '✓ flashed; the board resets into the app'
+    echo '→ If the app does not start: unplug USB for 5 s, plug in, Reset 1× (not 2×), no buttons'
+
+# Check whether the CPLAYBTBOOT drive / USB is visible (macOS)
 boot-check:
     @echo "=== Mounted BOOT drives ==="
     @ls -d /Volumes/*BOOT 2>/dev/null || echo "(none)"
@@ -104,23 +185,9 @@ boot-check:
 build:
     cargo build --{{profile}} -p color-hurry-cpb --target {{target}} --features sd-v7
 
-# ELF → UF2 (without flashing)
-uf2: build
-    elf2flash convert --board {{board}} {{elf}} {{uf2}}
-    @echo "→ {{uf2}}"
-
-# Already built (no rebuild)
-flash-bin:
-    elf2flash convert --board {{board}} {{elf}} {{uf2}}
-    ./scripts/copy-uf2.sh {{uf2}}
-
-# Bootloader already active (NeoPixels green): just copy
-flash-now: uf2
-    ./scripts/copy-uf2.sh {{uf2}}
-
-# macOS: Finder opens .uf2 + CPLAYBTBOOT for manual dragging
-flash-finder: uf2
-    @open -R {{uf2}}
+# macOS: Finder opens the UF2 and CPLAYBTBOOT for manual dragging (auto layout, or just flash-finder v6)
+flash-finder sd="auto": (uf2 sd)
+    @open -R {{uf2_file}}
     @open /Volumes/CPLAYBTBOOT 2>/dev/null || echo "→ Reset 2× first (NeoPixels green)"
     @echo "→ drag color-hurry-cpb.uf2 onto CPLAYBTBOOT until the drive disappears"
 
@@ -157,11 +224,11 @@ upgrade-softdevice-v7:
     chmod +x ./scripts/upgrade-softdevice-v7.sh
     ./scripts/upgrade-softdevice-v7.sh
 
-# One-time: SoftDevice v7 + app v7 (BLE)
+# One-time: upgrade the SoftDevice to v7 and flash the v7 app (only if the board has S140 6.x and you want v7)
 setup-ble: upgrade-softdevice-v7
     just flash-v7
 
-# Aliases
+# Alias of flash-v7 (serial DFU, v7 layout)
 flash-ble: flash-v7
 
 # Debug run: host log + diagnostic firmware (pre_init strobe on D13)
