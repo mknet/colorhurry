@@ -21,6 +21,6 @@
 
 ## 3. Device checks
 
-- [ ] 3.1 Open the watch app, and check that mode select names Receiver on channel 0 and that Skip cycles only the Receiver channels
+- [x] 3.1 Open the watch app, and check that mode select names Receiver on channel 0 and that Skip cycles only the Receiver channels
 - [ ] 3.2 Open the iOS app, and check that mode select names only Receiver and that a board Picker on the same channel completes a round
 - [ ] 3.3 Open the Android app, and check that mode select still offers Picker

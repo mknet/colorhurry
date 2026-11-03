@@ -31,7 +31,7 @@ Where Web Bluetooth advertisement watching is available, the browser shell SHALL
 - **THEN** the browser Receiver completes the task and starts the next round
 
 ### Requirement: Shells only perform effects
-A shell SHALL interact with the game only by sending domain events (Skip, ActivateColor, ColorReceived, Pause, Resume and Reset) and by performing the effects the core requests: render, delay, random byte, play tone and BLE role. A shell SHALL NOT read game state for control flow or decide a match.
+A shell SHALL interact with the game only by sending domain events (Skip, ActivateColor, ColorReceived, Pause, Resume, Reset and ReceiverOnly) and by performing the effects the core requests: render, delay, random byte, play tone and BLE role. A shell SHALL NOT read game state for control flow or decide a match.
 
 #### Scenario: Shell forwards every advertisement
 - **WHEN** the board or browser decodes any valid color advertisement
@@ -48,6 +48,10 @@ A shell SHALL interact with the game only by sending domain events (Skip, Activa
 #### Scenario: Shell forwards the Mode button
 - **WHEN** the user presses the Mode button
 - **THEN** the shell sends Reset and the core decides what stops and where mode select starts
+
+#### Scenario: Shell reports that it cannot broadcast
+- **WHEN** a shell that cannot broadcast a color starts
+- **THEN** it sends ReceiverOnly before Boot and the core decides which choices mode select offers
 
 ### Requirement: Native mobile shells on the shared core
 The iOS and Android apps SHALL run the shared Rust core through FFI. They SHALL contain no game rules, tone tables or BLE payload format of their own: they map taps and BLE advertisements to domain events, perform the requested effects and draw the view.
@@ -72,8 +76,8 @@ The macOS and watchOS apps SHALL run the shared Rust core through FFI, like the 
 - **THEN** the app completes the task and starts the next round, with the same tones as the other shells, and the watch gives a haptic on each tone step
 
 #### Scenario: Picker is not available
-- **WHEN** the user enters Picker in the macOS or watchOS app
-- **THEN** the app shows that it cannot broadcast the color, and tells the user to use a board or an Android phone as Picker, as the iOS app does
+- **WHEN** the user presses Skip in mode select in the macOS or watchOS app
+- **THEN** mode select names only Receiver choices, as in the iOS app, and the user must use a board or an Android phone as Picker
 
 ### Requirement: Apps pause the game in the background
 An app shell SHALL send `Pause` to the core when the app goes to the background and `Resume` when it comes back. The iOS, macOS and watchOS apps SHALL use the background and active scene phases and SHALL ignore the inactive phase. The Android app SHALL use `onStop` and `onStart`. The web shell SHALL use the visibility of the page. The board SHALL NOT send `Pause` or `Resume`.
@@ -130,3 +134,18 @@ Before an app shell sends `Reset`, it SHALL stop the tone that plays, drop the t
 #### Scenario: Reset during the explosion
 - **WHEN** the user presses Mode in the iOS or Android app while the explosion plays
 - **THEN** the explosion stops at once
+
+### Requirement: Apple apps are Receiver only
+The iOS, macOS and watchOS apps SHALL declare `Platform.canBroadcast` as false, because CoreBluetooth on iOS and macOS cannot advertise manufacturer data and watchOS cannot advertise at all. When `canBroadcast` is false, `GameController.boot()` SHALL send `ReceiverOnly` to the core before `Boot`. The Android app, the web shell and the board SHALL NOT send `ReceiverOnly`.
+
+#### Scenario: Watch opens on a Receiver choice
+- **WHEN** the user opens the watch app
+- **THEN** mode select names Receiver on channel 0, and Skip cycles only the Receiver channels
+
+#### Scenario: Android keeps Picker
+- **WHEN** the user opens the Android app
+- **THEN** mode select offers Picker and Receiver as before
+
+#### Scenario: Board is not changed
+- **WHEN** the board firmware runs
+- **THEN** it sends no `ReceiverOnly`, and its game behavior does not change
