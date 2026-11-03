@@ -32,5 +32,5 @@
 ## 7. Docs and demo
 
 - [x] 7.1 Add the macOS and watchOS rows, the build commands and the Picker limit to `apps/README.md` and `README.md`, and rename the iOS README
-- [ ] 7.2 Verify the demo flow: board Picker to Mac Receiver
-- [ ] 7.3 Verify on a Series 6: the app launches, and a board Picker on the same channel completes a Receiver round with tones and haptics
+- [x] 7.2 Verify the demo flow: board Picker to Mac Receiver
+- [x] 7.3 Verify on a Series 6: the app launches, and a board Picker on the same channel completes a Receiver round with tones and haptics
