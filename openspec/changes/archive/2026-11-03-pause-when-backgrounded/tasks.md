@@ -20,7 +20,7 @@
 
 ## 3. Device checks
 
-- [ ] 3.1 Dismiss the watch app during a countdown, and check that no haptic click or tone comes after it
+- [x] 3.1 Dismiss the watch app during a countdown, and check that no haptic click or tone comes after it
 - [ ] 3.2 Lower the wrist during a countdown, and check that the countdown continues
-- [ ] 3.3 Open the watch app again, and check that the countdown continues at the same step
+- [x] 3.3 Open the watch app again, and check that the countdown continues at the same step
 - [ ] 3.4 Send the iOS and Android apps to the background during a countdown, and check that the tones stop and the countdown continues when they come back
