@@ -45,5 +45,5 @@
 
 ## 6. Archive
 
-- [ ] 6.1 Apply the deltas to `openspec/specs`
-- [ ] 6.2 Move the change to `openspec/changes/archive/2026-11-04-use-crux-time`
+- [x] 6.1 Apply the deltas to `openspec/specs`
+- [x] 6.2 Move the change to `openspec/changes/archive/2026-11-04-use-crux-time`
