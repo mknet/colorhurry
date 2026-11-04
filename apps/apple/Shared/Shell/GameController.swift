@@ -24,10 +24,10 @@ final class GameController {
     var bleStatus: String { handler.bleService.status }
 
     /// Starts the core. If the platform cannot broadcast a color, the core
-    /// first learns that mode select must offer only Receiver.
+    /// first learns that mode select must offer only Caller.
     func boot() {
         if !Platform.canBroadcast {
-            core.update(.receiverOnly)
+            core.update(.callerOnly)
         }
         core.update(.boot)
     }
@@ -67,30 +67,31 @@ final class GameController {
             guard let choice = view.modeChoice else {
                 return "Mode select · Skip cycles role/channel · Apply enters"
             }
-            let role = choice.role == .picker ? "Picker" : "Receiver"
+            let role = choice.role == .picker ? "Picker" : "Caller"
             return "Apply enters \(role) ch\(choice.channel) · Skip for next"
         case .picker:
             let color = view.pickerColor?.displayName ?? "?"
             return view.pickerApplied
                 ? "Picker ch\(view.channel) · \(Platform.name) cannot send \(color) · use a board as Picker"
                 : "Picker ch\(view.channel) · \(color) · Skip for next · Apply broadcasts"
-        case .receiver:
+        case .caller:
             return view.countdownActive
-                ? "Receiver ch\(view.channel) · countdown \(view.countdownStep)/10"
-                : "Receiver ch\(view.channel) · waiting for match"
+                ? "Caller ch\(view.channel) · countdown \(view.countdownStep)/10"
+                : "Caller ch\(view.channel) · waiting for match"
         }
     }
 }
 
 /// The shell's side of the effect protocol: one method per operation the core
-/// declares. `Core` resolves `delay` and `random` with what they return.
+/// declares. `Core` resolves the timers and `random` with what they return.
 final class GameHandler: EffectHandler, @unchecked Sendable {
     let tones = TonePlayer()
     let bleService = BleService()
+    /// The timer handler that `crux_time` ships. A cleared timer stops here.
+    let time = TaskTimeHandler()
 
-    func delay(_ operation: Delay) async {
-        try? await Task.sleep(for: .milliseconds(Int(operation.millis)))
-    }
+    func timeNotifyAfter(_ operation: NotifyAfter) async -> TimerId { await time.notifyAfter(operation) }
+    func timeClear(_ operation: ClearTimer) async -> TimerId { await time.clear(operation) }
 
     func random(_ operation: Random) async -> UInt8 {
         var byte: UInt8 = 0

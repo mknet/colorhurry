@@ -7,15 +7,15 @@
 | watchOS (10+) | SwiftUI + CoreBluetooth | [`apple/`](apple/) |
 | Android | Kotlin + Jetpack Compose + Android BLE | [`android/`](android/) |
 
-All four apps mirror the board entry (**Skip** / **Apply** → Mode select → Picker or Receiver) and the web dark LED-ring UI. The **Mode** button (**Change mode** on the watch) goes back to mode select from any screen. Mode select then starts at the role and channel that you entered last, so one Apply enters them again. Game rules, tones and the BLE protocol **v4** come from the Rust core in `crates/core`.
+All four apps mirror the board entry (**Skip** / **Apply** → Mode select → Picker or Caller) and the web dark LED-ring UI. The **Mode** button (**Change mode** on the watch) goes back to mode select from any screen. Mode select then starts at the role and channel that you entered last, so one Apply enters them again. Game rules, tones and the BLE protocol **v4** come from the Rust core in `crates/core`.
 
 ## Typical play
 
 1. Flash CPB with `just flash-v7`.
-2. Phone, Mac or watch: Skip to **Receiver** on the same channel, Apply.
+2. Phone, Mac or watch: Skip to **Caller** on the same channel, Apply.
 3. CPB: Picker on that channel, Apply a color → the countdown on the phone, Mac or watch resets on match.
 
-**iOS, macOS and watchOS are Receiver only.** CoreBluetooth on iOS and macOS cannot advertise manufacturer data, and watchOS cannot advertise at all. Thus mode select in these apps offers only Receiver. It starts at Receiver on channel 0, which matches the channel on which a board Picker starts. Skip then cycles the Receiver channels 4, 3, 2, 1 and 0. Use a CPB (or Android) as Picker. **Android as Picker** can advertise.
+**iOS, macOS and watchOS are Caller only.** CoreBluetooth on iOS and macOS cannot advertise manufacturer data, and watchOS cannot advertise at all. Thus mode select in these apps offers only Caller. It starts at Caller on channel 0, which matches the channel on which a board Picker starts. Skip then cycles the Caller channels 4, 3, 2, 1 and 0. Use a CPB (or Android) as Picker. **Android as Picker** can advertise.
 
 ## Build / run
 
@@ -79,7 +79,7 @@ Install the debug APK from `app/build/outputs/apk/debug/`.
 All four shells link the Rust core through the Crux bridge and BoltFFI (`crates/ffi`). The shells contain no game logic:
 
 - `GameController` holds the generated `Core`, maps buttons and BLE ads onto domain events (`Skip`, `ActivateColor`, `Reset`, `ColorReceived`) and draws the `ViewModel`.
-- An `EffectHandler` performs what the core asks for: `Delay` (timer), `Random` (secure random byte), `PlayTone` (audio), `Ble` (scan / advertise).
+- An `EffectHandler` performs what the core asks for: `TimeNotifyAfter` and `TimeClear` (timers, through the `TaskTimeHandler` or `CoroutineTimeHandler` that `crux_time` ships), `Random` (secure random byte), `PlayTone` (audio), `Ble` (scan / advertise).
 - BLE payloads are parsed and built in Rust (`color_received_event`, `color_advertisement`), so the wire format exists only once.
 
 The iOS, macOS and watchOS shells share their Swift code in `apps/apple/Shared`. Swift and Kotlin types (`Event`, `Effect`, `ViewModel`, `Color`, …) are generated from the core with facet typegen (`crates/ffi/src/bin/codegen.rs`). The core itself stays `no_std`. Only `crates/ffi` turns on the std bridge.

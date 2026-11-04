@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Receiver.</string>
+	<string>Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Caller.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Color Hurry uses Bluetooth to play with nearby Color Hurry boards.</string>
 	<key>UIBackgroundModes</key>

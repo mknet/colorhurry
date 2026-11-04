@@ -9,13 +9,13 @@ extension GameController {
         switch view.screen {
         case .modeSelect:
             guard let choice = view.modeChoice else { return "Mode\nselect" }
-            let role = choice.role == .picker ? "Picker" : "Receiver"
+            let role = choice.role == .picker ? "Picker" : "Caller"
             return "\(role)\n\(choice.channel)"
         case .picker:
             let color = view.pickerColor?.displayName ?? "?"
             // The watch cannot advertise, so an applied color is not sent.
             return view.pickerApplied ? "Can't send\n\(color)" : "Ch \(view.channel)\n\(color)"
-        case .receiver:
+        case .caller:
             return view.countdownActive
                 ? "Ch \(view.channel)\n\(view.countdownStep)/10"
                 : "Ch \(view.channel)\nwaiting"

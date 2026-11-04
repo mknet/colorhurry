@@ -54,13 +54,13 @@ pub fn ring_step_channel(step: usize) -> usize {
     }
 }
 
-/// The first ring step that enters Receiver (Receiver on channel 4). In a
-/// receiver-only game, Skip wraps from the last ring step to this step.
-pub const FIRST_RECEIVER_STEP: u8 = CHANNELS as u8;
+/// The first ring step that enters Caller (Caller on channel 4). In a
+/// caller-only game, Skip wraps from the last ring step to this step.
+pub const FIRST_CALLER_STEP: u8 = CHANNELS as u8;
 
-/// The step at which `ReceiverOnly` puts a Picker choice (Receiver on
+/// The step at which `CallerOnly` puts a Picker choice (Caller on
 /// channel 0). The board Picker starts on channel 0, so the two match.
-pub const RECEIVER_ONLY_START_STEP: u8 = NUM_LEDS as u8 - 1;
+pub const CALLER_ONLY_START_STEP: u8 = NUM_LEDS as u8 - 1;
 
 pub fn ring_step_is_picker(step: usize) -> bool {
     ring_step_led(step) < CHANNELS

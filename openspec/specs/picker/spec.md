@@ -7,48 +7,69 @@ Lets the Color Picker player choose one color from a fixed spectrum on the LED r
 
 ### Requirement: Spectrum selection ring
 The picker SHALL show the ten named spectrum colors White, Red, Orange, Yellow, LightGreen, Green, LightBlue, Blue, Purple and Pink, one per LED, and SHALL blink the LED of the currently selected color. Entering Picker on channel `n` SHALL select spectrum color `n`.
-Acceptance: `crates/core/tests/features/picker.feature`.
 
 #### Scenario: Picker shows the spectrum
+- **GIVEN** the board in mode select
 - **WHEN** the player enters Picker on channel 0
-- **THEN** all ten LEDs show the spectrum and the White LED blinks
+- **THEN** the ring shows the spectrum
+- **AND** the White LED blinks
+
+#### Scenario: Channel picks the first selection
+- **GIVEN** the board in mode select
+- **WHEN** the player enters Picker on channel 2
+- **THEN** the Orange LED blinks
 
 ### Requirement: Skip cycles the selection
 While the player is selecting, Skip SHALL move the selection to the next spectrum color and SHALL wrap around after the last one.
-Acceptance: `crates/core/tests/features/picker.feature`.
 
 #### Scenario: Skip moves to the next color
-- **WHEN** the player presses Skip while selecting
-- **THEN** the next LED becomes the blinking selection
+- **GIVEN** the Picker on channel 0
+- **WHEN** the player presses Skip
+- **THEN** the Red LED blinks
 
 #### Scenario: Selection wraps
-- **WHEN** the player presses Skip with the last spectrum color selected
-- **THEN** the first spectrum color becomes the selection
+- **GIVEN** the Picker on channel 0 with Pink selected
+- **WHEN** the player presses Skip
+- **THEN** the White LED blinks
 
 ### Requirement: ActivateColor applies the selected color
 ActivateColor SHALL apply the selected color: all ten LEDs show it and blinking stops. Skip or ActivateColor on an applied color SHALL return to selecting.
-Acceptance: `crates/core/tests/features/picker.feature`.
 
 #### Scenario: Apply fills the ring
-- **WHEN** the player presses ActivateColor while selecting
-- **THEN** all ten LEDs show the selected color
+- **GIVEN** the Picker on channel 0 with Orange selected
+- **WHEN** the player presses ActivateColor
+- **THEN** all LEDs show Orange
 
 #### Scenario: Leaving the applied color
-- **WHEN** the player presses Skip or ActivateColor while a color is applied
-- **THEN** the spectrum ring with the blinking selection is shown again
+- **GIVEN** the Picker on channel 0 with Orange applied
+- **WHEN** the player presses Skip
+- **THEN** the ring shows the spectrum
+- **AND** the Orange LED blinks
+
+#### Scenario: Applying twice leaves the applied color
+- **GIVEN** the Picker on channel 0 with Orange applied
+- **WHEN** the player presses ActivateColor
+- **THEN** the ring shows the spectrum
+- **AND** the Orange LED blinks
 
 ### Requirement: The view names the selected color
 In Picker, the view model SHALL carry the selected spectrum color and SHALL say whether Apply has locked it. On other screens the view model SHALL carry no picker color.
-Acceptance: `crates/core/tests/features/picker.feature`.
 
 #### Scenario: Entering Picker names the channel color
+- **GIVEN** the board in mode select
 - **WHEN** the player enters Picker on channel 2
-- **THEN** the view model names Orange as selected
+- **THEN** the view names Orange as selected
 
 #### Scenario: Skip names the next color
-- **WHEN** the player presses Skip while Orange is selected
-- **THEN** the view model names Yellow as selected
+- **GIVEN** the Picker on channel 2
+- **WHEN** the player presses Skip
+- **THEN** the view names Yellow as selected
 
 #### Scenario: Apply keeps the name
-- **WHEN** the player presses ActivateColor while Orange is selected
-- **THEN** the view model names Orange and marks it applied
+- **GIVEN** the Picker on channel 2
+- **WHEN** the player presses ActivateColor
+- **THEN** the view names Orange as applied
+
+#### Scenario: Mode select names no color
+- **WHEN** the board boots
+- **THEN** the view names no Picker color

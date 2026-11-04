@@ -60,7 +60,7 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSBluetoothAlwaysUsageDescription: Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Receiver.
+        NSBluetoothAlwaysUsageDescription: Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Caller.
         NSBluetoothPeripheralUsageDescription: Color Hurry uses Bluetooth to play with nearby Color Hurry boards.
         UIBackgroundModes:
           - bluetooth-central
@@ -98,7 +98,7 @@ targets:
         CFBundleDisplayName: Color Hurry
         CFBundleName: ColorHurry
         LSApplicationCategoryType: public.app-category.games
-        NSBluetoothAlwaysUsageDescription: Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Receiver.
+        NSBluetoothAlwaysUsageDescription: Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Caller.
   ColorHurryWatch:
     type: application
     platform: watchOS
@@ -132,4 +132,4 @@ targets:
         CFBundleName: ColorHurry
         WKApplication: true
         WKWatchOnly: true
-        NSBluetoothAlwaysUsageDescription: Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Receiver.
+        NSBluetoothAlwaysUsageDescription: Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Caller.

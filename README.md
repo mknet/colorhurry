@@ -5,13 +5,13 @@ Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for 
 ```text
 crates/core    Event / Model / Effect / update / view  (no_std)
 crates/cpb     Hardware shell (Embassy, Bluetooth, NeoPixels, Audio)
-crates/web     Browser shell (one receiver board + experimental live BLE scan)
+crates/web     Browser shell (one caller board + experimental live BLE scan)
 crates/ffi     Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
 apps/apple     Native SwiftUI + CoreBluetooth shells (iOS, macOS, watchOS) on the Rust core
 apps/android   Native Kotlin Compose + Android BLE shell on the Rust core
 ```
 
-Tests: `just test` runs unit tests and Gherkin integration tests in `crates/core`.
+Tests: `just test` runs the unit tests in `crates/core` and the scenarios in `openspec/specs`: the spec scenarios run as tests.
 
 
 ## Prerequisites
@@ -50,9 +50,9 @@ just web-serve    # browser: http://127.0.0.1:8080
 just apple / just android   # native apps (builds the core via `just ffi`, Xcode / JDK 17|21)
 ```
 
-**Native apps (iOS, macOS, watchOS + Android):** same entry as on the board (Skip/Apply → Picker/Receiver), UI like the web shell. The Mode button goes back to mode select. Demo: CPB as picker, phone, Mac or watch as receiver. The Apple apps cannot be Picker, so their mode select offers only Receiver. See [apps/README.md](apps/README.md).
+**Native apps (iOS, macOS, watchOS + Android):** same entry as on the board (Skip/Apply → Picker/Caller), UI like the web shell. The Mode button goes back to mode select. Demo: CPB as picker, phone, Mac or watch as caller. The Apple apps cannot be Picker, so their mode select offers only Caller. See [apps/README.md](apps/README.md).
 
-Browser **Live BLE** (unstable POC, receiver only): Chrome/Edge, flag
+Browser **Live BLE** (unstable POC, caller only): Chrome/Edge, flag
 `chrome://flags/#enable-experimental-web-platform-features`, then “Live BLE scan”.
 Picker advertising from the tab is not possible; only ads from real CPBs are received.
 

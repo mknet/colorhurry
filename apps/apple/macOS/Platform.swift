@@ -6,9 +6,9 @@ enum Platform {
     static let name = "macOS"
 
     /// The macOS app cannot be Picker, so this value is false. CoreBluetooth on
-    /// macOS cannot advertise manufacturer data, so a board Receiver never sees
-    /// the color. `GameController.boot()` then sends `ReceiverOnly`, and mode
-    /// select offers only Receiver.
+    /// macOS cannot advertise manufacturer data, so a board Caller never sees
+    /// the color. `GameController.boot()` then sends `CallerOnly`, and mode
+    /// select offers only Caller.
     static let canBroadcast = false
 
     /// macOS has no audio session, so this function does nothing.

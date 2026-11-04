@@ -11,7 +11,7 @@ After a reset, the **setup ring** appears:
 | Button | Action |
 |--------|--------|
 | **A** | Next ring step (CCW, purple left → purple right) |
-| **B** | Start (0-4 = picker, 5-9 = receiver) |
+| **B** | Start (0-4 = picker, 5-9 = caller) |
 
 Channels: `palette::CHANNEL_COLORS` (5 colors).
 

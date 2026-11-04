@@ -10,7 +10,7 @@ use crate::palette::{self, CHANNELS};
 #[repr(C)]
 pub enum ModeRole {
     Picker,
-    Receiver,
+    Caller,
 }
 
 /// The role and channel that `ActivateColor` enters from mode select.
@@ -39,7 +39,7 @@ pub fn view_model(model: &Model) -> ViewModel {
     let leds = match model.screen {
         Screen::ModeSelect => mode_select_leds(model),
         Screen::Picker => picker_leds(model),
-        Screen::Receiver => receiver_leds(model),
+        Screen::Caller => caller_leds(model),
     };
 
     let (countdown_step, countdown_active) = match model.round {
@@ -78,7 +78,7 @@ fn mode_choice(model: &Model) -> Option<ModeChoice> {
     let role = if palette::ring_step_is_picker(step) {
         ModeRole::Picker
     } else {
-        ModeRole::Receiver
+        ModeRole::Caller
     };
     Some(ModeChoice {
         role,
@@ -120,7 +120,7 @@ fn picker_leds(model: &Model) -> [Rgb; NUM_LEDS] {
     }
 }
 
-fn receiver_leds(model: &Model) -> [Rgb; NUM_LEDS] {
+fn caller_leds(model: &Model) -> [Rgb; NUM_LEDS] {
     let target = match model.round {
         Round::Running { target, .. } => target,
         Round::Waiting => Color::White,

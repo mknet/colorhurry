@@ -1,7 +1,8 @@
-//! Integration test binary: runs Gherkin features against the core.
+//! Integration test binary: runs the OpenSpec spec scenarios against the core.
 //!
-//! Steps map feature wording onto domain [`color_hurry_core::Event`]s.
-//! The cucumber harness only completes Delay/Random and records effects.
+//! `openspec/specs/*/spec.md` is read as Gherkin, the steps map the scenario
+//! wording onto domain [`color_hurry_core::Event`]s. The harness only answers
+//! the timers and Random, and records effects.
 
 mod cucumber;
 

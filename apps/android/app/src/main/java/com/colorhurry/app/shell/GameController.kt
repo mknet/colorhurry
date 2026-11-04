@@ -4,15 +4,18 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.colorhurry.shared.Ble
+import com.colorhurry.shared.ClearTimer
 import com.colorhurry.shared.Color as SpectrumColor
 import com.colorhurry.shared.Core
-import com.colorhurry.shared.Delay
+import com.colorhurry.shared.CoroutineTimeHandler
 import com.colorhurry.shared.EffectHandler
 import com.colorhurry.shared.Event
 import com.colorhurry.shared.ModeRole
+import com.colorhurry.shared.NotifyAfter
 import com.colorhurry.shared.PlayTone
 import com.colorhurry.shared.Random
 import com.colorhurry.shared.Screen
+import com.colorhurry.shared.TimerId
 import com.colorhurry.shared.ViewModel
 import com.colorhurry.shared.colorReceivedEvent
 import java.security.SecureRandom
@@ -29,12 +32,16 @@ class GameController(app: Application) : AndroidViewModel(app) {
     private val rng = SecureRandom()
     private val _bleStatus = MutableStateFlow("BLE idle")
 
+    /// The timer handler that `crux_time` ships. Its timers run in
+    /// `viewModelScope`, so they stop with this `ViewModel`.
+    private val time = CoroutineTimeHandler(viewModelScope)
+
     /// The shell's side of the effect protocol: one method per operation the
-    /// core declares. `Core` resolves `delay` and `random` with what they return.
+    /// core declares. `Core` resolves the timers and `random` with what they return.
     private val handler = object : EffectHandler {
-        override suspend fun delay(operation: Delay) {
-            kotlinx.coroutines.delay(operation.millis.toLong())
-        }
+        override suspend fun timeNotifyAfter(operation: NotifyAfter): TimerId = time.notifyAfter(operation)
+
+        override suspend fun timeClear(operation: ClearTimer): TimerId = time.clear(operation)
 
         override suspend fun random(operation: Random): UByte = rng.nextInt(256).toUByte()
 
@@ -87,7 +94,7 @@ class GameController(app: Application) : AndroidViewModel(app) {
 
     fun modeHint(view: ViewModel): String = when (view.screen) {
         Screen.MODESELECT -> view.modeChoice?.let { choice ->
-            val role = if (choice.role == ModeRole.PICKER) "Picker" else "Receiver"
+            val role = if (choice.role == ModeRole.PICKER) "Picker" else "Caller"
             "Apply enters $role ch${choice.channel} · Skip for next"
         } ?: "Mode select · Skip cycles role/channel · Apply enters"
         Screen.PICKER -> {
@@ -98,10 +105,10 @@ class GameController(app: Application) : AndroidViewModel(app) {
                 "Picker ch${view.channel} · $color · Skip for next · Apply broadcasts"
             }
         }
-        Screen.RECEIVER -> if (view.countdownActive) {
-            "Receiver ch${view.channel} · countdown ${view.countdownStep}/10"
+        Screen.CALLER -> if (view.countdownActive) {
+            "Caller ch${view.channel} · countdown ${view.countdownStep}/10"
         } else {
-            "Receiver ch${view.channel} · waiting for match"
+            "Caller ch${view.channel} · waiting for match"
         }
     }
 
