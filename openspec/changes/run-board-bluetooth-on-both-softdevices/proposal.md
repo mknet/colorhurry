@@ -2,14 +2,14 @@
 
 ## Why
 
-The board firmware uses the `nrf-softdevice` crate for Bluetooth. That crate needs the resident SoftDevice S140 7.x. A board with the factory S140 6.1.1 has no Bluetooth, so it cannot be a Picker or a Receiver. The owner of such a board cannot test a board Picker against the Mac and watch Receivers.
+The board firmware uses the `nrf-softdevice` crate for Bluetooth. That crate needs the resident SoftDevice S140 7.x. A board with the factory S140 6.1.1 has no Bluetooth, so it cannot be a Picker or a Caller. The owner of such a board cannot test a board Picker against the Mac and watch Callers.
 
-The goal is one firmware source that has Bluetooth on both boards. No irreversible change to a board is allowed, so the work must not update the SoftDevice or the bootloader. Players must still play without pairing: the Picker broadcasts and the Receiver listens, and no connection is ever made.
+The goal is one firmware source that has Bluetooth on both boards. No irreversible change to a board is allowed, so the work must not update the SoftDevice or the bootloader. Players must still play without pairing: the Picker broadcasts and the Caller listens, and no connection is ever made.
 
 ## What Changes
 
 - The board firmware gets its Bluetooth stack from `nrf-sdc` (the SoftDevice Controller), `nrf-mpsl`, `trouble-host` and `bt-hci`. The firmware links this stack into its own image. It never enables the resident SoftDevice, so the version of that SoftDevice does not matter to the code.
-- The Picker keeps its non-connectable advertisements and the Receiver keeps scanning only. The firmware enables no connection, GATT or security feature.
+- The Picker keeps its non-connectable advertisements and the Caller keeps scanning only. The firmware enables no connection, GATT or security feature.
 - The public API of `ble_broadcast.rs` stays the same, so `shell.rs` and `game.rs` do not change.
 - The firmware keeps two memory layouts (`sd-v6` and `sd-v7`) from one source, because a board jumps to the application just after its SoftDevice. Both layouts now have Bluetooth.
 - A new UF2 flash recipe reads the SoftDevice version from `INFO_UF2.TXT` and picks the matching layout. The serial recipes `just flash` and `just flash-v7` stay.

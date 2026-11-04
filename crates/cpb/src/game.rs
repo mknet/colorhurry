@@ -1,4 +1,4 @@
-//! Game flow: choose mode → wait for BLE → core shell (picker/receiver).
+//! Game flow: choose mode → wait for BLE → core shell (picker/caller).
 //!
 //! `main` starts the Bluetooth stack at boot. The radio stays off until the core selects a
 //! mode.

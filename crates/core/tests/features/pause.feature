@@ -10,14 +10,14 @@ Feature: Pause and resume
 
   Scenario: Pause switches the radio off
     Given the next random bytes are 1
-    When I enter receiver on channel 0
+    When I enter caller on channel 0
     And I clear effect logs
     And the app goes to the background
     Then BLE should have received Off
 
   Scenario: A paused countdown continues at the same step
     Given the next random bytes are 1
-    When I enter receiver on channel 0
+    When I enter caller on channel 0
     And I advance time by 1000 ms
     Then the countdown step should be 2
     When the app goes to the background
@@ -30,7 +30,7 @@ Feature: Pause and resume
     When the app comes back
     Then the countdown should be active
     And the countdown step should be 2
-    And BLE should have received a Receiver op for channel 0 and Red
+    And BLE should have received a Caller op for channel 0 and Red
     And a delay of 1000 ms should have been requested
     # The next beat comes one full beat period after Resume.
     When I advance time by 999 ms
@@ -41,25 +41,25 @@ Feature: Pause and resume
 
   Scenario: Pause during the explosion starts the next round on Resume without a second explosion
     Given the next random bytes are 0, 5
-    When I enter receiver on channel 0
+    When I enter caller on channel 0
     And I advance time by 9000 ms
     Then an explosion tone should have been played
     When the app goes to the background
     And I clear effect logs
     And I advance time by 2000 ms
     Then the countdown should not be active
-    And BLE should not have received a Receiver op
+    And BLE should not have received a Caller op
     When the app comes back
     Then the countdown should be active
-    And BLE should have received a Receiver op for channel 0 and Green
+    And BLE should have received a Caller op for channel 0 and Green
     And no explosion tone should have been played
     When I advance time by 1200 ms
-    Then BLE should have received 1 Receiver ops
+    Then BLE should have received 1 Caller ops
     And no explosion tone should have been played
 
   Scenario: A random byte that arrives while paused is dropped, and Resume requests a new one
     Given the next random bytes are 1
-    When I enter receiver on channel 0
+    When I enter caller on channel 0
     And the shell holds random requests
     And I skip
     And the app goes to the background
@@ -71,12 +71,12 @@ Feature: Pause and resume
     When the shell answers random requests at once
     And the app comes back
     Then the countdown should be active
-    And BLE should have received a Receiver op for channel 0 and Yellow
-    And BLE should have received 1 Receiver ops
+    And BLE should have received a Caller op for channel 0 and Yellow
+    And BLE should have received 1 Caller ops
 
   Scenario: A random byte that arrives after Resume starts only one round
     Given the next random bytes are 1
-    When I enter receiver on channel 0
+    When I enter caller on channel 0
     And the shell holds random requests
     And I skip
     And the app goes to the background
@@ -84,9 +84,9 @@ Feature: Pause and resume
     And I clear effect logs
     And the shell answers the held random request with 2
     Then the countdown should be active
-    And BLE should have received a Receiver op for channel 0 and Orange
+    And BLE should have received a Caller op for channel 0 and Orange
     When the shell answers the held random request with 3
-    Then BLE should have received 1 Receiver ops
+    Then BLE should have received 1 Caller ops
 
   Scenario: Resume restores the Picker radio ops
     When I enter picker on channel 1
@@ -120,7 +120,7 @@ Feature: Pause and resume
 
   Scenario: Input while paused is ignored
     Given the next random bytes are 1
-    When I enter receiver on channel 0
+    When I enter caller on channel 0
     And the app goes to the background
     And I clear effect logs
     And I skip

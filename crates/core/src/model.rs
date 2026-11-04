@@ -15,7 +15,7 @@ pub const COUNTDOWN_STEPS: u8 = NUM_LEDS as u8;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     Picker { channel: u8 },
-    Receiver { channel: u8 },
+    Caller { channel: u8 },
 }
 
 #[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,7 +23,7 @@ pub enum Role {
 pub enum Screen {
     ModeSelect,
     Picker,
-    Receiver,
+    Caller,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,8 +55,8 @@ pub struct Model {
     pub(crate) beat_gen: u32,
     /// True between `Pause` and `Resume`.
     pub(crate) paused: bool,
-    /// True after `ReceiverOnly`. Mode select then offers only Receiver choices.
-    pub(crate) receiver_only: bool,
+    /// True after `CallerOnly`. Mode select then offers only Caller choices.
+    pub(crate) caller_only: bool,
 }
 
 impl Default for Model {
@@ -80,13 +80,13 @@ impl Model {
             round: Round::Waiting,
             beat_gen: 0,
             paused: false,
-            receiver_only: false,
+            caller_only: false,
         }
     }
 
     pub(crate) fn channel(&self) -> u8 {
         match self.role {
-            Some(Role::Picker { channel }) | Some(Role::Receiver { channel }) => channel,
+            Some(Role::Picker { channel }) | Some(Role::Caller { channel }) => channel,
             None => 0,
         }
     }

@@ -1,8 +1,8 @@
-//! BLE: Picker advertises `CMD_COLOR` (protocol v4); receiver scans and forwards parses.
+//! BLE: Picker advertises `CMD_COLOR` (protocol v4); caller scans and forwards parses.
 //!
 //! The stack is the `trouble-host` host on Nordic's SoftDevice Controller (`nrf-sdc`). The
 //! board uses no connections: the Picker sends non-connectable advertisements, and the
-//! Receiver runs a passive scan. Because there are no connections, there is no pairing.
+//! Caller runs a passive scan. Because there are no connections, there is no pairing.
 
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -42,7 +42,7 @@ const AD_TYPE_MANUFACTURER: u8 = 0xFF;
 enum RadioMode {
     Off,
     Picker,
-    Receiver,
+    Caller,
 }
 
 struct BleShared {
@@ -63,7 +63,7 @@ static BLE: Mutex<RefCell<BleShared>> = Mutex::new(RefCell::new(BleShared {
     received: None,
 }));
 
-static RECEIVER_ARMED: AtomicBool = AtomicBool::new(false);
+static CALLER_ARMED: AtomicBool = AtomicBool::new(false);
 
 /// Each setter raises this signal. `radio_loop` then compares the new state with what the
 /// radio does now.
@@ -79,7 +79,7 @@ pub fn set_radio_off() {
         s.picker_color = None;
         s.received = None;
     });
-    RECEIVER_ARMED.store(false, Ordering::Release);
+    CALLER_ARMED.store(false, Ordering::Release);
     RADIO_CHANGED.signal(());
 }
 
@@ -90,7 +90,7 @@ pub fn set_radio_picker(channel: usize) {
         s.picker_channel = ch;
         s.received = None;
     });
-    RECEIVER_ARMED.store(false, Ordering::Release);
+    CALLER_ARMED.store(false, Ordering::Release);
     RADIO_CHANGED.signal(());
 }
 
@@ -107,13 +107,13 @@ pub fn set_picker_broadcast(color: Option<Color>) {
 }
 
 /// Arm scan; core decides matches. `channel` kept for future directed scan filters.
-pub fn set_radio_receiver(_channel: usize) {
+pub fn set_radio_caller(_channel: usize) {
     with_ble(|s| {
-        s.mode = RadioMode::Receiver;
+        s.mode = RadioMode::Caller;
         s.picker_color = None;
         s.received = None;
     });
-    RECEIVER_ARMED.store(true, Ordering::Release);
+    CALLER_ARMED.store(true, Ordering::Release);
     RADIO_CHANGED.signal(());
 }
 
@@ -152,7 +152,7 @@ struct Reports;
 
 impl EventHandler for Reports {
     fn on_adv_reports(&self, reports: LeAdvReportsIter) {
-        if !RECEIVER_ARMED.load(Ordering::Acquire) {
+        if !CALLER_ARMED.load(Ordering::Acquire) {
             return;
         }
         // `flatten` skips a report that does not parse. The iterator then stops.
@@ -175,7 +175,7 @@ enum Radio {
 fn wanted() -> Radio {
     with_ble(|s| match s.mode {
         RadioMode::Picker if s.picker_color.is_some() => Radio::Advertise(s.picker_payload),
-        RadioMode::Receiver => Radio::Scan,
+        RadioMode::Caller => Radio::Scan,
         RadioMode::Off | RadioMode::Picker => Radio::Off,
     })
 }

@@ -23,6 +23,6 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.games</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Receiver.</string>
+	<string>Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Caller.</string>
 </dict>
 </plist>

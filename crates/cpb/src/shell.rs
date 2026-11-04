@@ -66,7 +66,7 @@ impl Shell {
                 let ch = self.core.view().channel;
                 ble_broadcast::set_radio_picker(ch as usize);
             }
-            Screen::Receiver | Screen::ModeSelect => {}
+            Screen::Caller | Screen::ModeSelect => {}
         }
     }
 
@@ -149,8 +149,8 @@ impl Shell {
         match op {
             BleOp::Off => ble_broadcast::set_radio_off(),
             BleOp::Picker { channel } => ble_broadcast::set_radio_picker(channel as usize),
-            BleOp::Receiver { channel, color: _ } => {
-                ble_broadcast::set_radio_receiver(channel as usize);
+            BleOp::Caller { channel, color: _ } => {
+                ble_broadcast::set_radio_caller(channel as usize);
             }
             BleOp::Broadcast { color } => ble_broadcast::set_picker_broadcast(color),
         }

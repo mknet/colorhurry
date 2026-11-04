@@ -30,37 +30,37 @@ Feature: Reset to mode select
     And there should be no picker color
     And BLE should have received Off
 
-  Scenario: Reset from a Receiver countdown
+  Scenario: Reset from a Caller countdown
     Given the next random bytes are 1
-    When I enter receiver on channel 3
+    When I enter caller on channel 3
     And I advance time by 1000 ms
     Then the countdown step should be 2
     When I clear effect logs
     And I go back to mode select
     Then the screen should be ModeSelect
-    And the mode choice should be Receiver channel 3
+    And the mode choice should be Caller channel 3
     And the countdown should not be active
     And BLE should have received Off
     And no explosion tone should have been played
     # The beat that was pending at the reset expires here and has no effect.
     When I advance time by 12000 ms
     Then the screen should be ModeSelect
-    And the mode choice should be Receiver channel 3
+    And the mode choice should be Caller channel 3
     And no tone should have been played
-    And BLE should not have received a Receiver op
+    And BLE should not have received a Caller op
 
-  Scenario: Apply after Reset enters the same Receiver with a fresh round
+  Scenario: Apply after Reset enters the same Caller with a fresh round
     Given the next random bytes are 1, 4
-    When I enter receiver on channel 3
+    When I enter caller on channel 3
     And I advance time by 3000 ms
     And I go back to mode select
     And I clear effect logs
     And I apply
-    Then the screen should be Receiver
+    Then the screen should be Caller
     And the channel should be 3
     And the countdown should be active
     And the countdown step should be 1
-    And BLE should have received a Receiver op for channel 3 and LightGreen
+    And BLE should have received a Caller op for channel 3 and LightGreen
 
   Scenario: Apply after Reset enters the same Picker
     When I enter picker on channel 4
@@ -78,7 +78,7 @@ Feature: Reset to mode select
     When I enter picker on channel 4
     And I go back to mode select
     And I skip
-    Then the mode choice should be Receiver channel 4
+    Then the mode choice should be Caller channel 4
 
   Scenario: Reset in mode select keeps the choice
     When I skip 3 times
@@ -91,11 +91,11 @@ Feature: Reset to mode select
 
   Scenario: Reset while paused is ignored
     Given the next random bytes are 1
-    When I enter receiver on channel 0
+    When I enter caller on channel 0
     And the app goes to the background
     And I clear effect logs
     And I go back to mode select
-    Then the screen should be Receiver
+    Then the screen should be Caller
     And the countdown should be active
     And BLE should not have received any new ops
     And no delay should have been requested

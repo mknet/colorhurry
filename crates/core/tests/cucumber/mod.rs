@@ -27,7 +27,7 @@ fn picker_mode_step(channel: u8) -> u8 {
     channel
 }
 
-fn receiver_mode_step(channel: u8) -> u8 {
+fn caller_mode_step(channel: u8) -> u8 {
     9 - channel
 }
 
@@ -40,12 +40,12 @@ async fn fresh(world: &mut ColorHurryWorld) {
 
 #[given("the shell cannot broadcast")]
 async fn cannot_broadcast(world: &mut ColorHurryWorld) {
-    world.harness.send(Event::ReceiverOnly);
+    world.harness.send(Event::CallerOnly);
 }
 
 #[when("the shell says that it cannot broadcast")]
 async fn says_cannot_broadcast(world: &mut ColorHurryWorld) {
-    world.harness.send(Event::ReceiverOnly);
+    world.harness.send(Event::CallerOnly);
 }
 
 #[given("the game has been booted")]
@@ -118,14 +118,14 @@ async fn enter_picker(world: &mut ColorHurryWorld, channel: u8) {
     assert_eq!(world.harness.view().channel, channel);
 }
 
-#[when(regex = r"^I enter receiver on channel (\d+)$")]
-async fn enter_receiver(world: &mut ColorHurryWorld, channel: u8) {
+#[when(regex = r"^I enter caller on channel (\d+)$")]
+async fn enter_caller(world: &mut ColorHurryWorld, channel: u8) {
     assert!(channel < 5, "channel must be 0..4");
-    for _ in 0..receiver_mode_step(channel) {
+    for _ in 0..caller_mode_step(channel) {
         world.harness.send(Event::Skip);
     }
     world.harness.send(Event::ActivateColor);
-    assert_eq!(world.harness.view().screen, Screen::Receiver);
+    assert_eq!(world.harness.view().screen, Screen::Caller);
     assert_eq!(world.harness.view().channel, channel);
 }
 
@@ -165,12 +165,12 @@ async fn channel_is(world: &mut ColorHurryWorld, channel: u8) {
     assert_eq!(world.harness.view().channel, channel);
 }
 
-#[then(regex = r"^the mode choice should be (Picker|Receiver) channel (\d+)$")]
+#[then(regex = r"^the mode choice should be (Picker|Caller) channel (\d+)$")]
 async fn mode_choice_is(world: &mut ColorHurryWorld, role: String, channel: u8) {
     let role = if role == "Picker" {
         ModeRole::Picker
     } else {
-        ModeRole::Receiver
+        ModeRole::Caller
     };
     assert_eq!(
         world.harness.view().mode_choice,
@@ -225,13 +225,13 @@ async fn ble_picker(world: &mut ColorHurryWorld, channel: u8) {
     );
 }
 
-#[then(regex = r"^BLE should have received a Receiver op for channel (\d+) and (.+)$")]
-async fn ble_receiver(world: &mut ColorHurryWorld, channel: u8, color: String) {
+#[then(regex = r"^BLE should have received a Caller op for channel (\d+) and (.+)$")]
+async fn ble_caller(world: &mut ColorHurryWorld, channel: u8, color: String) {
     let color = parse_color(&color).expect("color");
     assert!(
         world.harness.ble_log().iter().any(|op| matches!(
             op,
-            BleOp::Receiver { channel: c, color: col } if *c == channel && *col == color
+            BleOp::Caller { channel: c, color: col } if *c == channel && *col == color
         )),
         "ble log: {:?}",
         world.harness.ble_log()
@@ -277,26 +277,26 @@ async fn ble_off(world: &mut ColorHurryWorld) {
     );
 }
 
-#[then("BLE should not have received a Receiver op")]
-async fn ble_no_receiver(world: &mut ColorHurryWorld) {
+#[then("BLE should not have received a Caller op")]
+async fn ble_no_caller(world: &mut ColorHurryWorld) {
     assert!(
         !world
             .harness
             .ble_log()
             .iter()
-            .any(|op| matches!(op, BleOp::Receiver { .. })),
+            .any(|op| matches!(op, BleOp::Caller { .. })),
         "ble log: {:?}",
         world.harness.ble_log()
     );
 }
 
-#[then(regex = r"^BLE should have received (\d+) Receiver ops?$")]
-async fn ble_receiver_count(world: &mut ColorHurryWorld, n: usize) {
+#[then(regex = r"^BLE should have received (\d+) Caller ops?$")]
+async fn ble_caller_count(world: &mut ColorHurryWorld, n: usize) {
     let count = world
         .harness
         .ble_log()
         .iter()
-        .filter(|op| matches!(op, BleOp::Receiver { .. }))
+        .filter(|op| matches!(op, BleOp::Caller { .. }))
         .count();
     assert_eq!(count, n, "ble log: {:?}", world.harness.ble_log());
 }
