@@ -1,16 +1,17 @@
-//! Effect runtime for feature tests: virtual time, scripted entropy, logs.
+//! Effect runtime for the spec scenarios: virtual time, scripted entropy, logs.
 //!
-//! Domain steps call [`Harness::send`] with [`Event`]s derived from the feature
+//! Domain steps call [`Harness::send`] with [`Event`]s derived from the scenario
 //! text. This type is not a product shell. It answers the timers and `Random`,
-//! and it records the other effects for assertions.
+//! and it records the other effects for assertions. Timers fire only when
+//! virtual time advances, so a scenario sees the state right after an event.
+//! A `Random` request waits until a step answers it if no byte is queued.
 
 use std::collections::VecDeque;
 use std::fmt;
 
 use color_hurry_core::{
     time::{operation::NotifyAfter, TimerId},
-    BleOp, Color, ColorHurry, Effect, Event, Random, ToneSequence, ViewModel,
-    BEAT_PERIOD_MS, NUM_LEDS, Rgb,
+    BleOp, Color, ColorHurry, Effect, Event, Random, ToneSequence, ViewModel, NUM_LEDS, Rgb,
 };
 use crux_core::{Core, Request};
 
@@ -21,22 +22,16 @@ struct PendingTimer {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObservedTone {
+    pub at_ms: u64,
     pub steps: Vec<(u32, u32)>,
 }
 
 impl ObservedTone {
-    fn from_sequence(seq: &ToneSequence) -> Self {
+    fn from_sequence(at_ms: u64, seq: &ToneSequence) -> Self {
         Self {
+            at_ms,
             steps: seq.steps().iter().map(|s| (s.hz, s.ms)).collect(),
         }
-    }
-
-    pub fn is_skip(&self) -> bool {
-        self.steps == [(380, 55)]
-    }
-
-    pub fn is_apply(&self) -> bool {
-        self.steps == [(784, 130)]
     }
 
     pub fn is_explosion(&self) -> bool {
@@ -53,9 +48,9 @@ pub struct Harness {
     now_ms: u64,
     timers: VecDeque<PendingTimer>,
     random_queue: VecDeque<u8>,
-    /// When true, `Random` requests wait in `held_random` until a step answers them.
-    hold_random: bool,
+    /// `Random` requests that came while no byte was queued, oldest first.
     held_random: VecDeque<Request<Random>>,
+    random_requests: usize,
     ble_log: Vec<BleOp>,
     tone_log: Vec<ObservedTone>,
     /// The duration in milliseconds of each timer that the core requested.
@@ -72,6 +67,7 @@ impl fmt::Debug for Harness {
             .field("pending_timers", &self.timers.len())
             .field("random_queue", &self.random_queue)
             .field("held_random", &self.held_random.len())
+            .field("random_requests", &self.random_requests)
             .field("ble_log", &self.ble_log)
             .field("tone_log", &self.tone_log)
             .field("timer_log", &self.timer_log)
@@ -93,8 +89,8 @@ impl Harness {
             now_ms: 0,
             timers: VecDeque::new(),
             random_queue: VecDeque::new(),
-            hold_random: false,
             held_random: VecDeque::new(),
+            random_requests: 0,
             ble_log: Vec::new(),
             tone_log: Vec::new(),
             timer_log: Vec::new(),
@@ -122,11 +118,13 @@ impl Harness {
         &self.clear_log
     }
 
-    pub fn last_tone(&self) -> Option<&ObservedTone> {
-        self.tone_log.last()
+    /// Random requests since the last [`Harness::clear_logs`].
+    pub fn random_requests(&self) -> usize {
+        self.random_requests
     }
 
     pub fn clear_logs(&mut self) {
+        self.random_requests = 0;
         self.ble_log.clear();
         self.tone_log.clear();
         self.timer_log.clear();
@@ -137,22 +135,17 @@ impl Harness {
         self.random_queue.extend(bytes);
     }
 
-    /// Keep later `Random` requests in flight until [`Self::answer_held_random`].
-    pub fn hold_random(&mut self, hold: bool) {
-        self.hold_random = hold;
-    }
-
-    /// Answer the oldest held `Random` request with `byte`.
-    pub fn answer_held_random(&mut self, byte: u8) {
+    /// Answer the oldest open `Random` request with `byte`.
+    pub fn answer_random(&mut self, byte: u8) {
         let mut request = self
             .held_random
             .pop_front()
-            .expect("no Random request is held");
+            .expect("the core has not requested a random byte");
         let more = self.core.resolve(&mut request, byte).unwrap_or_default();
         self.handle(more);
     }
 
-    /// Deliver a domain event and drain resulting effects (including 0 ms timers).
+    /// Deliver a domain event and drain the resulting effects.
     pub fn send(&mut self, event: Event) {
         let effects = self.core.process_event(event);
         self.handle(effects);
@@ -180,22 +173,16 @@ impl Harness {
         self.resolve_due();
     }
 
-    pub fn run_full_countdown(&mut self) {
-        for _ in 0..NUM_LEDS + 2 {
-            if !self.view().countdown_active && self.timers.is_empty() {
-                break;
-            }
-            if let Some(due) = self.timers.iter().map(|d| d.due_ms).min() {
-                if due > self.now_ms {
-                    self.now_ms = due;
-                }
-            } else if self.view().countdown_active {
-                self.now_ms = self.now_ms.saturating_add(u64::from(BEAT_PERIOD_MS));
-            } else {
-                break;
-            }
-            self.resolve_due();
-        }
+    /// Jump to the next pending timer and fire everything due then.
+    pub fn advance_to_next_timer(&mut self) {
+        let due = self
+            .timers
+            .iter()
+            .map(|d| d.due_ms)
+            .min()
+            .expect("no pending timer");
+        self.now_ms = self.now_ms.max(due);
+        self.resolve_due();
     }
 
     pub fn led_is_off(&self, index: usize) -> bool {
@@ -229,31 +216,27 @@ impl Harness {
                         queue.push_back(e);
                     }
                 }
-                Effect::Random(request) if self.hold_random => {
-                    self.held_random.push_back(request);
-                }
                 Effect::Random(mut request) => {
-                    let byte = self.random_queue.pop_front().unwrap_or_else(|| {
-                        panic!(
-                            "core requested Random but the entropy queue is empty; \
-                             queue bytes before the event that needs them"
-                        )
-                    });
-                    let more = self.core.resolve(&mut request, byte).unwrap_or_default();
-                    for e in more {
-                        queue.push_back(e);
+                    self.random_requests += 1;
+                    match self.random_queue.pop_front() {
+                        Some(byte) => {
+                            let more = self.core.resolve(&mut request, byte).unwrap_or_default();
+                            queue.extend(more);
+                        }
+                        None => self.held_random.push_back(request),
                     }
                 }
                 Effect::PlayTone(request) => {
-                    self.tone_log
-                        .push(ObservedTone::from_sequence(&request.operation.sequence));
+                    self.tone_log.push(ObservedTone::from_sequence(
+                        self.now_ms,
+                        &request.operation.sequence,
+                    ));
                 }
                 Effect::Ble(request) => {
                     self.ble_log.push(request.operation.op);
                 }
             }
         }
-        self.resolve_due();
     }
 
     fn resolve_due(&mut self) {
@@ -275,7 +258,7 @@ impl Harness {
     }
 }
 
-fn spectrum_rgb(color: Color) -> Rgb {
+pub fn spectrum_rgb(color: Color) -> Rgb {
     // Matches crates/core/src/palette.rs (palette module is crate-private).
     const SPECTRUM: [Rgb; 10] = [
         Rgb::from_rgb(255, 255, 255),

@@ -3,8 +3,8 @@ use crux_time::TimerOutcome;
 
 use crate::{
     color_from_entropy, decode_color, encode_color, time, tones, BleOp, Color, ColorHurry, Effect,
-    EffectTestExt as _, Event, Model, Role, Round, Screen, BEAT_PERIOD_MS, COUNTDOWN_STEPS,
-    NUM_LEDS,
+    EffectTestExt as _, Event, Model, Role, Round, Screen, BEAT_PERIOD_MS, BLINK_PERIOD_MS,
+    COUNTDOWN_STEPS, NUM_LEDS,
 };
 
 fn enter_picker(app: &ColorHurry, model: &mut Model) {
@@ -251,4 +251,53 @@ fn beat_timer_period_is_core_constant() {
         .expect_play_tone()
         .expect_render()
         .expect_only_time_notify_after_with(|op| assert_eq!(op.duration, millis(BEAT_PERIOD_MS)));
+}
+
+#[test]
+fn every_blink_tick_schedules_the_next() {
+    let app = ColorHurry;
+    let mut model = Model::new();
+    let mut cmd = app.update(Event::Boot, &mut model);
+    for _ in 0..3 {
+        cmd.expect_render();
+        let tick = fire_timer(&mut cmd, BLINK_PERIOD_MS);
+        cmd = app.update(tick, &mut model);
+    }
+    cmd.expect_render()
+        .expect_only_time_notify_after_with(|op| assert_eq!(op.duration, millis(BLINK_PERIOD_MS)));
+}
+
+#[test]
+fn every_ring_step_enters_its_role_and_channel() {
+    let app = ColorHurry;
+    for step in 0..NUM_LEDS {
+        let mut model = Model::new();
+        for _ in 0..step {
+            let _ = app.update(Event::Skip, &mut model);
+        }
+        let _ = app.update(Event::ActivateColor, &mut model);
+        let (screen, channel) = if step < 5 {
+            (Screen::Picker, step)
+        } else {
+            (Screen::Caller, 9 - step)
+        };
+        assert_eq!((model.screen, model.channel()), (screen, channel as u8), "step {step}");
+    }
+}
+
+#[test]
+fn skips_walk_the_spectrum_in_order() {
+    let app = ColorHurry;
+    for (skips, color) in Color::ALL.iter().enumerate() {
+        let mut model = Model::new();
+        enter_picker(&app, &mut model);
+        for _ in 0..skips {
+            let _ = app.update(Event::Skip, &mut model);
+        }
+        let mut cmd = app.update(Event::ActivateColor, &mut model);
+        let broadcast = BleOp::Broadcast { color: Some(*color) };
+        assert!(cmd
+            .effects()
+            .any(|e| matches!(e, Effect::Ble(r) if r.operation.op == broadcast)));
+    }
 }

@@ -90,7 +90,7 @@ android-build: ffi-android
     export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home -v 17)}"
     cd apps/android && ./gradlew :app:assembleDebug
 
-# Core unit tests + Gherkin feature tests + FFI payload helpers
+# Core unit tests + spec scenarios run as tests + FFI payload helpers
 test:
     cargo test -p color-hurry-core -p color-hurry-ffi
 

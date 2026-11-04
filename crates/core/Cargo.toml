@@ -28,3 +28,8 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 name = "shell"
 path = "tests/shell.rs"
 harness = false
+
+# Unit test of the spec parser that the `shell` test uses.
+[[test]]
+name = "spec_parser"
+path = "tests/spec_parser.rs"

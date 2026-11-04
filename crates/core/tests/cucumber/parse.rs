@@ -1,4 +1,4 @@
-//! Map Gherkin wording onto core types (cucumber steps only).
+//! Map spec scenario wording onto core types (cucumber steps only).
 
 use color_hurry_core::{Color, Screen};
 
@@ -25,4 +25,15 @@ pub fn parse_screen(name: &str) -> Result<Screen, String> {
         "caller" => Ok(Screen::Caller),
         other => Err(format!("unknown screen '{other}'")),
     }
+}
+
+pub fn parse_number(word: &str) -> Result<usize, String> {
+    const WORDS: [&str; 11] = [
+        "zero", "once", "twice", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    ];
+    word.parse().or_else(|_| match word {
+        "one" => Ok(1),
+        "two" => Ok(2),
+        _ => WORDS.iter().position(|w| *w == word).ok_or(format!("unknown number '{word}'")),
+    })
 }

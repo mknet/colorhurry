@@ -11,7 +11,7 @@ apps/apple     Native SwiftUI + CoreBluetooth shells (iOS, macOS, watchOS) on th
 apps/android   Native Kotlin Compose + Android BLE shell on the Rust core
 ```
 
-Tests: `just test` runs unit tests and Gherkin integration tests in `crates/core`.
+Tests: `just test` runs the unit tests in `crates/core` and the scenarios in `openspec/specs`: the spec scenarios run as tests.
 
 
 ## Prerequisites
