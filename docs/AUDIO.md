@@ -20,7 +20,7 @@ Implementation: `speaker::play_skip()` / `speaker::play_apply()` in `color_picke
 
 Adjust the constants in `src/speaker.rs`.
 
-## Caller countdown (default in caller mode)
+## Receiver countdown (default in receiver mode)
 
 One descending tone per second, in sync with the NeoPixels switching off counter-clockwise (CCW):
 

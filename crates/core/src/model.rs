@@ -15,7 +15,7 @@ pub const COUNTDOWN_STEPS: u8 = NUM_LEDS as u8;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     Picker { channel: u8 },
-    Caller { channel: u8 },
+    Receiver { channel: u8 },
 }
 
 #[derive(Facet, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,7 +23,7 @@ pub enum Role {
 pub enum Screen {
     ModeSelect,
     Picker,
-    Caller,
+    Receiver,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,7 +86,7 @@ impl Model {
 
     pub(crate) fn channel(&self) -> u8 {
         match self.role {
-            Some(Role::Picker { channel }) | Some(Role::Caller { channel }) => channel,
+            Some(Role::Picker { channel }) | Some(Role::Receiver { channel }) => channel,
             None => 0,
         }
     }

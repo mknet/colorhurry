@@ -67,17 +67,17 @@ final class GameController {
             guard let choice = view.modeChoice else {
                 return "Mode select · Skip cycles role/channel · Apply enters"
             }
-            let role = choice.role == .picker ? "Picker" : "Caller"
+            let role = choice.role == .picker ? "Picker" : "Receiver"
             return "Apply enters \(role) ch\(choice.channel) · Skip for next"
         case .picker:
             let color = view.pickerColor?.displayName ?? "?"
             return view.pickerApplied
                 ? "Picker ch\(view.channel) · \(Platform.name) cannot send \(color) · use a board as Picker"
                 : "Picker ch\(view.channel) · \(color) · Skip for next · Apply broadcasts"
-        case .caller:
+        case .receiver:
             return view.countdownActive
-                ? "Caller ch\(view.channel) · countdown \(view.countdownStep)/10"
-                : "Caller ch\(view.channel) · waiting for match"
+                ? "Receiver ch\(view.channel) · countdown \(view.countdownStep)/10"
+                : "Receiver ch\(view.channel) · waiting for match"
         }
     }
 }

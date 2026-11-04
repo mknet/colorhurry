@@ -87,7 +87,7 @@ class GameController(app: Application) : AndroidViewModel(app) {
 
     fun modeHint(view: ViewModel): String = when (view.screen) {
         Screen.MODESELECT -> view.modeChoice?.let { choice ->
-            val role = if (choice.role == ModeRole.PICKER) "Picker" else "Caller"
+            val role = if (choice.role == ModeRole.PICKER) "Picker" else "Receiver"
             "Apply enters $role ch${choice.channel} · Skip for next"
         } ?: "Mode select · Skip cycles role/channel · Apply enters"
         Screen.PICKER -> {
@@ -98,10 +98,10 @@ class GameController(app: Application) : AndroidViewModel(app) {
                 "Picker ch${view.channel} · $color · Skip for next · Apply broadcasts"
             }
         }
-        Screen.CALLER -> if (view.countdownActive) {
-            "Caller ch${view.channel} · countdown ${view.countdownStep}/10"
+        Screen.RECEIVER -> if (view.countdownActive) {
+            "Receiver ch${view.channel} · countdown ${view.countdownStep}/10"
         } else {
-            "Caller ch${view.channel} · waiting for match"
+            "Receiver ch${view.channel} · waiting for match"
         }
     }
 

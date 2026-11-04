@@ -66,7 +66,7 @@ impl Shell {
                 let ch = self.core.view().channel;
                 ble_broadcast::set_radio_picker(ch as usize);
             }
-            Screen::Caller | Screen::ModeSelect => {}
+            Screen::Receiver | Screen::ModeSelect => {}
         }
     }
 

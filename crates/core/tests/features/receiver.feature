@@ -1,5 +1,5 @@
-Feature: Caller round
-  The Caller's board picks a random target color, counts down with beats, and
+Feature: Receiver round
+  Receiver picks a random target color, counts down with beats, and
   resets on a matching ColorReceived (same channel + named color) or
   Skip. Wrong ads are ignored. After ten beats the round explodes.
 
@@ -10,9 +10,9 @@ Feature: Caller round
     Given a fresh game
     And the game has been booted
 
-  Scenario: Entering Caller starts a round from entropy
+  Scenario: Entering Receiver starts a round from entropy
     Given the next random bytes are 1
-    When I enter caller on channel 0
+    When I enter receiver on channel 0
     Then the countdown should be active
     # 0 ms beat kick is resolved immediately → step advances to 1
     And the countdown step should be 1
@@ -21,7 +21,7 @@ Feature: Caller round
 
   Scenario: Matching color ends the round and starts the next from entropy
     Given the next random bytes are 1, 4
-    When I enter caller on channel 0
+    When I enter receiver on channel 0
     And I clear effect logs
     When a color Red is received on channel 0
     Then BLE should have received Off
@@ -30,7 +30,7 @@ Feature: Caller round
 
   Scenario: Wrong channel is ignored
     Given the next random bytes are 1
-    When I enter caller on channel 0
+    When I enter receiver on channel 0
     And I clear effect logs
     When a color Red is received on channel 1
     Then the countdown should be active
@@ -38,7 +38,7 @@ Feature: Caller round
 
   Scenario: Wrong color is ignored
     Given the next random bytes are 1
-    When I enter caller on channel 0
+    When I enter receiver on channel 0
     And I clear effect logs
     When a color Blue is received on channel 0
     Then the countdown should be active
@@ -46,7 +46,7 @@ Feature: Caller round
 
   Scenario: Skip aborts the round and starts a new one
     Given the next random bytes are 1, 2
-    When I enter caller on channel 3
+    When I enter receiver on channel 3
     And I clear effect logs
     When I skip
     Then BLE should have received Off
@@ -55,7 +55,7 @@ Feature: Caller round
 
   Scenario: Next round starts only after the explosion has played
     Given the next random bytes are 0, 5
-    When I enter caller on channel 0
+    When I enter receiver on channel 0
     And I clear effect logs
     # Beats 1 to 9 run at 1000 ms steps. The ninth beat expires the countdown.
     When I advance time by 9000 ms
@@ -88,7 +88,7 @@ Feature: Caller round
 
   Scenario: After the 0 ms kick, the next beat uses BEAT_PERIOD_MS
     Given the next random bytes are 0
-    When I enter caller on channel 0
+    When I enter receiver on channel 0
     And I clear effect logs
     When I advance time by 1000 ms
     Then a delay of 1000 ms should have been requested
@@ -96,9 +96,9 @@ Feature: Caller round
     # enter already resolved step 0 → after +1000 ms we are at step 2
     And the countdown step should be 2
 
-  Scenario: Apply does nothing in Caller
+  Scenario: Apply does nothing in Receiver
     Given the next random bytes are 3
-    When I enter caller on channel 1
+    When I enter receiver on channel 1
     And I clear effect logs
     When I apply
     Then BLE should not have received any new ops
@@ -106,7 +106,7 @@ Feature: Caller round
 
   Scenario: Match requires both channel and color
     Given the next random bytes are 7, 0
-    When I enter caller on channel 4
+    When I enter receiver on channel 4
     And I clear effect logs
     When a color Blue is received on channel 0
     Then the countdown should be active

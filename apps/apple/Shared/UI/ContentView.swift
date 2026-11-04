@@ -79,7 +79,7 @@ struct ContentView: View {
         switch game.view.screen {
         case .modeSelect: return "Mode select"
         case .picker: return "Picker"
-        case .caller: return "Caller"
+        case .receiver: return "Receiver"
         }
     }
 

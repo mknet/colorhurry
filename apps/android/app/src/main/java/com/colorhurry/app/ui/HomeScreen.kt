@@ -60,7 +60,7 @@ fun HomeScreen(game: GameController) {
     val title = when (view.screen) {
         Screen.MODESELECT -> "Mode select"
         Screen.PICKER -> "Picker"
-        Screen.CALLER -> "Caller"
+        Screen.RECEIVER -> "Receiver"
     }
 
     Box(

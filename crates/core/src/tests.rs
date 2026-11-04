@@ -18,14 +18,14 @@ fn enter_picker(app: &ColorHurry, model: &mut Model) {
     assert_eq!(model.screen, Screen::Picker);
 }
 
-fn enter_caller(app: &ColorHurry, model: &mut Model) {
+fn enter_receiver(app: &ColorHurry, model: &mut Model) {
     for _ in 0..5 {
         let mut cmd = app.update(Event::Skip, model);
         let _ = effects(&mut cmd);
     }
     let mut cmd = app.update(Event::ActivateColor, model);
     let _ = effects(&mut cmd);
-    assert_eq!(model.screen, Screen::Caller);
+    assert_eq!(model.screen, Screen::Receiver);
     assert!(matches!(model.round, Round::Waiting));
 }
 
@@ -55,10 +55,10 @@ fn mode_select_activate_enters_picker() {
 }
 
 #[test]
-fn mode_select_left_then_activate_enters_caller() {
+fn mode_select_left_then_activate_enters_receiver() {
     let app = ColorHurry;
     let mut model = Model::new();
-    enter_caller(&app, &mut model);
+    enter_receiver(&app, &mut model);
     let mut cmd = app.update(Event::RandomByte(3), &mut model);
     let effs = effects(&mut cmd);
     assert!(matches!(model.round, Round::Running { .. }));
@@ -72,7 +72,7 @@ fn mode_select_left_then_activate_enters_caller() {
 fn match_only_through_core_no_explosion() {
     let app = ColorHurry;
     let mut model = Model::new();
-    enter_caller(&app, &mut model);
+    enter_receiver(&app, &mut model);
     let target = start_round_with(&app, &mut model, 1);
     let ch = model.channel();
     let mut cmd = app.update(
@@ -95,7 +95,7 @@ fn match_only_through_core_no_explosion() {
 fn wrong_channel_ignored() {
     let app = ColorHurry;
     let mut model = Model::new();
-    enter_caller(&app, &mut model);
+    enter_receiver(&app, &mut model);
     let target = start_round_with(&app, &mut model, 2);
     let ch = model.channel();
     let mut cmd = app.update(
@@ -113,7 +113,7 @@ fn wrong_channel_ignored() {
 fn wrong_color_ignored() {
     let app = ColorHurry;
     let mut model = Model::new();
-    enter_caller(&app, &mut model);
+    enter_receiver(&app, &mut model);
     let target = start_round_with(&app, &mut model, 2);
     let other = Color::from_index((target.index() + 1) % NUM_LEDS as u8).unwrap();
     let mut cmd = app.update(
@@ -131,7 +131,7 @@ fn wrong_color_ignored() {
 fn after_beats_explosion_then_random() {
     let app = ColorHurry;
     let mut model = Model::new();
-    enter_caller(&app, &mut model);
+    enter_receiver(&app, &mut model);
     let _ = start_round_with(&app, &mut model, 0);
     let mut last_effs = Vec::new();
     for _ in 0..=COUNTDOWN_STEPS {
@@ -204,7 +204,7 @@ fn picker_apply_broadcasts_named_color() {
 fn beat_delay_period_is_core_constant() {
     let app = ColorHurry;
     let mut model = Model::new();
-    enter_caller(&app, &mut model);
+    enter_receiver(&app, &mut model);
     let mut cmd = app.update(Event::RandomByte(0), &mut model);
     let first = effects(&mut cmd)
         .iter()

@@ -27,7 +27,7 @@ fn picker_mode_step(channel: u8) -> u8 {
     channel
 }
 
-fn caller_mode_step(channel: u8) -> u8 {
+fn receiver_mode_step(channel: u8) -> u8 {
     9 - channel
 }
 
@@ -118,14 +118,14 @@ async fn enter_picker(world: &mut ColorHurryWorld, channel: u8) {
     assert_eq!(world.harness.view().channel, channel);
 }
 
-#[when(regex = r"^I enter caller on channel (\d+)$")]
-async fn enter_caller(world: &mut ColorHurryWorld, channel: u8) {
+#[when(regex = r"^I enter receiver on channel (\d+)$")]
+async fn enter_receiver(world: &mut ColorHurryWorld, channel: u8) {
     assert!(channel < 5, "channel must be 0..4");
-    for _ in 0..caller_mode_step(channel) {
+    for _ in 0..receiver_mode_step(channel) {
         world.harness.send(Event::Skip);
     }
     world.harness.send(Event::ActivateColor);
-    assert_eq!(world.harness.view().screen, Screen::Caller);
+    assert_eq!(world.harness.view().screen, Screen::Receiver);
     assert_eq!(world.harness.view().channel, channel);
 }
 
