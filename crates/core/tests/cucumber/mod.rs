@@ -344,24 +344,32 @@ async fn tone_countdown(world: &mut ColorHurryWorld) {
     );
 }
 
-#[then(regex = r"^a delay of (\d+) ms should have been requested$")]
-async fn delay_requested(world: &mut ColorHurryWorld, ms: u32) {
+#[then(regex = r"^a timer of (\d+) ms should have been requested$")]
+async fn timer_requested(world: &mut ColorHurryWorld, ms: u64) {
     assert!(
-        world.harness.delay_log().contains(&ms),
-        "delays: {:?}",
-        world.harness.delay_log()
+        world.harness.timer_log().contains(&ms),
+        "timers: {:?}",
+        world.harness.timer_log()
     );
 }
 
-#[then(regex = r"^a delay of (\d+) ms should have been requested at least (\d+) times$")]
-async fn delay_requested_n(world: &mut ColorHurryWorld, ms: u32, n: usize) {
+#[then(regex = r"^a timer of (\d+) ms should have been requested at least (\d+) times$")]
+async fn timer_requested_n(world: &mut ColorHurryWorld, ms: u64, n: usize) {
     let count = world
         .harness
-        .delay_log()
+        .timer_log()
         .iter()
         .filter(|d| **d == ms)
         .count();
-    assert!(count >= n, "expected >= {n} delays of {ms}, got {count}");
+    assert!(count >= n, "expected >= {n} timers of {ms} ms, got {count}");
+}
+
+#[then("a timer should have been cleared")]
+async fn timer_cleared(world: &mut ColorHurryWorld) {
+    assert!(
+        !world.harness.clear_log().is_empty(),
+        "no timer was cleared"
+    );
 }
 
 #[then("no tone should have been played")]
@@ -382,12 +390,12 @@ async fn no_explosion(world: &mut ColorHurryWorld) {
     );
 }
 
-#[then("no delay should have been requested")]
-async fn no_delay(world: &mut ColorHurryWorld) {
+#[then("no timer should have been requested")]
+async fn no_timer(world: &mut ColorHurryWorld) {
     assert!(
-        world.harness.delay_log().is_empty(),
-        "delays: {:?}",
-        world.harness.delay_log()
+        world.harness.timer_log().is_empty(),
+        "timers: {:?}",
+        world.harness.timer_log()
     );
 }
 
@@ -405,6 +413,15 @@ async fn all_leds(world: &mut ColorHurryWorld, color: String) {
 async fn led_off(world: &mut ColorHurryWorld, index: usize) {
     assert!(
         world.harness.led_is_off(index),
+        "leds: {:?}",
+        world.harness.view().leds
+    );
+}
+
+#[then(regex = r"^LED (\d+) should be lit$")]
+async fn led_lit(world: &mut ColorHurryWorld, index: usize) {
+    assert!(
+        !world.harness.led_is_off(index),
         "leds: {:?}",
         world.harness.view().leds
     );

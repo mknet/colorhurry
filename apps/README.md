@@ -79,7 +79,7 @@ Install the debug APK from `app/build/outputs/apk/debug/`.
 All four shells link the Rust core through the Crux bridge and BoltFFI (`crates/ffi`). The shells contain no game logic:
 
 - `GameController` holds the generated `Core`, maps buttons and BLE ads onto domain events (`Skip`, `ActivateColor`, `Reset`, `ColorReceived`) and draws the `ViewModel`.
-- An `EffectHandler` performs what the core asks for: `Delay` (timer), `Random` (secure random byte), `PlayTone` (audio), `Ble` (scan / advertise).
+- An `EffectHandler` performs what the core asks for: `TimeNotifyAfter` and `TimeClear` (timers, through the `TaskTimeHandler` or `CoroutineTimeHandler` that `crux_time` ships), `Random` (secure random byte), `PlayTone` (audio), `Ble` (scan / advertise).
 - BLE payloads are parsed and built in Rust (`color_received_event`, `color_advertisement`), so the wire format exists only once.
 
 The iOS, macOS and watchOS shells share their Swift code in `apps/apple/Shared`. Swift and Kotlin types (`Event`, `Effect`, `ViewModel`, `Color`, …) are generated from the core with facet typegen (`crates/ffi/src/bin/codegen.rs`). The core itself stays `no_std`. Only `crates/ffi` turns on the std bridge.

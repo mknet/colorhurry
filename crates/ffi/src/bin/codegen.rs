@@ -24,8 +24,13 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
+    // The app's operations bring the protocol of `crux_time`. Register the
+    // timer handlers that `crux_time` ships, so that the Swift and Kotlin
+    // shells need no timer code of their own.
     let typegen = TypeRegistry::new()
         .register_app::<ColorHurry>()?
+        .shell_extension(&crux_time::shell::swift::TASK)?
+        .shell_extension(&crux_time::shell::kotlin::COROUTINE)?
         .build()?
         // Where `boltffi pack` puts `CoreFfi`, so the generated `Core` only
         // needs an effect handler.

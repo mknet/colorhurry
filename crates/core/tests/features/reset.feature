@@ -17,7 +17,7 @@ Feature: Reset to mode select
     And the mode choice should be Picker channel 2
     And there should be no picker color
     And BLE should have received Off
-    And a delay of 50 ms should have been requested
+    And a timer of 50 ms should have been requested
     And no tone should have been played
 
   Scenario: Reset from a Picker that broadcasts
@@ -42,7 +42,8 @@ Feature: Reset to mode select
     And the countdown should not be active
     And BLE should have received Off
     And no explosion tone should have been played
-    # The beat that was pending at the reset expires here and has no effect.
+    And a timer should have been cleared
+    # Reset cleared the beat that was pending, so no beat comes here.
     When I advance time by 12000 ms
     Then the screen should be ModeSelect
     And the mode choice should be Caller channel 3
@@ -86,7 +87,7 @@ Feature: Reset to mode select
     And I go back to mode select
     Then the screen should be ModeSelect
     And the mode choice should be Picker channel 3
-    And a delay of 50 ms should have been requested
+    And a timer of 50 ms should have been requested
     And no tone should have been played
 
   Scenario: Reset while paused is ignored
@@ -98,4 +99,4 @@ Feature: Reset to mode select
     Then the screen should be Caller
     And the countdown should be active
     And BLE should not have received any new ops
-    And no delay should have been requested
+    And no timer should have been requested
