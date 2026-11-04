@@ -31,7 +31,7 @@
 
 ## 5. Archive
 
-- [ ] 5.1 Apply the deltas to `openspec/specs`
-- [ ] 5.2 Move `openspec/specs/receiver-round` to `openspec/specs/caller-round`
-- [ ] 5.3 Change the title and the Purpose of `caller-round/spec.md`, and the Purpose of `mode-select/spec.md`
-- [ ] 5.4 Move the change to `openspec/changes/archive/2026-11-04-rename-receiver-to-caller`
+- [x] 5.1 Apply the deltas to `openspec/specs`
+- [x] 5.2 Move `openspec/specs/receiver-round` to `openspec/specs/caller-round`
+- [x] 5.3 Change the title and the Purpose of `caller-round/spec.md`, and the Purpose of `mode-select/spec.md`
+- [x] 5.4 Move the change to `openspec/changes/archive/2026-11-04-rename-receiver-to-caller`
