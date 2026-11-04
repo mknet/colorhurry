@@ -1,44 +1,39 @@
-extern crate alloc;
-
-use alloc::vec::Vec;
-use crux_core::{App as _, Command};
+use crux_core::App as _;
 
 use crate::{
-    color_from_entropy, decode_color, encode_color, BleOp, Color, ColorHurry, Effect, Event, Model,
-    Round, Screen, BEAT_PERIOD_MS, COUNTDOWN_STEPS, NUM_LEDS,
+    color_from_entropy, decode_color, encode_color, tones, BleOp, Color, ColorHurry,
+    EffectTestExt as _, Event, Model, Round, Screen, BEAT_PERIOD_MS, COUNTDOWN_STEPS, NUM_LEDS,
 };
 
-fn effects(cmd: &mut Command<Effect, Event>) -> Vec<Effect> {
-    cmd.effects().filter(|e| !e.is_render()).collect()
-}
-
 fn enter_picker(app: &ColorHurry, model: &mut Model) {
-    let mut cmd = app.update(Event::ActivateColor, model);
-    let _ = effects(&mut cmd);
+    let _ = app.update(Event::ActivateColor, model);
     assert_eq!(model.screen, Screen::Picker);
 }
 
 fn enter_caller(app: &ColorHurry, model: &mut Model) {
     for _ in 0..5 {
-        let mut cmd = app.update(Event::Skip, model);
-        let _ = effects(&mut cmd);
+        let _ = app.update(Event::Skip, model);
     }
-    let mut cmd = app.update(Event::ActivateColor, model);
-    let _ = effects(&mut cmd);
+    let _ = app.update(Event::ActivateColor, model);
     assert_eq!(model.screen, Screen::Caller);
     assert!(matches!(model.round, Round::Waiting));
 }
 
 fn start_round_with(app: &ColorHurry, model: &mut Model, byte: u8) -> Color {
     let mut cmd = app.update(Event::RandomByte(byte), model);
-    let effs = effects(&mut cmd);
-    assert!(effs.iter().any(|e| matches!(e, Effect::Ble(_))));
-    assert!(effs.iter().any(|e| matches!(e, Effect::Delay(_))));
     // Full ring still lit; first BeatDone will play tone 0 / extinguish LED 0.
-    match model.round {
+    let target = match model.round {
         Round::Running { target, step: 0 } => target,
         other => panic!("expected running round at step 0, got {other:?}"),
-    }
+    };
+    let caller = BleOp::Caller {
+        channel: model.channel(),
+        color: target,
+    };
+    cmd.expect_ble_with(|op| assert_eq!(op.op, caller))
+        .expect_render()
+        .expect_only_delay();
+    target
 }
 
 #[test]
@@ -46,12 +41,12 @@ fn mode_select_activate_enters_picker() {
     let app = ColorHurry;
     let mut model = Model::new();
     let mut cmd = app.update(Event::ActivateColor, &mut model);
-    let effs = effects(&mut cmd);
     assert_eq!(model.screen, Screen::Picker);
-    assert!(effs.iter().any(|e| matches!(
-        e,
-        Effect::Ble(r) if matches!(r.operation.op, BleOp::Picker { channel: 0 })
-    )));
+    cmd.expect_play_tone()
+        .expect_ble_with(|op| assert_eq!(op.op, BleOp::Picker { channel: 0 }))
+        .expect_ble_with(|op| assert_eq!(op.op, BleOp::Broadcast { color: None }))
+        .expect_render()
+        .expect_only_delay();
 }
 
 #[test]
@@ -60,12 +55,14 @@ fn mode_select_left_then_activate_enters_caller() {
     let mut model = Model::new();
     enter_caller(&app, &mut model);
     let mut cmd = app.update(Event::RandomByte(3), &mut model);
-    let effs = effects(&mut cmd);
     assert!(matches!(model.round, Round::Running { .. }));
-    assert!(effs.iter().any(|e| matches!(
-        e,
-        Effect::Ble(r) if matches!(r.operation.op, BleOp::Caller { .. })
-    )));
+    let caller = BleOp::Caller {
+        channel: model.channel(),
+        color: color_from_entropy(3),
+    };
+    cmd.expect_ble_with(|op| assert_eq!(op.op, caller))
+        .expect_render()
+        .expect_only_delay();
 }
 
 #[test]
@@ -82,13 +79,10 @@ fn match_only_through_core_no_explosion() {
         },
         &mut model,
     );
-    let effs = effects(&mut cmd);
     assert!(matches!(model.round, Round::Waiting));
-    assert!(effs.iter().any(|e| matches!(e, Effect::Random(_))));
-    assert!(effs.iter().any(|e| matches!(
-        e,
-        Effect::Ble(r) if matches!(r.operation.op, BleOp::Off)
-    )));
+    cmd.expect_ble_with(|op| assert_eq!(op.op, BleOp::Off))
+        .expect_render()
+        .expect_only_random();
 }
 
 #[test]
@@ -98,14 +92,14 @@ fn wrong_channel_ignored() {
     enter_caller(&app, &mut model);
     let target = start_round_with(&app, &mut model, 2);
     let ch = model.channel();
-    let mut cmd = app.update(
+    app.update(
         Event::ColorReceived {
             channel: (ch + 1) % 5,
             color: target,
         },
         &mut model,
-    );
-    assert!(effects(&mut cmd).is_empty());
+    )
+    .expect_done();
     assert!(matches!(model.round, Round::Running { .. }));
 }
 
@@ -116,14 +110,14 @@ fn wrong_color_ignored() {
     enter_caller(&app, &mut model);
     let target = start_round_with(&app, &mut model, 2);
     let other = Color::from_index((target.index() + 1) % NUM_LEDS as u8).unwrap();
-    let mut cmd = app.update(
+    app.update(
         Event::ColorReceived {
             channel: model.channel(),
             color: other,
         },
         &mut model,
-    );
-    assert!(effects(&mut cmd).is_empty());
+    )
+    .expect_done();
     assert!(matches!(model.round, Round::Running { .. }));
 }
 
@@ -133,36 +127,32 @@ fn after_beats_explosion_then_random() {
     let mut model = Model::new();
     enter_caller(&app, &mut model);
     let _ = start_round_with(&app, &mut model, 0);
-    let mut last_effs = Vec::new();
+    let mut last_cmd = None;
     for _ in 0..=COUNTDOWN_STEPS {
         let id = match model.round {
             Round::Running { .. } => model.beat_gen,
             Round::Waiting => break,
         };
-        let mut cmd = app.update(Event::BeatDone(id), &mut model);
-        last_effs = effects(&mut cmd);
+        last_cmd = Some(app.update(Event::BeatDone(id), &mut model));
     }
     assert!(matches!(model.round, Round::Waiting));
-    assert!(last_effs.iter().any(|e| matches!(e, Effect::PlayTone(_))));
     // The next round waits for the last beat tone and the explosion.
-    assert!(!last_effs.iter().any(|e| matches!(e, Effect::Random(_))));
-    let wait_ms = last_effs.iter().find_map(|e| match e {
-        Effect::Delay(d) => Some(d.operation.millis),
-        _ => None,
-    });
-    assert_eq!(
-        wait_ms,
-        Some(crate::tones::countdown_step(COUNTDOWN_STEPS - 1).total_ms()
-            + crate::tones::explosion().total_ms())
-    );
+    let last_tone = tones::countdown_step(COUNTDOWN_STEPS - 1);
+    let explosion = tones::explosion();
+    let wait_ms = last_tone.total_ms() + explosion.total_ms();
+    last_cmd
+        .expect("at least one beat")
+        .expect_play_tone_with(|op| assert_eq!(op.sequence, last_tone))
+        .expect_play_tone_with(|op| assert_eq!(op.sequence, explosion))
+        .expect_ble_with(|op| assert_eq!(op.op, BleOp::Off))
+        .expect_render()
+        .expect_only_delay_with(|op| assert_eq!(op.millis, wait_ms));
 
     let id = model.beat_gen;
-    let mut stale = app.update(Event::ExplosionDone(id.wrapping_add(1)), &mut model);
-    assert!(effects(&mut stale).is_empty());
-    let mut cmd = app.update(Event::ExplosionDone(id), &mut model);
-    assert!(effects(&mut cmd)
-        .iter()
-        .any(|e| matches!(e, Effect::Random(_))));
+    app.update(Event::ExplosionDone(id.wrapping_add(1)), &mut model)
+        .expect_done();
+    app.update(Event::ExplosionDone(id), &mut model)
+        .expect_only_random();
 }
 
 #[test]
@@ -187,17 +177,13 @@ fn picker_apply_broadcasts_named_color() {
     let app = ColorHurry;
     let mut model = Model::new();
     enter_picker(&app, &mut model);
-    let mut cmd = app.update(Event::ActivateColor, &mut model);
-    let effs = effects(&mut cmd);
-    assert!(effs.iter().any(|e| matches!(
-        e,
-        Effect::Ble(r) if matches!(
-            r.operation.op,
-            BleOp::Broadcast {
-                color: Some(Color::White)
-            }
-        )
-    )));
+    let broadcast = BleOp::Broadcast {
+        color: Some(Color::White),
+    };
+    app.update(Event::ActivateColor, &mut model)
+        .expect_play_tone()
+        .expect_ble_with(|op| assert_eq!(op.op, broadcast))
+        .expect_only_render();
 }
 
 #[test]
@@ -205,25 +191,15 @@ fn beat_delay_period_is_core_constant() {
     let app = ColorHurry;
     let mut model = Model::new();
     enter_caller(&app, &mut model);
-    let mut cmd = app.update(Event::RandomByte(0), &mut model);
-    let first = effects(&mut cmd)
-        .iter()
-        .find_map(|e| match e {
-            Effect::Delay(d) => Some(d.operation.millis),
-            _ => None,
-        })
-        .expect("first delay");
     // Round start kicks the first beat immediately (0 ms), then BEAT_PERIOD_MS.
-    assert_eq!(first, 0);
+    app.update(Event::RandomByte(0), &mut model)
+        .expect_ble()
+        .expect_render()
+        .expect_only_delay_with(|op| assert_eq!(op.millis, 0));
 
     let id = model.beat_gen;
-    let mut cmd = app.update(Event::BeatDone(id), &mut model);
-    let next = effects(&mut cmd)
-        .iter()
-        .find_map(|e| match e {
-            Effect::Delay(d) => Some(d.operation.millis),
-            _ => None,
-        })
-        .expect("follow-up delay");
-    assert_eq!(next, BEAT_PERIOD_MS);
+    app.update(Event::BeatDone(id), &mut model)
+        .expect_play_tone()
+        .expect_render()
+        .expect_only_delay_with(|op| assert_eq!(op.millis, BEAT_PERIOD_MS));
 }
