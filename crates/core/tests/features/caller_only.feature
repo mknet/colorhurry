@@ -95,7 +95,7 @@ Feature: Caller-only shells
     Then the mode choice should be Caller channel 2
     And BLE should not have received any new ops
     And no tone should have been played
-    And no delay should have been requested
+    And no timer should have been requested
 
   Scenario: CallerOnly moves a Picker choice to Caller on channel 0
     Given the game has been booted
@@ -120,7 +120,7 @@ Feature: Caller-only shells
     And the shell says that it cannot broadcast
     Then the mode choice should be Caller channel 0
     And BLE should not have received any new ops
-    And no delay should have been requested
+    And no timer should have been requested
     When the app comes back
     And I skip
     Then the mode choice should be Caller channel 4

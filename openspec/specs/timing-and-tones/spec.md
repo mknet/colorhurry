@@ -48,24 +48,24 @@ Playing a feedback tone SHALL NOT delay button handling or LED updates.
 - **THEN** every press moves the selection and the ring follows without waiting for the previous tone to end
 
 ### Requirement: Game owns blink and beat periods
-The game SHALL request its own delays: a 50 ms blink tick (six ticks per blink phase) in mode select and picker, a 0 ms kick for the first countdown beat and 1000 ms between further beats. Delays from a previous state SHALL be ignored.
+The game SHALL request its own timers with the `crux_time` operation `NotifyAfter`: a 50 ms blink tick (six ticks per blink phase) in mode select and picker, a 0 ms kick for the first countdown beat and 1000 ms between further beats. When the state changes, the core SHALL clear each timer of the previous state with `ClearTimer`. A cleared timer SHALL have no effect.
 Acceptance: `crates/core/tests/features/timing.feature`.
 
 #### Scenario: Boot schedules a blink
 - **WHEN** the game boots
-- **THEN** a 50 ms delay is requested
+- **THEN** a 50 ms timer is requested
 
-#### Scenario: Stale delays after Skip
-- **WHEN** the player presses Skip and an older blink delay finishes afterwards
-- **THEN** the older delay has no effect
+#### Scenario: Skip clears the blink timer
+- **WHEN** the player presses Skip while a blink timer is pending
+- **THEN** the core clears that timer, requests a new 50 ms timer, and the old timer has no effect
 
 ### Requirement: Pause stops the timers and the input
-`Pause` SHALL stop the blink and the countdown, and the core SHALL ignore the delays that were pending at `Pause`. While the game is paused, the core SHALL ignore every event except `Resume`. `Resume` SHALL restart the blink on a screen that blinks. A second `Pause` and a `Resume` while the game is not paused SHALL have no effect.
+`Pause` SHALL stop the blink and the countdown, and the core SHALL clear the timers that are pending at `Pause`. While the game is paused, the core SHALL ignore every event except `Resume`. `Resume` SHALL restart the blink on a screen that blinks. A second `Pause` and a `Resume` while the game is not paused SHALL have no effect.
 Acceptance: `crates/core/tests/features/pause.feature`.
 
-#### Scenario: Delays after Pause
-- **WHEN** the game is paused and a delay from before `Pause` finishes
-- **THEN** the delay has no effect and no new delay is requested
+#### Scenario: Timers at Pause
+- **WHEN** the game is paused while a timer is pending
+- **THEN** the core clears that timer, the timer has no effect and no new timer is requested
 
 #### Scenario: Input while paused
 - **WHEN** the player presses Skip or ActivateColor, or a color is received, while the game is paused
@@ -73,7 +73,7 @@ Acceptance: `crates/core/tests/features/pause.feature`.
 
 #### Scenario: Blink after Resume
 - **WHEN** the app comes back in mode select or while the Picker selects a color
-- **THEN** the core requests a 50 ms blink delay again
+- **THEN** the core requests a 50 ms blink timer again
 
 #### Scenario: Resume without Pause
 - **WHEN** the shell sends `Resume` and the game is not paused

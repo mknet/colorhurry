@@ -25,11 +25,18 @@ pub use protocol::{
 pub use tones::{ToneSequence, ToneStep};
 pub use view::{ModeChoice, ModeRole, ViewModel};
 
+/// The time capability, so that the Rust shells name the same `crux_time`
+/// operations as the core.
+pub use crux_time as time;
+
+use core::time::Duration;
+
 use crux_core::{
     App, Command,
     macros::{Operation, effect},
     render::{RenderOperation, render},
 };
+use crux_time::{clock::Time, TimerHandle, TimerOutcome};
 use facet::Facet;
 use serde::{Deserialize, Serialize};
 // The typegen code `#[effect]` emits calls `to_string`, which no_std has no prelude for.
@@ -49,12 +56,6 @@ pub enum Event {
     ActivateColor,
     ColorReceived { channel: u8, color: Color },
     RandomByte(u8),
-    /// Blink delay finished for generation `id`.
-    BlinkDone(u32),
-    /// Countdown beat delay finished for generation `id`.
-    BeatDone(u32),
-    /// The last beat tone and the explosion finished for generation `id`.
-    ExplosionDone(u32),
     /// The app went to the background. The core stops its timers and the radio.
     Pause,
     /// The app came back from the background. The core continues where it stopped.
@@ -67,12 +68,22 @@ pub enum Event {
     /// sends this event once, before `Boot`. After it, mode select offers only
     /// Caller choices. No event turns it off again.
     CallerOnly,
-}
 
-#[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-#[operation(request, output = ())]
-pub struct Delay {
-    pub millis: u32,
+    // Only the core sends the timer events, so they are not serialized. They
+    // stay at the end of `Event`, so that the bincode index of each shell
+    // event is the same in Rust and in the generated types.
+    /// The blink timer fired or was cleared.
+    #[serde(skip)]
+    #[facet(skip)]
+    BlinkDone(#[facet(opaque)] TimerOutcome),
+    /// The countdown beat timer fired or was cleared.
+    #[serde(skip)]
+    #[facet(skip)]
+    BeatDone(#[facet(opaque)] TimerOutcome),
+    /// The timer for the last beat tone and the explosion fired or was cleared.
+    #[serde(skip)]
+    #[facet(skip)]
+    ExplosionDone(#[facet(opaque)] TimerOutcome),
 }
 
 #[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -104,7 +115,8 @@ pub struct Ble {
 #[derive(Debug)]
 pub enum Effect {
     Render(RenderOperation),
-    Delay(Delay),
+    TimeNotifyAfter(time::operation::NotifyAfter),
+    TimeClear(time::operation::ClearTimer),
     Random(Random),
     PlayTone(PlayTone),
     Ble(Ble),
@@ -126,6 +138,10 @@ impl App for ColorHurry {
             // A shell capability, not a game action, so the core accepts it
             // also while paused.
             Event::CallerOnly => return caller_only(model),
+            // The core cleared this timer because it no longer wants it.
+            Event::BlinkDone(TimerOutcome::Cleared)
+            | Event::BeatDone(TimerOutcome::Cleared)
+            | Event::ExplosionDone(TimerOutcome::Cleared) => return Command::done(),
             _ => {}
         }
         // While paused, the core ignores every event except `Resume` and
@@ -157,35 +173,41 @@ fn ble(op: BleOp) -> Command<Effect, Event> {
     Command::notify_shell(Ble { op }).into()
 }
 
-fn schedule_blink(model: &mut Model) -> Command<Effect, Event> {
-    model.blink_gen = model.blink_gen.wrapping_add(1);
-    let id = model.blink_gen;
-    Command::new(move |ctx| async move {
-        ctx.request_from_shell(Delay {
-            millis: BLINK_PERIOD_MS,
-        })
-        .await;
-        ctx.send_event(Event::BlinkDone(id));
-    })
+/// Starts a timer of `millis` in `slot`, and clears the timer that was there.
+///
+/// The command sends `done` with the outcome of the timer.
+fn start_timer(
+    slot: &mut Option<TimerHandle>,
+    millis: u32,
+    done: fn(TimerOutcome) -> Event,
+) -> Command<Effect, Event> {
+    clear_timer(slot);
+    let (notify, handle) = Time::notify_after(Duration::from_millis(u64::from(millis)));
+    *slot = Some(handle);
+    notify.then_send(done)
 }
 
-fn schedule_beat_ms(model: &mut Model, millis: u32) -> Command<Effect, Event> {
-    model.beat_gen = model.beat_gen.wrapping_add(1);
-    let id = model.beat_gen;
-    Command::new(move |ctx| async move {
-        ctx.request_from_shell(Delay { millis }).await;
-        ctx.send_event(Event::BeatDone(id));
-    })
+/// Clears the timer in `slot`, if there is one, and leaves the slot empty.
+///
+/// The shell frees the timer, and the timer event comes with
+/// `TimerOutcome::Cleared`, which `update` ignores.
+fn clear_timer(slot: &mut Option<TimerHandle>) {
+    if let Some(handle) = slot.take() {
+        handle.clear();
+    }
+}
+
+fn schedule_blink(model: &mut Model) -> Command<Effect, Event> {
+    start_timer(&mut model.blink_timer, BLINK_PERIOD_MS, Event::BlinkDone)
+}
+
+fn schedule_beat(model: &mut Model, millis: u32) -> Command<Effect, Event> {
+    start_timer(&mut model.round_timer, millis, Event::BeatDone)
 }
 
 /// Wait for the queued tones to finish, then send `ExplosionDone`.
 fn schedule_explosion_done(model: &mut Model, millis: u32) -> Command<Effect, Event> {
-    model.beat_gen = model.beat_gen.wrapping_add(1);
-    let id = model.beat_gen;
-    Command::new(move |ctx| async move {
-        ctx.request_from_shell(Delay { millis }).await;
-        ctx.send_event(Event::ExplosionDone(id));
-    })
+    start_timer(&mut model.round_timer, millis, Event::ExplosionDone)
 }
 
 fn request_random() -> Command<Effect, Event> {
@@ -202,15 +224,15 @@ fn advance_blink(model: &mut Model) {
 
 /// Stops every timer and the radio, and remembers that the game is paused.
 ///
-/// The new generations make the core ignore the `BlinkDone`, `BeatDone` and
-/// `ExplosionDone` events of delays that are still pending in the shell.
+/// The core clears the blink timer and the round timer, so the shell frees
+/// them.
 fn pause(model: &mut Model) -> Command<Effect, Event> {
     if model.paused {
         return Command::done();
     }
     model.paused = true;
-    model.blink_gen = model.blink_gen.wrapping_add(1);
-    model.beat_gen = model.beat_gen.wrapping_add(1);
+    clear_timer(&mut model.blink_timer);
+    clear_timer(&mut model.round_timer);
     ble(BleOp::Off)
 }
 
@@ -249,7 +271,7 @@ fn resume(model: &mut Model) -> Command<Effect, Event> {
                     color: target,
                 })
                 .and(render())
-                .and(schedule_beat_ms(model, BEAT_PERIOD_MS))
+                .and(schedule_beat(model, BEAT_PERIOD_MS))
             }
             RoundState::Waiting => render().and(request_random()),
         },
@@ -259,10 +281,9 @@ fn resume(model: &mut Model) -> Command<Effect, Event> {
 /// Stops every timer, the round and the radio, and goes back to mode select.
 ///
 /// `ActivateColor` does not change `mode_step`, so mode select starts at the
-/// role and channel that the player entered last. The new beat generation
-/// makes the core ignore the `BeatDone` and `ExplosionDone` events of delays
-/// that are still pending in the shell. `schedule_blink` makes a new blink
-/// generation.
+/// role and channel that the player entered last. The core clears the round
+/// timer, and `schedule_blink` clears the blink timer before it starts a new
+/// one.
 fn reset(model: &mut Model) -> Command<Effect, Event> {
     model.screen = Scr::ModeSelect;
     model.role = None;
@@ -270,7 +291,7 @@ fn reset(model: &mut Model) -> Command<Effect, Event> {
     model.picker_phase = Phase::Selecting;
     model.picker_applied = Color::White;
     model.round = RoundState::Waiting;
-    model.beat_gen = model.beat_gen.wrapping_add(1);
+    clear_timer(&mut model.round_timer);
     model.blink_on = true;
     model.blink_counter = 0;
     ble(BleOp::Off).and(render()).and(schedule_blink(model))
@@ -299,11 +320,11 @@ fn caller_only(model: &mut Model) -> Command<Effect, Event> {
 fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => render().and(schedule_blink(model)),
-        Event::BlinkDone(id) if id == model.blink_gen => {
+        Event::BlinkDone(_) => {
+            model.blink_timer = None;
             advance_blink(model);
             render().and(schedule_blink(model))
         }
-        Event::BlinkDone(_) => Command::done(),
         Event::Skip => {
             let mut next = (model.mode_step + 1) % NUM_LEDS as u8;
             if model.caller_only && pal::ring_step_is_picker(next as usize) {
@@ -327,7 +348,7 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
             model.role = Some(role);
             model.blink_on = true;
             model.blink_counter = 0;
-            model.blink_gen = model.blink_gen.wrapping_add(1);
+            clear_timer(&mut model.blink_timer);
 
             match role {
                 RoleKind::Picker { channel } => {
@@ -366,7 +387,8 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
 fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => Command::done(),
-        Event::BlinkDone(id) if id == model.blink_gen => {
+        Event::BlinkDone(_) => {
+            model.blink_timer = None;
             if model.picker_phase == Phase::Selecting {
                 advance_blink(model);
                 render().and(schedule_blink(model))
@@ -374,7 +396,6 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
                 Command::done()
             }
         }
-        Event::BlinkDone(_) => Command::done(),
         Event::Skip => match model.picker_phase {
             Phase::Selecting => {
                 model.picker_selected = (model.picker_selected + 1) % NUM_LEDS as u8;
@@ -395,7 +416,7 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
             Phase::Selecting => {
                 model.picker_applied = pal::spectrum_color_at(model.picker_selected as usize);
                 model.picker_phase = Phase::Applied;
-                model.blink_gen = model.blink_gen.wrapping_add(1);
+                clear_timer(&mut model.blink_timer);
                 play_tone(tone::apply())
                     .and(ble(BleOp::Broadcast {
                         color: Some(model.picker_applied),
@@ -427,16 +448,21 @@ fn update_caller(event: Event, model: &mut Model) -> Command<Effect, Event> {
             }
             start_round(model, pal::color_from_entropy(byte))
         }
-        Event::BeatDone(id) if id == model.beat_gen => countdown_beat(model),
-        Event::BeatDone(_) => Command::done(),
-        // Only the countdown that expired can start the next round. A newer
-        // generation means the round state changed during the explosion.
-        Event::ExplosionDone(id) if id == model.beat_gen => request_random(),
-        Event::ExplosionDone(_) => Command::done(),
+        Event::BeatDone(_) => {
+            model.round_timer = None;
+            countdown_beat(model)
+        }
+        // Only the countdown that expired can start the next round. If the
+        // round state changes during the explosion, the core clears this
+        // timer.
+        Event::ExplosionDone(_) => {
+            model.round_timer = None;
+            request_random()
+        }
         Event::Skip => {
             if matches!(model.round, RoundState::Running { .. }) {
                 model.round = RoundState::Waiting;
-                model.beat_gen = model.beat_gen.wrapping_add(1);
+                clear_timer(&mut model.round_timer);
                 ble(BleOp::Off)
                     .and(render())
                     .and(request_random())
@@ -453,7 +479,7 @@ fn update_caller(event: Event, model: &mut Model) -> Command<Effect, Event> {
                 return Command::done();
             }
             model.round = RoundState::Waiting;
-            model.beat_gen = model.beat_gen.wrapping_add(1);
+            clear_timer(&mut model.round_timer);
             ble(BleOp::Off)
                 .and(render())
                 .and(request_random())
@@ -475,7 +501,7 @@ fn start_round(model: &mut Model, color: Color) -> Command<Effect, Event> {
     };
     ble(BleOp::Caller { channel, color })
         .and(render())
-        .and(schedule_beat_ms(model, 0))
+        .and(schedule_beat(model, 0))
 }
 
 /// One countdown beat: play tone for `step`, then extinguish that LED.
@@ -504,7 +530,7 @@ fn countdown_beat(model: &mut Model) -> Command<Effect, Event> {
         };
         tone_cmd
             .and(render())
-            .and(schedule_beat_ms(model, BEAT_PERIOD_MS))
+            .and(schedule_beat(model, BEAT_PERIOD_MS))
     }
 }
 

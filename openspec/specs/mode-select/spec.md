@@ -46,7 +46,7 @@ Acceptance: `crates/core/tests/features/mode_select.feature`.
 - **THEN** the view model names Caller on channel 3
 
 ### Requirement: Reset goes back to mode select
-`Reset` SHALL be valid on every screen. It SHALL stop the blink, the countdown and the radio, and the core SHALL ignore the delays that were pending at `Reset`. It SHALL go to mode select with no explosion and no tone. `Reset` SHALL clear the Picker color. The next Caller entry SHALL start a new round from a new random byte. While the game is paused, the core SHALL ignore `Reset`.
+`Reset` SHALL be valid on every screen. It SHALL stop the blink, the countdown and the radio, and the core SHALL clear the timers that are pending at `Reset`. It SHALL go to mode select with no explosion and no tone. `Reset` SHALL clear the Picker color. The next Caller entry SHALL start a new round from a new random byte. While the game is paused, the core SHALL ignore `Reset`.
 Acceptance: `crates/core/tests/features/reset.feature`.
 
 #### Scenario: Reset from a Picker that broadcasts
@@ -55,7 +55,7 @@ Acceptance: `crates/core/tests/features/reset.feature`.
 
 #### Scenario: Reset from a Caller countdown
 - **WHEN** a Caller on channel 3 counts down and the player sends `Reset`
-- **THEN** the radio stops, mode select is shown with Caller on channel 3, no explosion plays, and the beat that was pending has no effect
+- **THEN** the radio stops, mode select is shown with Caller on channel 3, no explosion plays, and the core clears the beat timer that was pending
 
 #### Scenario: Reset while paused
 - **WHEN** the game is paused during a countdown and the shell sends `Reset`
@@ -75,7 +75,7 @@ Acceptance: `crates/core/tests/features/reset.feature`.
 
 #### Scenario: Reset in mode select
 - **WHEN** the player presses Skip three times and then sends `Reset`
-- **THEN** the view model still names Picker on channel 3, and the core requests a 50 ms blink delay
+- **THEN** the view model still names Picker on channel 3, and the core requests a 50 ms blink timer
 
 ### Requirement: A shell can limit mode select to Caller
 A shell that cannot broadcast a color SHALL send `CallerOnly` once, before `Boot`. After `CallerOnly`, mode select SHALL offer only the Caller choices (ring steps 5 to 9). Skip SHALL move to the next Caller choice in the ring order (Caller on channel 4, 3, 2, 1 and 0) and SHALL wrap from channel 0 back to channel 4. The view model SHALL never name Picker, and ActivateColor SHALL enter only Caller.
@@ -115,7 +115,7 @@ Acceptance: `crates/core/tests/features/caller_only.feature`.
 
 #### Scenario: CallerOnly a second time
 - **WHEN** the shell sends `CallerOnly` again in a caller-only game
-- **THEN** the choice does not change, and the core requests no tone, no delay and no BLE op
+- **THEN** the choice does not change, and the core requests no tone, no timer and no BLE op
 
 #### Scenario: CallerOnly while paused
 - **WHEN** the game is paused in mode select and the shell sends `CallerOnly`

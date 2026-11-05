@@ -1,21 +1,22 @@
 //! Effect runtime for feature tests: virtual time, scripted entropy, logs.
 //!
 //! Domain steps call [`Harness::send`] with [`Event`]s derived from the feature
-//! text. This type is not a product shell; it only completes `Delay` / `Random`
-//! and records notify effects for assertions.
+//! text. This type is not a product shell. It answers the timers and `Random`,
+//! and it records the other effects for assertions.
 
 use std::collections::VecDeque;
 use std::fmt;
 
 use color_hurry_core::{
-    BleOp, Color, ColorHurry, Delay, Effect, Event, Random, ToneSequence, ViewModel,
+    time::{operation::NotifyAfter, TimerId},
+    BleOp, Color, ColorHurry, Effect, Event, Random, ToneSequence, ViewModel,
     BEAT_PERIOD_MS, NUM_LEDS, Rgb,
 };
 use crux_core::{Core, Request};
 
-struct PendingDelay {
+struct PendingTimer {
     due_ms: u64,
-    request: Request<Delay>,
+    request: Request<NotifyAfter>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,14 +51,17 @@ impl ObservedTone {
 pub struct Harness {
     core: Core<ColorHurry>,
     now_ms: u64,
-    delays: VecDeque<PendingDelay>,
+    timers: VecDeque<PendingTimer>,
     random_queue: VecDeque<u8>,
     /// When true, `Random` requests wait in `held_random` until a step answers them.
     hold_random: bool,
     held_random: VecDeque<Request<Random>>,
     ble_log: Vec<BleOp>,
     tone_log: Vec<ObservedTone>,
-    delay_log: Vec<u32>,
+    /// The duration in milliseconds of each timer that the core requested.
+    timer_log: Vec<u64>,
+    /// The id of each timer that the core cleared.
+    clear_log: Vec<TimerId>,
 }
 
 impl fmt::Debug for Harness {
@@ -65,12 +69,13 @@ impl fmt::Debug for Harness {
         f.debug_struct("Harness")
             .field("now_ms", &self.now_ms)
             .field("view", &self.view())
-            .field("pending_delays", &self.delays.len())
+            .field("pending_timers", &self.timers.len())
             .field("random_queue", &self.random_queue)
             .field("held_random", &self.held_random.len())
             .field("ble_log", &self.ble_log)
             .field("tone_log", &self.tone_log)
-            .field("delay_log", &self.delay_log)
+            .field("timer_log", &self.timer_log)
+            .field("clear_log", &self.clear_log)
             .finish()
     }
 }
@@ -86,13 +91,14 @@ impl Harness {
         Self {
             core: Core::new(),
             now_ms: 0,
-            delays: VecDeque::new(),
+            timers: VecDeque::new(),
             random_queue: VecDeque::new(),
             hold_random: false,
             held_random: VecDeque::new(),
             ble_log: Vec::new(),
             tone_log: Vec::new(),
-            delay_log: Vec::new(),
+            timer_log: Vec::new(),
+            clear_log: Vec::new(),
         }
     }
 
@@ -108,8 +114,12 @@ impl Harness {
         &self.tone_log
     }
 
-    pub fn delay_log(&self) -> &[u32] {
-        &self.delay_log
+    pub fn timer_log(&self) -> &[u64] {
+        &self.timer_log
+    }
+
+    pub fn clear_log(&self) -> &[TimerId] {
+        &self.clear_log
     }
 
     pub fn last_tone(&self) -> Option<&ObservedTone> {
@@ -119,7 +129,8 @@ impl Harness {
     pub fn clear_logs(&mut self) {
         self.ble_log.clear();
         self.tone_log.clear();
-        self.delay_log.clear();
+        self.timer_log.clear();
+        self.clear_log.clear();
     }
 
     pub fn push_random_many(&mut self, bytes: impl IntoIterator<Item = u8>) {
@@ -141,7 +152,7 @@ impl Harness {
         self.handle(more);
     }
 
-    /// Deliver a domain event and drain resulting effects (including 0 ms delays).
+    /// Deliver a domain event and drain resulting effects (including 0 ms timers).
     pub fn send(&mut self, event: Event) {
         let effects = self.core.process_event(event);
         self.handle(effects);
@@ -151,7 +162,7 @@ impl Harness {
         let target = self.now_ms.saturating_add(ms);
         while self.now_ms < target {
             let next_due = self
-                .delays
+                .timers
                 .iter()
                 .map(|d| d.due_ms)
                 .filter(|d| *d <= target)
@@ -171,10 +182,10 @@ impl Harness {
 
     pub fn run_full_countdown(&mut self) {
         for _ in 0..NUM_LEDS + 2 {
-            if !self.view().countdown_active && self.delays.is_empty() {
+            if !self.view().countdown_active && self.timers.is_empty() {
                 break;
             }
-            if let Some(due) = self.delays.iter().map(|d| d.due_ms).min() {
+            if let Some(due) = self.timers.iter().map(|d| d.due_ms).min() {
                 if due > self.now_ms {
                     self.now_ms = due;
                 }
@@ -201,11 +212,22 @@ impl Harness {
         while let Some(effect) = queue.pop_front() {
             match effect {
                 Effect::Render(_) => {}
-                Effect::Delay(request) => {
-                    let millis = request.operation.millis;
-                    self.delay_log.push(millis);
-                    let due = self.now_ms.saturating_add(u64::from(millis));
-                    self.delays.push_back(PendingDelay { due_ms: due, request });
+                Effect::TimeNotifyAfter(request) => {
+                    let duration = core::time::Duration::from(request.operation.duration);
+                    let millis = u64::try_from(duration.as_millis()).unwrap_or(u64::MAX);
+                    self.timer_log.push(millis);
+                    let due = self.now_ms.saturating_add(millis);
+                    self.timers.push_back(PendingTimer { due_ms: due, request });
+                }
+                Effect::TimeClear(mut request) => {
+                    // A cleared timer never fires.
+                    let id = request.operation.id;
+                    self.clear_log.push(id);
+                    self.timers.retain(|timer| timer.request.operation.id != id);
+                    let more = self.core.resolve(&mut request, id).unwrap_or_default();
+                    for e in more {
+                        queue.push_back(e);
+                    }
                 }
                 Effect::Random(request) if self.hold_random => {
                     self.held_random.push_back(request);
@@ -237,16 +259,17 @@ impl Harness {
     fn resolve_due(&mut self) {
         loop {
             let Some(idx) = self
-                .delays
+                .timers
                 .iter()
                 .position(|d| d.due_ms <= self.now_ms)
             else {
                 break;
             };
-            let Some(PendingDelay { mut request, .. }) = self.delays.remove(idx) else {
+            let Some(PendingTimer { mut request, .. }) = self.timers.remove(idx) else {
                 break;
             };
-            let more = self.core.resolve(&mut request, ()).unwrap_or_default();
+            let id = request.operation.id;
+            let more = self.core.resolve(&mut request, id).unwrap_or_default();
             self.handle(more);
         }
     }

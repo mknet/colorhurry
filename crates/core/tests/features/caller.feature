@@ -3,7 +3,7 @@ Feature: Caller round
   resets on a matching ColorReceived (same channel + named color) or
   Skip. Wrong ads are ignored. After ten beats the round explodes.
 
-  The test shell auto-resolves Random and 0 ms delays (like a fast hardware
+  The test shell auto-resolves Random and 0 ms timers (like a fast hardware
   shell), so a match immediately starts the next round when entropy is queued.
 
   Background:
@@ -17,7 +17,7 @@ Feature: Caller round
     # 0 ms beat kick is resolved immediately → step advances to 1
     And the countdown step should be 1
     And BLE should have received a Caller op for channel 0 and Red
-    And a delay of 0 ms should have been requested
+    And a timer of 0 ms should have been requested
 
   Scenario: Matching color ends the round and starts the next from entropy
     Given the next random bytes are 1, 4
@@ -63,7 +63,7 @@ Feature: Caller round
     And BLE should have received Off
     And the countdown should not be active
     # Last beat tone (200 ms) plus explosion (10 x 100 ms).
-    And a delay of 1200 ms should have been requested
+    And a timer of 1200 ms should have been requested
     And BLE should not have received a Caller op
     When I advance time by 1199 ms
     Then the countdown should not be active
@@ -91,7 +91,7 @@ Feature: Caller round
     When I enter caller on channel 0
     And I clear effect logs
     When I advance time by 1000 ms
-    Then a delay of 1000 ms should have been requested
+    Then a timer of 1000 ms should have been requested
     And a countdown tone should have been played
     # enter already resolved step 0 → after +1000 ms we are at step 2
     And the countdown step should be 2

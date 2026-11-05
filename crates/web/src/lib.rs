@@ -7,16 +7,16 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 use color_hurry_core::{
-    BleOp, Color, ColorHurry, Effect, Event, NUM_LEDS,
+    time::operation::NotifyAfter, BleOp, Color, ColorHurry, Effect, Event, NUM_LEDS,
 };
 use crux_core::{Core, Request};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlButtonElement, HtmlElement};
 
-struct PendingDelay {
+struct PendingTimer {
     due_ms: f64,
-    request: Request<color_hurry_core::Delay>,
+    request: Request<NotifyAfter>,
 }
 
 struct Shell {
@@ -24,7 +24,7 @@ struct Shell {
     entropy: u32,
     meta: Element,
     leds: Vec<Element>,
-    delays: VecDeque<PendingDelay>,
+    timers: VecDeque<PendingTimer>,
 }
 
 impl Shell {
@@ -92,7 +92,7 @@ impl Shell {
             entropy: 0xC0FF_EE42,
             meta,
             leds,
-            delays: VecDeque::new(),
+            timers: VecDeque::new(),
         })
     }
 
@@ -131,13 +131,23 @@ impl Shell {
     fn handle(&mut self, effects: Vec<Effect>) {
         let mut queue: VecDeque<Effect> = effects.into();
         let mut tones = Vec::new();
-        // Start Delay timers before WebAudio work so beat period is wall-clock.
+        // Start the timers before WebAudio work so beat period is wall-clock.
         while let Some(effect) = queue.pop_front() {
             match effect {
                 Effect::Render(_) => self.paint(),
-                Effect::Delay(request) => {
-                    let due = Self::now_ms() + f64::from(request.operation.millis);
-                    self.delays.push_back(PendingDelay { due_ms: due, request });
+                Effect::TimeNotifyAfter(request) => {
+                    let duration = std::time::Duration::from(request.operation.duration);
+                    let due = Self::now_ms() + duration.as_secs_f64() * 1000.0;
+                    self.timers.push_back(PendingTimer { due_ms: due, request });
+                }
+                Effect::TimeClear(mut request) => {
+                    // A cleared timer never fires.
+                    let id = request.operation.id;
+                    self.timers.retain(|timer| timer.request.operation.id != id);
+                    let more = self.core.resolve(&mut request, id).unwrap_or_default();
+                    for e in more {
+                        queue.push_back(e);
+                    }
                 }
                 Effect::Random(mut request) => {
                     let byte = self.next_entropy();
@@ -164,10 +174,11 @@ impl Shell {
     fn resolve_due(&mut self) {
         let now = Self::now_ms();
         let mut i = 0;
-        while i < self.delays.len() {
-            if self.delays[i].due_ms <= now {
-                if let Some(PendingDelay { mut request, .. }) = self.delays.remove(i) {
-                    let more = self.core.resolve(&mut request, ()).unwrap_or_default();
+        while i < self.timers.len() {
+            if self.timers[i].due_ms <= now {
+                if let Some(PendingTimer { mut request, .. }) = self.timers.remove(i) {
+                    let id = request.operation.id;
+                    let more = self.core.resolve(&mut request, id).unwrap_or_default();
                     self.handle(more);
                 }
             } else {
@@ -380,7 +391,7 @@ pub fn start() -> Result<(), JsValue> {
         closure.forget();
     }
 
-    // Resolve Delay effects only (blink + beat); no model peeks.
+    // Fire the timers that are due (blink + beat); no model peeks.
     let shell_tick = shell;
     let tick_cb = Closure::wrap(Box::new(move || {
         shell_tick.borrow_mut().resolve_due();

@@ -83,14 +83,15 @@ final class GameController {
 }
 
 /// The shell's side of the effect protocol: one method per operation the core
-/// declares. `Core` resolves `delay` and `random` with what they return.
+/// declares. `Core` resolves the timers and `random` with what they return.
 final class GameHandler: EffectHandler, @unchecked Sendable {
     let tones = TonePlayer()
     let bleService = BleService()
+    /// The timer handler that `crux_time` ships. A cleared timer stops here.
+    let time = TaskTimeHandler()
 
-    func delay(_ operation: Delay) async {
-        try? await Task.sleep(for: .milliseconds(Int(operation.millis)))
-    }
+    func timeNotifyAfter(_ operation: NotifyAfter) async -> TimerId { await time.notifyAfter(operation) }
+    func timeClear(_ operation: ClearTimer) async -> TimerId { await time.clear(operation) }
 
     func random(_ operation: Random) async -> UInt8 {
         var byte: UInt8 = 0

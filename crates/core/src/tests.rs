@@ -1,7 +1,8 @@
-use crux_core::App as _;
+use crux_core::{App as _, Command};
+use crux_time::TimerOutcome;
 
 use crate::{
-    color_from_entropy, decode_color, encode_color, tones, BleOp, Color, ColorHurry,
+    color_from_entropy, decode_color, encode_color, time, tones, BleOp, Color, ColorHurry, Effect,
     EffectTestExt as _, Event, Model, Role, Round, Screen, BEAT_PERIOD_MS, COUNTDOWN_STEPS,
     NUM_LEDS,
 };
@@ -20,6 +21,36 @@ fn enter_caller(app: &ColorHurry, model: &mut Model) {
     assert!(matches!(model.round, Round::Waiting));
 }
 
+fn millis(ms: u32) -> time::Duration {
+    time::Duration::from_millis(u64::from(ms))
+}
+
+/// Fires the next timer of `cmd`, which must be of `ms`, and returns its event.
+fn fire_timer(cmd: &mut Command<Effect, Event>, ms: u32) -> Event {
+    cmd.resolve_time_notify_after(|op| {
+        assert_eq!(op.duration, millis(ms));
+        op.id
+    });
+    cmd.events().next().expect("the timer sends an event")
+}
+
+/// Runs a round from `byte` to the end of its countdown, and returns the
+/// command of the last beat. Its next effect is the timer of the explosion.
+fn run_countdown(app: &ColorHurry, model: &mut Model, byte: u8) -> Command<Effect, Event> {
+    let mut cmd = app.update(Event::RandomByte(byte), model);
+    cmd.expect_ble().expect_render();
+    let mut beat = fire_timer(&mut cmd, 0);
+    for _ in 0..COUNTDOWN_STEPS {
+        let mut cmd = app.update(beat, model);
+        if matches!(model.round, Round::Waiting) {
+            return cmd;
+        }
+        cmd.expect_play_tone().expect_render();
+        beat = fire_timer(&mut cmd, BEAT_PERIOD_MS);
+    }
+    panic!("the countdown did not end");
+}
+
 fn start_round_with(app: &ColorHurry, model: &mut Model, byte: u8) -> Color {
     let mut cmd = app.update(Event::RandomByte(byte), model);
     // Full ring still lit; first BeatDone will play tone 0 / extinguish LED 0.
@@ -33,7 +64,7 @@ fn start_round_with(app: &ColorHurry, model: &mut Model, byte: u8) -> Color {
     };
     cmd.expect_ble_with(|op| assert_eq!(op.op, caller))
         .expect_render()
-        .expect_only_delay();
+        .expect_only_time_notify_after();
     target
 }
 
@@ -47,7 +78,7 @@ fn mode_select_activate_enters_picker() {
         .expect_ble_with(|op| assert_eq!(op.op, BleOp::Picker { channel: 0 }))
         .expect_ble_with(|op| assert_eq!(op.op, BleOp::Broadcast { color: None }))
         .expect_render()
-        .expect_only_delay();
+        .expect_only_time_notify_after();
 }
 
 #[test]
@@ -63,7 +94,7 @@ fn mode_select_left_then_activate_enters_caller() {
     };
     cmd.expect_ble_with(|op| assert_eq!(op.op, caller))
         .expect_render()
-        .expect_only_delay();
+        .expect_only_time_notify_after();
 }
 
 #[test]
@@ -135,33 +166,44 @@ fn after_beats_explosion_then_random() {
     let app = ColorHurry;
     let mut model = Model::new();
     enter_caller(&app, &mut model);
-    let _ = start_round_with(&app, &mut model, 0);
-    let mut last_cmd = None;
-    for _ in 0..=COUNTDOWN_STEPS {
-        let id = match model.round {
-            Round::Running { .. } => model.beat_gen,
-            Round::Waiting => break,
-        };
-        last_cmd = Some(app.update(Event::BeatDone(id), &mut model));
-    }
+    let mut cmd = run_countdown(&app, &mut model, 0);
     assert!(matches!(model.round, Round::Waiting));
     // The next round waits for the last beat tone and the explosion.
     let last_tone = tones::countdown_step(COUNTDOWN_STEPS - 1);
     let explosion = tones::explosion();
     let wait_ms = last_tone.total_ms() + explosion.total_ms();
-    last_cmd
-        .expect("at least one beat")
-        .expect_play_tone_with(|op| assert_eq!(op.sequence, last_tone))
+    cmd.expect_play_tone_with(|op| assert_eq!(op.sequence, last_tone))
         .expect_play_tone_with(|op| assert_eq!(op.sequence, explosion))
         .expect_ble_with(|op| assert_eq!(op.op, BleOp::Off))
-        .expect_render()
-        .expect_only_delay_with(|op| assert_eq!(op.millis, wait_ms));
+        .expect_render();
+    let done = fire_timer(&mut cmd, wait_ms);
 
-    let id = model.beat_gen;
-    app.update(Event::ExplosionDone(id.wrapping_add(1)), &mut model)
-        .expect_done();
-    app.update(Event::ExplosionDone(id), &mut model)
-        .expect_only_random();
+    app.update(done, &mut model).expect_only_random();
+}
+
+#[test]
+fn reset_during_the_explosion_clears_its_timer() {
+    let app = ColorHurry;
+    let mut model = Model::new();
+    enter_caller(&app, &mut model);
+    let mut cmd = run_countdown(&app, &mut model, 0);
+    cmd.expect_play_tone()
+        .expect_play_tone()
+        .expect_ble()
+        .expect_render()
+        .expect_time_notify_after();
+
+    let _ = app.update(Event::Reset, &mut model);
+    cmd.resolve_time_clear(|op| op.id);
+    let done = cmd
+        .events()
+        .next()
+        .expect("the cleared timer sends an event");
+    assert_eq!(done, Event::ExplosionDone(TimerOutcome::Cleared));
+
+    // An old timer does not change the game.
+    app.update(done, &mut model).expect_done();
+    assert_eq!(model.screen, Screen::ModeSelect);
 }
 
 #[test]
@@ -196,19 +238,17 @@ fn picker_apply_broadcasts_named_color() {
 }
 
 #[test]
-fn beat_delay_period_is_core_constant() {
+fn beat_timer_period_is_core_constant() {
     let app = ColorHurry;
     let mut model = Model::new();
     enter_caller(&app, &mut model);
     // Round start kicks the first beat immediately (0 ms), then BEAT_PERIOD_MS.
-    app.update(Event::RandomByte(0), &mut model)
-        .expect_ble()
-        .expect_render()
-        .expect_only_delay_with(|op| assert_eq!(op.millis, 0));
+    let mut cmd = app.update(Event::RandomByte(0), &mut model);
+    cmd.expect_ble().expect_render();
+    let beat = fire_timer(&mut cmd, 0);
 
-    let id = model.beat_gen;
-    app.update(Event::BeatDone(id), &mut model)
+    app.update(beat, &mut model)
         .expect_play_tone()
         .expect_render()
-        .expect_only_delay_with(|op| assert_eq!(op.millis, BEAT_PERIOD_MS));
+        .expect_only_time_notify_after_with(|op| assert_eq!(op.duration, millis(BEAT_PERIOD_MS)));
 }

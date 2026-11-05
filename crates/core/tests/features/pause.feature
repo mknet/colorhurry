@@ -21,17 +21,18 @@ Feature: Pause and resume
     And I advance time by 1000 ms
     Then the countdown step should be 2
     When the app goes to the background
-    And I clear effect logs
-    # The beat that was pending at the pause expires here and has no effect.
+    Then a timer should have been cleared
+    When I clear effect logs
+    # Pause cleared the beat that was pending, so no beat comes here.
     And I advance time by 5000 ms
     Then the countdown step should be 2
     And no tone should have been played
-    And no delay should have been requested
+    And no timer should have been requested
     When the app comes back
     Then the countdown should be active
     And the countdown step should be 2
     And BLE should have received a Caller op for channel 0 and Red
-    And a delay of 1000 ms should have been requested
+    And a timer of 1000 ms should have been requested
     # The next beat comes one full beat period after Resume.
     When I advance time by 999 ms
     Then the countdown step should be 2
@@ -103,19 +104,19 @@ Feature: Pause and resume
     And the app goes to the background
     And I clear effect logs
     And I advance time by 500 ms
-    Then no delay should have been requested
+    Then no timer should have been requested
     When the app comes back
     Then BLE should have received a Picker op for channel 1
     And BLE should have received a Broadcast with no color
-    And a delay of 50 ms should have been requested
+    And a timer of 50 ms should have been requested
 
   Scenario: Mode select stops blinking while paused and blinks again on Resume
     When the app goes to the background
     And I clear effect logs
     And I advance time by 500 ms
-    Then no delay should have been requested
+    Then no timer should have been requested
     When the app comes back
-    Then a delay of 50 ms should have been requested
+    Then a timer of 50 ms should have been requested
     And BLE should not have received any new ops
 
   Scenario: Input while paused is ignored
@@ -141,7 +142,7 @@ Feature: Pause and resume
     And the app comes back
     Then BLE should not have received any new ops
     And no tone should have been played
-    And no delay should have been requested
+    And no timer should have been requested
 
   Scenario: A second Pause does nothing
     When the app goes to the background

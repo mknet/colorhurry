@@ -3,7 +3,7 @@
 use alloc::vec::Vec;
 
 use color_hurry_core::{
-    BleOp, ColorHurry, Effect, Event, Screen, ToneStep,
+    time::operation::NotifyAfter, BleOp, ColorHurry, Effect, Event, Screen, ToneStep,
 };
 use crux_core::{Core, Request};
 
@@ -20,7 +20,9 @@ pub struct Shell {
     buttons: Buttons,
     entropy: u32,
     ble_ready: bool,
-    delays: Vec<(u32, Request<color_hurry_core::Delay>)>,
+    /// The pending timers, each with the milliseconds that remain. This list
+    /// is the only timer state, so removing a timer frees it.
+    timers: Vec<(u32, Request<NotifyAfter>)>,
 }
 
 impl Shell {
@@ -30,7 +32,7 @@ impl Shell {
             buttons: Buttons::new(),
             entropy: 0xA5A5_1234,
             ble_ready: false,
-            delays: Vec::new(),
+            timers: Vec::new(),
         }
     }
 
@@ -44,7 +46,7 @@ impl Shell {
         self.handle(effects).await;
         while self.core.view().screen == Screen::ModeSelect {
             self.poll_inputs().await;
-            self.tick_delays(SLICE_MS).await;
+            self.tick_timers(SLICE_MS).await;
             speaker::tone_service();
             time::delay_ms_async(SLICE_MS).await;
         }
@@ -54,7 +56,7 @@ impl Shell {
         self.bootstrap_radio();
         loop {
             self.poll_inputs().await;
-            self.tick_delays(SLICE_MS).await;
+            self.tick_timers(SLICE_MS).await;
             speaker::tone_service();
             time::delay_ms_async(SLICE_MS).await;
         }
@@ -90,15 +92,16 @@ impl Shell {
         }
     }
 
-    async fn tick_delays(&mut self, elapsed_ms: u32) {
+    async fn tick_timers(&mut self, elapsed_ms: u32) {
         let mut i = 0;
-        while i < self.delays.len() {
-            if self.delays[i].0 <= elapsed_ms {
-                let (_, mut request) = self.delays.swap_remove(i);
-                let effects = self.core.resolve(&mut request, ()).unwrap_or_default();
+        while i < self.timers.len() {
+            if self.timers[i].0 <= elapsed_ms {
+                let (_, mut request) = self.timers.swap_remove(i);
+                let id = request.operation.id;
+                let effects = self.core.resolve(&mut request, id).unwrap_or_default();
                 self.handle(effects).await;
             } else {
-                self.delays[i].0 -= elapsed_ms;
+                self.timers[i].0 -= elapsed_ms;
                 i += 1;
             }
         }
@@ -109,15 +112,26 @@ impl Shell {
         let mut queue: VecDeque<Effect> = effects.into();
         let mut tones: Vec<color_hurry_core::ToneSequence> = Vec::new();
         let mut need_render = false;
-        // 1) Delays/Ble/Random first (beat clock starts immediately)
+        // 1) Timers/Ble/Random first (beat clock starts immediately)
         // 2) Tones next (old shell played audio before refreshing LEDs)
         // 3) Render last so the ring updates as the beep ends
         while let Some(effect) = queue.pop_front() {
             match effect {
                 Effect::Render(_) => need_render = true,
-                Effect::Delay(request) => {
-                    let ms = request.operation.millis;
-                    self.delays.push((ms, request));
+                Effect::TimeNotifyAfter(request) => {
+                    let duration = core::time::Duration::from(request.operation.duration);
+                    let ms = u32::try_from(duration.as_millis()).unwrap_or(u32::MAX);
+                    self.timers.push((ms, request));
+                }
+                Effect::TimeClear(mut request) => {
+                    // Free the timer. It never fires, because the core no
+                    // longer listens for it.
+                    let id = request.operation.id;
+                    self.timers.retain(|(_, timer)| timer.operation.id != id);
+                    let more = self.core.resolve(&mut request, id).unwrap_or_default();
+                    for e in more {
+                        queue.push_back(e);
+                    }
                 }
                 Effect::Random(mut request) => {
                     let byte = self.next_entropy();
