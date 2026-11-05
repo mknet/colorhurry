@@ -4,6 +4,11 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseCallback
+import android.bluetooth.le.AdvertiseCallback.ADVERTISE_FAILED_ALREADY_STARTED
+import android.bluetooth.le.AdvertiseCallback.ADVERTISE_FAILED_DATA_TOO_LARGE
+import android.bluetooth.le.AdvertiseCallback.ADVERTISE_FAILED_FEATURE_UNSUPPORTED
+import android.bluetooth.le.AdvertiseCallback.ADVERTISE_FAILED_INTERNAL_ERROR
+import android.bluetooth.le.AdvertiseCallback.ADVERTISE_FAILED_TOO_MANY_ADVERTISERS
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
@@ -12,12 +17,13 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
-import android.os.ParcelUuid
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import com.colorhurry.shared.BleOp
 import com.colorhurry.shared.Color
 import com.colorhurry.shared.colorAdvertisement
 import com.colorhurry.shared.colorCompanyId
-import java.util.UUID
 
 /// Scans and advertises Color Hurry manufacturer data. Payloads are built and
 /// parsed by the Rust core; this class only moves bytes.
@@ -35,7 +41,12 @@ class BleService(context: Context) {
     private var advertiser: BluetoothLeAdvertiser? = null
     private var pickerChannel: UByte? = null
     private var scanning = false
-    private var advertising = false
+
+    // The color the core wants on air, or null. A retry only runs while this
+    // is still the color that failed.
+    private var wantedColor: Color? = null
+    private var retries = 0
+    private val handler = Handler(Looper.getMainLooper())
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -52,12 +63,28 @@ class BleService(context: Context) {
 
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-            advertising = true
+            retries = 0
         }
 
+        @SuppressLint("MissingPermission")
         override fun onStartFailure(errorCode: Int) {
-            advertising = false
-            onStatus?.invoke("Advertise failed: $errorCode")
+            // The legacy advertiser keeps a failed callback registered, and a
+            // later start with it fails with ALREADY_STARTED (3). Free it now.
+            try {
+                advertiser?.stopAdvertising(this)
+            } catch (_: Exception) {
+            }
+            Log.w(TAG, "Advertise failed: $errorCode (retry $retries)")
+            onStatus?.invoke("Advertise failed: ${describeAdvertiseError(errorCode)}")
+            val color = wantedColor ?: return
+            val retryable = errorCode == ADVERTISE_FAILED_TOO_MANY_ADVERTISERS ||
+                errorCode == ADVERTISE_FAILED_INTERNAL_ERROR
+            if (retryable && retries < MAX_RETRIES) {
+                retries++
+                handler.postDelayed({
+                    if (wantedColor == color) startAdvertise(color)
+                }, RETRY_DELAY_MS)
+            }
         }
     }
 
@@ -74,18 +101,21 @@ class BleService(context: Context) {
             }
             is BleOp.Caller -> {
                 pickerChannel = null
-                stopAdvertise()
+                cancelBroadcast()
                 startScan()
                 onStatus?.invoke("Caller ch${op.channel} scanning for ${op.color}…")
             }
             is BleOp.Broadcast -> {
                 if (op.color == null) {
-                    stopAdvertise()
+                    cancelBroadcast()
                     onStatus?.invoke(
                         pickerChannel?.let { "Picker ch$it: selecting (not broadcasting)" }
                             ?: "Broadcast cleared",
                     )
                 } else {
+                    handler.removeCallbacksAndMessages(null)
+                    wantedColor = op.color
+                    retries = 0
                     startAdvertise(op.color)
                 }
             }
@@ -135,12 +165,9 @@ class BleService(context: Context) {
             .setIncludeDeviceName(false)
             .addManufacturerData(companyId, payload)
             .build()
-        // Optional scan response with a local name hint (boards ignore this).
-        val scanResponse = AdvertiseData.Builder()
-            .setIncludeDeviceName(false)
-            .addServiceUuid(ParcelUuid(UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb")))
-            .build()
-        advertiser?.startAdvertising(settings, data, scanResponse, advertiseCallback)
+        // No scan response: the boards read only the advertisement, and a
+        // non-scannable set needs less of the controller.
+        advertiser?.startAdvertising(settings, data, advertiseCallback)
         onStatus?.invoke("Broadcasting ch$channel $color")
     }
 
@@ -157,17 +184,40 @@ class BleService(context: Context) {
 
     @SuppressLint("MissingPermission")
     private fun stopAdvertise() {
-        if (advertising) {
-            try {
-                advertiser?.stopAdvertising(advertiseCallback)
-            } catch (_: Exception) {
-            }
+        // Always stop by callback: it is harmless when nothing runs, and it
+        // also stops a start that has not yet reported success.
+        try {
+            advertiser?.stopAdvertising(advertiseCallback)
+        } catch (_: Exception) {
         }
-        advertising = false
+    }
+
+    /// Withdraws the wanted color: stops the advertiser and drops pending retries.
+    private fun cancelBroadcast() {
+        wantedColor = null
+        retries = 0
+        handler.removeCallbacksAndMessages(null)
+        stopAdvertise()
     }
 
     fun stopAll() {
         stopScan()
-        stopAdvertise()
+        cancelBroadcast()
+    }
+
+    private companion object {
+        const val TAG = "ColorHurry"
+        const val MAX_RETRIES = 3
+        const val RETRY_DELAY_MS = 1000L
+
+        fun describeAdvertiseError(code: Int): String = when (code) {
+            ADVERTISE_FAILED_DATA_TOO_LARGE -> "payload too large ($code)"
+            ADVERTISE_FAILED_TOO_MANY_ADVERTISERS ->
+                "no free BLE advertiser ($code): close other Bluetooth apps or switch Bluetooth off and on"
+            ADVERTISE_FAILED_ALREADY_STARTED -> "already started ($code)"
+            ADVERTISE_FAILED_INTERNAL_ERROR -> "internal Bluetooth error ($code)"
+            ADVERTISE_FAILED_FEATURE_UNSUPPORTED -> "advertising not supported ($code)"
+            else -> "error $code"
+        }
     }
 }
