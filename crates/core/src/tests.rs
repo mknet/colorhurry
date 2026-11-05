@@ -2,7 +2,8 @@ use crux_core::App as _;
 
 use crate::{
     color_from_entropy, decode_color, encode_color, tones, BleOp, Color, ColorHurry,
-    EffectTestExt as _, Event, Model, Round, Screen, BEAT_PERIOD_MS, COUNTDOWN_STEPS, NUM_LEDS,
+    EffectTestExt as _, Event, Model, Role, Round, Screen, BEAT_PERIOD_MS, COUNTDOWN_STEPS,
+    NUM_LEDS,
 };
 
 fn enter_picker(app: &ColorHurry, model: &mut Model) {
@@ -68,17 +69,25 @@ fn mode_select_left_then_activate_enters_caller() {
 #[test]
 fn match_only_through_core_no_explosion() {
     let app = ColorHurry;
-    let mut model = Model::new();
-    enter_caller(&app, &mut model);
-    let target = start_round_with(&app, &mut model, 1);
-    let ch = model.channel();
+    // Given a Caller on channel 4, three beats into the countdown, target Red
+    let mut model = Model {
+        screen: Screen::Caller,
+        role: Some(Role::Caller { channel: 4 }),
+        round: Round::Running {
+            target: Color::Red,
+            step: 3,
+        },
+        ..Model::new()
+    };
+    // When the target arrives on the Caller's channel
     let mut cmd = app.update(
         Event::ColorReceived {
-            channel: ch,
-            color: target,
+            channel: 4,
+            color: Color::Red,
         },
         &mut model,
     );
+    // Then the round ends, the radio goes off, and the core asks for the next target
     assert!(matches!(model.round, Round::Waiting));
     cmd.expect_ble_with(|op| assert_eq!(op.op, BleOp::Off))
         .expect_render()
