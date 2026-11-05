@@ -42,14 +42,14 @@ MPSL keeps the 16 MHz crystal on for the life of the firmware, so TIMER4 and the
 | Task | Module | Purpose |
 |------|--------|---------|
 | MPSL | `main.rs` | `mpsl.run()`: radio scheduler |
-| BLE | `ble_broadcast.rs` | Advertising with command payload (picker), passive scan (receiver) |
-| UI | `game.rs` | Mode selection → picker or receiver |
+| BLE | `ble_broadcast.rs` | Advertising with command payload (picker), passive scan (caller) |
+| UI | `game.rs` | Mode selection → picker or caller |
 
-### Picker vs. receiver
+### Picker vs. caller
 
 - **Picker:** sends `CMD_COLOR` only after **Button B** (all LEDs in that color), not during selection.
-- **Receiver:** shows a random color, **scans** for a matching `CMD_COLOR`; on a hit, countdown → new random color.
-- **Channel** (0-4, setup color on the left): the picker sends the channel in the payload; the receiver ignores other channels.
+- **Caller:** shows a random color, **scans** for a matching `CMD_COLOR`; on a hit, countdown → new random color.
+- **Channel** (0-4, setup color on the left): the picker sends the channel in the payload; the caller ignores other channels.
 
 ## Device name
 
@@ -77,7 +77,7 @@ Example channel 2 (green), color red: `53 03 03 02 FF 00 00`. Only the **confirm
 ble_broadcast::set_picker_broadcast(Some(Rgb { r: 255, g: 120, b: 0 }));
 ```
 
-**Live updates while skipping:** the advertisement stays on until the color changes. A new color replaces the advertiser, so `set_color()` reaches the radio. The Picker advertises about every 30 ms, and the Receiver scans passively with a 100 ms interval and a 100 ms window.
+**Live updates while skipping:** the advertisement stays on until the color changes. A new color replaces the advertiser, so `set_color()` reaches the radio. The Picker advertises about every 30 ms, and the Caller scans passively with a 100 ms interval and a 100 ms window.
 
 ## D13 diagnostics (without a phone)
 

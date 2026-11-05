@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Receiver.</string>
+	<string>Color Hurry scans for Circuit Playground Bluefruit color advertisements to play as Caller.</string>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKWatchOnly</key>

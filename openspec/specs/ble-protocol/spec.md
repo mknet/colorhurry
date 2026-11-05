@@ -24,7 +24,7 @@ The manufacturer payload after the company ID SHALL be `[magic 'S', version 0x04
 - **THEN** it is not turned into a ColorReceived
 
 ### Requirement: Radio starts after mode select
-The board SHALL keep the radio off during mode select and SHALL start advertising (Picker) or scanning (Receiver) only after a role is chosen.
+The board SHALL keep the radio off during mode select and SHALL start advertising (Picker) or scanning (Caller) only after a role is chosen.
 
 #### Scenario: No advertising during setup
 - **WHEN** the board is in mode select
@@ -42,12 +42,12 @@ Acceptance: `crates/core/tests/features/picker.feature`.
 - **WHEN** the Picker presses Skip after applying a color
 - **THEN** no color payload is advertised any more
 
-### Requirement: Receiver listens on its channel
-During a countdown the Receiver SHALL scan for Color Hurry payloads and SHALL treat only payloads on its own channel as ColorReceived.
-Acceptance: `crates/core/tests/features/receiver.feature`.
+### Requirement: Caller listens on its channel
+During a countdown the Caller SHALL scan for Color Hurry payloads and SHALL treat only payloads on its own channel as ColorReceived.
+Acceptance: `crates/core/tests/features/caller.feature`.
 
 #### Scenario: Other channel is ignored
-- **WHEN** a Receiver on channel 0 hears a payload for channel 1
+- **WHEN** a Caller on channel 0 hears a payload for channel 1
 - **THEN** the payload has no effect on the round
 
 ### Requirement: One encoder and decoder for all shells
@@ -58,10 +58,10 @@ Encoding and decoding the payload SHALL be defined once in the shared core. Shel
 - **THEN** the decoder returns channel 2 and Orange
 
 ### Requirement: Pause switches the radio off
-`Pause` SHALL switch the radio off. `Resume` SHALL send the radio op of the current screen again: the Picker op for its channel and its current broadcast in Picker, and the Receiver op for the target of a running round in Receiver. In mode select, and in Receiver with no running round, the radio SHALL stay off.
+`Pause` SHALL switch the radio off. `Resume` SHALL send the radio op of the current screen again: the Picker op for its channel and its current broadcast in Picker, and the Caller op for the target of a running round in Caller. In mode select, and in Caller with no running round, the radio SHALL stay off.
 Acceptance: `crates/core/tests/features/pause.feature`.
 
-#### Scenario: Receiver goes to the background
+#### Scenario: Caller goes to the background
 - **WHEN** the app goes to the background during a countdown
 - **THEN** the radio stops scanning
 
@@ -69,6 +69,6 @@ Acceptance: `crates/core/tests/features/pause.feature`.
 - **WHEN** a Picker on channel 1 with Red applied goes to the background and comes back
 - **THEN** the Picker on channel 1 broadcasts Red again
 
-#### Scenario: Receiver comes back
-- **WHEN** a Receiver on channel 0 with target Red goes to the background and comes back
-- **THEN** the Receiver scans on channel 0 for Red again
+#### Scenario: Caller comes back
+- **WHEN** a Caller on channel 0 with target Red goes to the background and comes back
+- **THEN** the Caller scans on channel 0 for Red again

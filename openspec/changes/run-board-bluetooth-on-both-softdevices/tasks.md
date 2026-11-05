@@ -11,7 +11,7 @@
 ## 2. Port to the SoftDevice Controller
 
 - [x] 2.1 Replace `nrf-softdevice` with `nrf-sdc`, `nrf-mpsl`, `trouble-host` and `bt-hci`, and enable only advertising and scanning
-- [x] 2.2 Port `ble_broadcast.rs` with the same public API and the Off, Picker and Receiver modes, and keep the 30 ms advertising interval and the 100 ms / 100 ms scan
+- [x] 2.2 Port `ble_broadcast.rs` with the same public API and the Off, Picker and Caller modes, and keep the 30 ms advertising interval and the 100 ms / 100 ms scan
 - [x] 2.3 Port `main.rs` and `time.rs`, remove only the HFCLK start, and keep the TIMER4 time base
 - [x] 2.4 List every peripheral that MPSL, `embassy-nrf` and the app use, and fix each clash (NeoPixel PWM, speaker PWM, buttons, debug LED)
 - [x] 2.5 Add `memory-s140-v6.x` (FLASH `0x26000`) and `memory-s140-v7.x` (FLASH `0x27000`), keep the `sd-v6` / `sd-v7` features and `build.rs`, and remove the text that says v6 has no BLE
@@ -34,9 +34,9 @@
 ## 5. Hardware checks (S140 6.1.1 board)
 
 - [x] 5.1 Flash the board with `just flash-uf2` or `just flash`, and check that it boots and shows the mode select
-- [x] 5.2 Check that a board Picker completes a round with a Mac Receiver
-- [x] 5.3 Check that a board Picker completes a round with an Apple Watch Series 6 Receiver, with tones and ticks
-- [ ] 5.4 Check that the board as Receiver completes a round, with a second board or with the help of Marcel, or note it as not tested
+- [x] 5.2 Check that a board Picker completes a round with a Mac Caller
+- [x] 5.3 Check that a board Picker completes a round with an Apple Watch Series 6 Caller, with tones and ticks
+- [ ] 5.4 Check that the board as Caller completes a round, with a second board or with the help of Marcel, or note it as not tested
 - [x] 5.5 Check that no pairing prompt appears on the Mac or the watch at any time
 - [ ] 5.6 Check that the countdown and the tones keep the same rhythm after the executor upgrade
 - [ ] 5.7 Check that `just flash` in crux `examples/counter-http/cpb` puts the crux example back on the board

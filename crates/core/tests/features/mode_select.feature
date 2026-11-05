@@ -1,6 +1,6 @@
 Feature: Mode select
   The board boots into mode select. Skip cycles role/channel on the ring;
-  Apply locks the choice and enters Picker or Receiver.
+  Apply locks the choice and enters Picker or Caller.
 
   Background:
     Given a fresh game
@@ -13,9 +13,9 @@ Feature: Mode select
   Scenario: Boot names Picker channel 0
     Then the mode choice should be Picker channel 0
 
-  Scenario: Six Skips name Receiver channel 3
+  Scenario: Six Skips name Caller channel 3
     When I skip 6 times
-    Then the mode choice should be Receiver channel 3
+    Then the mode choice should be Caller channel 3
 
   Scenario: Apply clears the mode choice
     When I apply
@@ -42,11 +42,11 @@ Feature: Mode select
       | 2     | Picker   | 2       |
       | 3     | Picker   | 3       |
       | 4     | Picker   | 4       |
-      | 5     | Receiver | 4       |
-      | 6     | Receiver | 3       |
-      | 7     | Receiver | 2       |
-      | 8     | Receiver | 1       |
-      | 9     | Receiver | 0       |
+      | 5     | Caller | 4       |
+      | 6     | Caller | 3       |
+      | 7     | Caller | 2       |
+      | 8     | Caller | 1       |
+      | 9     | Caller | 0       |
 
   Scenario: Mode step wraps after 10 Skips
     When I skip 10 times
@@ -60,7 +60,7 @@ Feature: Mode select
 
   Scenario: Enter helpers match outline mapping
     Given the next random bytes are 7
-    When I enter receiver on channel 2
-    Then the screen should be Receiver
+    When I enter caller on channel 2
+    Then the screen should be Caller
     And the channel should be 2
     And the countdown should be active

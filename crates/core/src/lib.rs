@@ -65,8 +65,8 @@ pub enum Event {
     Reset,
     /// The shell cannot broadcast a color, so it cannot be Picker. The shell
     /// sends this event once, before `Boot`. After it, mode select offers only
-    /// Receiver choices. No event turns it off again.
-    ReceiverOnly,
+    /// Caller choices. No event turns it off again.
+    CallerOnly,
 }
 
 #[derive(Operation, Facet, Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -90,7 +90,7 @@ pub struct PlayTone {
 pub enum BleOp {
     Off,
     Picker { channel: u8 },
-    Receiver { channel: u8, color: Color },
+    Caller { channel: u8, color: Color },
     Broadcast { color: Option<Color> },
 }
 
@@ -125,11 +125,11 @@ impl App for ColorHurry {
             Event::Resume => return resume(model),
             // A shell capability, not a game action, so the core accepts it
             // also while paused.
-            Event::ReceiverOnly => return receiver_only(model),
+            Event::CallerOnly => return caller_only(model),
             _ => {}
         }
         // While paused, the core ignores every event except `Resume` and
-        // `ReceiverOnly`. A `RandomByte` from a request that was in flight is
+        // `CallerOnly`. A `RandomByte` from a request that was in flight is
         // dropped too, because `Resume` requests a new byte.
         if model.paused {
             return Command::done();
@@ -140,7 +140,7 @@ impl App for ColorHurry {
         match model.screen {
             Scr::ModeSelect => update_mode_select(event, model),
             Scr::Picker => update_picker(event, model),
-            Scr::Receiver => update_receiver(event, model),
+            Scr::Caller => update_caller(event, model),
         }
     }
 
@@ -217,7 +217,7 @@ fn pause(model: &mut Model) -> Command<Effect, Event> {
 /// Sends the radio op of the current screen again and restarts its timers.
 ///
 /// A running countdown continues at the same step, and its next beat comes one
-/// full `BEAT_PERIOD_MS` later. A Receiver with no running round requests a new
+/// full `BEAT_PERIOD_MS` later. A Caller with no running round requests a new
 /// random byte. This starts the next round after an explosion (with no second
 /// explosion) and after a random byte that the pause dropped.
 fn resume(model: &mut Model) -> Command<Effect, Event> {
@@ -241,10 +241,10 @@ fn resume(model: &mut Model) -> Command<Effect, Event> {
                 Phase::Applied => cmd,
             }
         }
-        Scr::Receiver => match model.round {
+        Scr::Caller => match model.round {
             RoundState::Running { target, .. } => {
                 let channel = model.channel();
-                ble(BleOp::Receiver {
+                ble(BleOp::Caller {
                     channel,
                     color: target,
                 })
@@ -276,19 +276,19 @@ fn reset(model: &mut Model) -> Command<Effect, Event> {
     ble(BleOp::Off).and(render()).and(schedule_blink(model))
 }
 
-/// Limits mode select to the Receiver choices.
+/// Limits mode select to the Caller choices.
 ///
-/// While `receiver_only` is set, `mode_step` is always a Receiver step. Skip
+/// While `caller_only` is set, `mode_step` is always a Caller step. Skip
 /// keeps this rule, so `ActivateColor`, the view and `reset` need no change.
-/// If the current step is a Picker step, mode select moves to Receiver on
+/// If the current step is a Picker step, mode select moves to Caller on
 /// channel 0, because the board Picker starts on channel 0. The current screen
 /// does not change.
-fn receiver_only(model: &mut Model) -> Command<Effect, Event> {
-    model.receiver_only = true;
+fn caller_only(model: &mut Model) -> Command<Effect, Event> {
+    model.caller_only = true;
     if !pal::ring_step_is_picker(model.mode_step as usize) {
         return Command::done();
     }
-    model.mode_step = pal::RECEIVER_ONLY_START_STEP;
+    model.mode_step = pal::CALLER_ONLY_START_STEP;
     if model.screen == Scr::ModeSelect && !model.paused {
         render()
     } else {
@@ -306,8 +306,8 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
         Event::BlinkDone(_) => Command::done(),
         Event::Skip => {
             let mut next = (model.mode_step + 1) % NUM_LEDS as u8;
-            if model.receiver_only && pal::ring_step_is_picker(next as usize) {
-                next = pal::FIRST_RECEIVER_STEP;
+            if model.caller_only && pal::ring_step_is_picker(next as usize) {
+                next = pal::FIRST_CALLER_STEP;
             }
             model.mode_step = next;
             model.blink_on = false;
@@ -322,7 +322,7 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
             let role = if pal::ring_step_is_picker(step) {
                 RoleKind::Picker { channel: ch }
             } else {
-                RoleKind::Receiver { channel: ch }
+                RoleKind::Caller { channel: ch }
             };
             model.role = Some(role);
             model.blink_on = true;
@@ -340,8 +340,8 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
                         .and(render())
                         .and(schedule_blink(model))
                 }
-                RoleKind::Receiver { channel: _ } => {
-                    model.screen = Scr::Receiver;
+                RoleKind::Caller { channel: _ } => {
+                    model.screen = Scr::Caller;
                     model.round = RoundState::Waiting;
                     play_tone(tone::apply())
                         .and(ble(BleOp::Off))
@@ -359,7 +359,7 @@ fn update_mode_select(event: Event, model: &mut Model) -> Command<Effect, Event>
             Command::done()
         }
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset | Event::CallerOnly => Command::done(),
     }
 }
 
@@ -414,11 +414,11 @@ fn update_picker(event: Event, model: &mut Model) -> Command<Effect, Event> {
         | Event::BeatDone(_)
         | Event::ExplosionDone(_) => Command::done(),
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset | Event::CallerOnly => Command::done(),
     }
 }
 
-fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
+fn update_caller(event: Event, model: &mut Model) -> Command<Effect, Event> {
     match event {
         Event::Boot => Command::done(),
         Event::RandomByte(byte) => {
@@ -460,7 +460,7 @@ fn update_receiver(event: Event, model: &mut Model) -> Command<Effect, Event> {
         }
         Event::BlinkDone(_) => Command::done(),
         // `update` handles these before it dispatches to a screen.
-        Event::Pause | Event::Resume | Event::Reset | Event::ReceiverOnly => Command::done(),
+        Event::Pause | Event::Resume | Event::Reset | Event::CallerOnly => Command::done(),
     }
 }
 
@@ -473,7 +473,7 @@ fn start_round(model: &mut Model, color: Color) -> Command<Effect, Event> {
         target: color,
         step: 0,
     };
-    ble(BleOp::Receiver { channel, color })
+    ble(BleOp::Caller { channel, color })
         .and(render())
         .and(schedule_beat_ms(model, 0))
 }

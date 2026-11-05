@@ -15,9 +15,9 @@ Two meanings of "core":
 
 | Area | Current home | Notes |
 |------|--------------|--------|
-| Roles and mode selection | `crates/core/src/model.rs`, `update.rs`, `palette.rs` | `Role::Picker/Receiver { channel }`, channels 0..4, `mode_step`, `ring_step_led` / `ring_step_channel` / `ring_step_is_picker` |
+| Roles and mode selection | `crates/core/src/model.rs`, `update.rs`, `palette.rs` | `Role::Picker/Caller { channel }`, channels 0..4, `mode_step`, `ring_step_led` / `ring_step_channel` / `ring_step_is_picker` |
 | Picker phases | `model::PickerPhase`, `update_picker` | Selecting / Applied, spectrum cycle, apply and withdraw broadcast |
-| Receiver round | `update_receiver`, `start_round` | Match on channel + RGB, abort on left button, explosion after `COUNTDOWN_STEPS` (10), then wait for entropy |
+| Caller round | `update_caller`, `start_round` | Match on channel + RGB, abort on left button, explosion after `COUNTDOWN_STEPS` (10), then wait for entropy |
 | Palette | `palette.rs` | `CHANNEL_COLORS`, `SPECTRUM`, `color_from_entropy`. **Decided:** match identity is named/`Color` (or spectrum index) on the wire (v4); `Rgb` is only for display, 0..255 before shell dimming |
 | View | `view.rs` | LED colors per screen, countdown fill, visible channel → `ViewModel` |
 | Blink counter | `BLINK_TICKS = 6` in `model.rs` | Half-period in ticks; UI tick period lives in shells today (50 ms both) |
@@ -52,7 +52,7 @@ Checked against the code. Items that refine or extend the brief:
 2. **Explosion tones diverge.** Skip and Apply match across platforms (380 Hz / 55 ms, 784 Hz / 130 ms). Countdown steps share the same `DESCENDING_HZ` table and 200 ms. Explosion does **not**: CPB `speaker::play_explosion` is a 10-step sweep 180→45 Hz × 100 ms (~1 s); web uses a single 120 Hz / 400 ms beep. Putting tone parameters in the core is not only a recommendation for Skip/Apply; it is required for Explosion parity.
 3. **No shared encode.** CPB mutates a `static mut CMD_PAYLOAD` in `ble_broadcast::set_color`. Web only has `parse_color_payload`. Core has neither encode nor decode. Protocol tests today live under `web/src/ble.rs` (`parses_cmd_color_payload`, `rejects_wrong_magic`).
 4. **Misleading protocol comment on CPB.** `ble_broadcast::protocol` says payload is `[opcode, channel, r, g, b]`; the bytes on the air are `[magic, version, opcode, channel, r, g, b]` (7 bytes after company ID).
-5. **Web ignores BLE effects.** `apply_effect` treats `SetBlePicker`, `SetBleReceiver`, `SetPickerBroadcast`, and `ClearBle` as no-ops. Live receive is wired outside the effect loop. After the port, the web Receiver still needs a way to feed ads into `process_event`; Picker-on-web remains out of scope for the demo (board Picker → browser Receiver).
+5. **Web ignores BLE effects.** `apply_effect` treats `SetBlePicker`, `SetBleReceiver`, `SetPickerBroadcast`, and `ClearBle` as no-ops. Live receive is wired outside the effect loop. After the port, the web Caller still needs a way to feed ads into `process_event`; Picker-on-web remains out of scope for the demo (board Picker → browser Caller).
 6. **`Effect::Render` is not the paint trigger.** Both shells paint after every `update` (CPB always calls `neopixel_pwm::show_pixels`; web `paint` after dispatch). Crux will use `render()` / `RenderOperation` as in the spike.
 7. **`NUM_LEDS` is duplicated** in `cpb/src/neopixel_pwm.rs` (`pub const NUM_LEDS: usize = 10`) alongside `color_hurry_core::NUM_LEDS`. Hardware buffer size can stay local; the game constant should have a single source of truth in core.
 8. **Beat length is approximately 1 s but assembled differently.** Web: 1000 ms `setInterval` → `Event::Tick`. CPB: `dispatch(Tick)` (plays ~200 ms countdown tone) then `poll_match_or_abort(800)`. Same product, different ownership; should become core-requested `Delay { millis }`.
@@ -68,7 +68,7 @@ Checked against the code. Items that refine or extend the brief:
 - `crates/cpb/src/ble_broadcast.rs` → `on_adv_report`: compares scanned channel and RGB to `receiver_target` / `receiver_channel`, sets `matched`.
 - `crates/cpb/src/ble_broadcast.rs` → `take_color_match`: returns that flag.
 - `crates/cpb/src/shell.rs` → `poll_match_or_abort`: on match, sends `Event::BleColorReceived { channel: self.model.channel(), color: self.model.receiver_target }` (the **stored target**, not the bytes heard).
-- Core `update_receiver` for `BleColorReceived` then checks channel and color again, so it only rubber-stamps the shell.
+- Core `update_caller` for `BleColorReceived` then checks channel and color again, so it only rubber-stamps the shell.
 
 **Fix:** parse ads to `(channel, color)` only; forward every valid parse; only the core decides match / ignore.
 
@@ -114,7 +114,7 @@ Move into the core as `Delay { millis }` with `.then_send(...)` (spike pattern).
 ### f. `Event::Tick` overloaded
 
 - ModeSelect / Picker: blink cadence (~50 ms).
-- Receiver: countdown beat (~1 s).
+- Caller: countdown beat (~1 s).
 
 Same enum variant, different meaning. Split (e.g. domain `BlinkTick` / `CountdownBeat`) and/or let the core request both rhythms via `Delay`.
 
@@ -159,7 +159,7 @@ enum Effect {
     Render(RenderOperation),
     Delay(Delay),           // millis; shell: Embassy timer / setTimeout
     Random(Random),         // e.g. request 1 byte; shell: RNG
-    Ble(BleOperation),      // Off | Picker { channel } | Receiver { channel, color } | Broadcast { color: Option<Rgb> }
+    Ble(BleOperation),      // Off | Picker { channel } | Caller { channel, color } | Broadcast { color: Option<Rgb> }
     Tone(ToneOperation),    // kind and/or { hz, ms }; shell: PWM / WebAudio
 }
 ```
@@ -231,7 +231,7 @@ Keep green after each migration step:
 - `cargo test -p color-hurry-core`
 - thumbv7em build: `just build`
 - web: Trunk build (`just web-build` or equivalent)
-- Demo: board as Picker → browser as Receiver over BLE
+- Demo: board as Picker → browser as Caller over BLE
 
 ---
 

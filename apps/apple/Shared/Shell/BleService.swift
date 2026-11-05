@@ -30,10 +30,10 @@ final class BleService: NSObject {
             pickerChannel = channel
             stopScan()
             status = "Picker ch\(channel): \(Platform.name) cannot advertise manufacturer data; use a CPB (or Android) as Picker"
-        case .receiver(let channel, let color):
+        case .caller(let channel, let color):
             pickerChannel = nil
             startScan()
-            status = "Receiver ch\(channel) scanning for \(color)…"
+            status = "Caller ch\(channel) scanning for \(color)…"
         case .broadcast(let color):
             if color == nil {
                 status = pickerChannel.map { "Picker ch\($0): selecting (not broadcasting)" } ?? "Broadcast cleared"
@@ -64,7 +64,7 @@ extension BleService: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .poweredOn:
-            if status.contains("scanning") || status.contains("Receiver") {
+            if status.contains("scanning") || status.contains("Caller") {
                 startScan()
             }
         case .poweredOff:

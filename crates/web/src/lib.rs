@@ -33,7 +33,7 @@ impl Shell {
         root.set_class_name("board");
 
         let h2 = doc.create_element("h2")?;
-        h2.set_text_content(Some("Receiver"));
+        h2.set_text_content(Some("Caller"));
         root.append_child(&h2)?;
 
         let meta = doc.create_element("div")?;
@@ -150,7 +150,7 @@ impl Shell {
                     tones.push(request.operation.sequence);
                 }
                 Effect::Ble(request) => {
-                    // Web demo is Receiver-only; inbound ads use watchAdvertisements.
+                    // Web demo is Caller-only; inbound ads use watchAdvertisements.
                     let _ = request.operation.op;
                     let _ = BleOp::Off;
                 }
@@ -232,7 +232,7 @@ pub fn start() -> Result<(), JsValue> {
     let header = doc.create_element("header")?;
     header.set_inner_html(
         "<h1>Color Hurry</h1>\
-         <p>Local link (no server): choose the CPB in Chrome, then this tab watches its color ads as Receiver.</p>",
+         <p>Local link (no server): choose the CPB in Chrome, then this tab watches its color ads as Caller.</p>",
     );
     body.append_child(&header)?;
 
@@ -246,7 +246,7 @@ pub fn start() -> Result<(), JsValue> {
     let ble_status = doc.create_element("div")?;
     ble_status.set_class_name("ble-status");
     ble_status.set_text_content(Some(
-        "1) CPB: Picker + apply color  2) Connect board  3) This page: Receiver, same channel  · Flag: experimental Web Platform features",
+        "1) CPB: Picker + apply color  2) Connect board  3) This page: Caller, same channel  · Flag: experimental Web Platform features",
     ));
     ble_bar.append_child(&ble_btn)?;
     ble_bar.append_child(&ble_status)?;
