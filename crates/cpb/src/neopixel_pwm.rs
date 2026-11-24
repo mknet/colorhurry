@@ -14,43 +14,7 @@ const T0H: u16 = 0x8000 | 7;
 const RES: u16 = 0x8000;
 const END_DELAY: u32 = 799;
 
-/// Max value per RGB channel after scaling (8 ≈ 3 % of 255).
-pub const MAX_CHANNEL: u8 = 8;
-
-/// Cap a single channel to `MAX_CHANNEL` (linear scale).
-#[inline(never)]
-pub fn scale_channel(v: u8) -> u8 {
-    if v == 0 {
-        return 0;
-    }
-    ((v as u32 * MAX_CHANNEL as u32) / 255) as u8
-}
-
-/// GRB color for WS2812
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Rgb {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-}
-
-impl Rgb {
-    pub const OFF: Self = Self { r: 0, g: 0, b: 0 };
-    pub const ORANGE: Self = Self {
-        r: 0x60,
-        g: 0x30,
-        b: 0x00,
-    };
-
-    #[inline(never)]
-    pub fn dimmed(self) -> Self {
-        Self {
-            r: scale_channel(self.r),
-            g: scale_channel(self.g),
-            b: scale_channel(self.b),
-        }
-    }
-}
+pub use color_hurry_core::Rgb;
 
 fn push_byte(seq: &mut [u16], idx: &mut usize, byte: u8) {
     for bit in (0..8).rev() {
@@ -152,25 +116,11 @@ pub fn init() {
     init_pwm0();
 }
 
-/// Show colors on all 10 NeoPixels (index 0 = left of USB, then CCW).
+/// Show colors on all 10 NeoPixels (index 0 = left of USB, then CCW), as given.
+///
+/// The driver does not dim. The board dims in `board.rs` (`color_hurry_shell::leds`).
 pub fn show_pixels(colors: &[Rgb; NUM_LEDS]) {
-    let mut dimmed = [Rgb::OFF; NUM_LEDS];
-    for (d, s) in dimmed.iter_mut().zip(colors.iter()) {
-        *d = s.dimmed();
-    }
     let mut seq = [RES; SEQ_LEN];
-    build_pixels(&mut seq, &dimmed);
+    build_pixels(&mut seq, colors);
     play_sequence(&seq);
-}
-
-/// All NeoPixels orange.
-#[allow(dead_code)]
-pub fn show_orange() {
-    show_pixels(&[Rgb::ORANGE; NUM_LEDS]);
-}
-
-/// Alle NeoPixels aus.
-#[allow(dead_code)]
-pub fn show_off() {
-    show_pixels(&[Rgb::OFF; NUM_LEDS]);
 }

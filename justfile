@@ -92,7 +92,7 @@ android-build: ffi-android
 
 # Core unit tests + spec scenarios run as tests + FFI payload helpers
 test:
-    cargo test -p color-hurry-core -p color-hurry-ffi
+    cargo test -p color-hurry-core -p color-hurry-shell -p color-hurry-ffi
 
 # Serial DFU cannot read the SoftDevice version, so you choose the layout:
 # `flash` for v6 and `flash-v7` for v7. The UF2 recipes (`board`, `uf2`, `flash-uf2`)

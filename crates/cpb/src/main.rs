@@ -28,11 +28,11 @@ static HEAP: Heap = Heap::empty();
 const HEAP_SIZE: usize = 32 * 1024;
 
 mod ble_broadcast;
+mod board;
 mod buttons;
 mod debug_led;
 mod game;
 mod neopixel_pwm;
-mod shell;
 mod speaker;
 #[cfg(feature = "speaker-demo")]
 mod speaker_demo;
