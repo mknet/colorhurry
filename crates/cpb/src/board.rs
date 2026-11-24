@@ -1,9 +1,12 @@
-//! [`Board`] for the Circuit Playground Bluefruit, over the drivers of this crate.
+//! [`Board`] for the Circuit Playground Bluefruit or the Seeed XIAO nRF52840 (feature
+//! `xiao`), over the drivers of this crate.
 
 use color_hurry_core::{Color, Rgb, NUM_LEDS};
 use color_hurry_shell::{leds, Board};
 
-use crate::{ble_broadcast, buttons, neopixel_pwm, speaker, time};
+#[cfg(not(feature = "xiao"))]
+use crate::speaker;
+use crate::{ble_broadcast, buttons, neopixel_pwm, time};
 
 pub struct CpbBoard;
 
@@ -32,15 +35,24 @@ impl Board for CpbBoard {
         time::delay_ms_async(ms).await;
     }
 
+    #[cfg(not(feature = "xiao"))]
     async fn play_tone(&mut self, hz: u32, ms: u32) {
         let duty = speaker::duty_for_core_tone(hz, ms);
         speaker::play_tone(hz, ms, duty).await;
     }
 
+    /// The XIAO has no speaker: wait as long as the tone would last, so the timing stays.
+    #[cfg(feature = "xiao")]
+    async fn play_tone(&mut self, _hz: u32, ms: u32) {
+        time::delay_ms_async(ms).await;
+    }
+
+    #[cfg(not(feature = "xiao"))]
     fn tone_service(&mut self) {
         speaker::tone_service();
     }
 
+    #[cfg(not(feature = "xiao"))]
     fn stop_tone(&mut self) {
         speaker::stop_tone();
     }

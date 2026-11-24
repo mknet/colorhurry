@@ -3,7 +3,7 @@ name = "color-hurry-cpb"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description = "Color Hurry shell for Adafruit Circuit Playground Bluefruit"
+description = "Color Hurry firmware for Adafruit Circuit Playground Bluefruit and Seeed XIAO nRF52840"
 license.workspace = true
 
 [features]
@@ -11,6 +11,9 @@ default = ["sd-v7"]
 sd-v6 = []
 sd-v7 = []
 speaker-demo = []
+# Seeed XIAO nRF52840 (Sense) with the Grove RGB LED Stick on D0 and the Grove Dual Button
+# on D1/D2, instead of the Circuit Playground Bluefruit. No speaker.
+xiao = []
 
 [dependencies]
 color-hurry-core = { path = "../core" }

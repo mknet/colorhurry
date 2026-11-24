@@ -20,7 +20,10 @@ use color_hurry_core::{encode_color, Color, CHANNELS, COMPANY_ID, PAYLOAD_LEN};
 use color_hurry_shell::radio::{parse_color_from_adv, SHORT_NAME};
 
 /// Visible BLE device name (scan response).
+#[cfg(not(feature = "xiao"))]
 pub const DEVICE_NAME: &str = "ColorHurry-CPB";
+#[cfg(feature = "xiao")]
+pub const DEVICE_NAME: &str = "ColorHurry-XIAO";
 
 
 static BLE_STACK_READY: AtomicBool = AtomicBool::new(false);

@@ -1,28 +1,35 @@
-//! Button A (left) / B (right), CPB: P1.02 / P1.15.
+//! Button A (left) / B (right), pins in [`crate::pins`].
 //!
-//! The buttons connect to 3.3 V when pressed: **active high**, with pull-**down**.
-//! The edge detection lives in the shared shell (`color_hurry_shell::Edges`).
+//! CPB: the buttons connect to 3.3 V when pressed (active high, pull-down).
+//! XIAO with the Grove Dual Button: a pressed button pulls its line to GND (active low,
+//! pull-up). The edge detection lives in the shared shell (`color_hurry_shell::Edges`).
 
 use nrf_pac::gpio::vals::{Dir, Input, Pull};
 
-const PIN_LEFT: usize = 2; // Button A = D4
-const PIN_RIGHT: usize = 15; // Button B = D5
+use crate::pins::{self, Pin};
 
-fn init_pin(pin: usize) {
-    nrf_pac::P1.pin_cnf(pin).write(|w| {
+fn init_pin(pin: Pin) {
+    pin.gpio().pin_cnf(pin.pin).write(|w| {
         w.set_dir(Dir::Input);
         w.set_input(Input::Connect);
-        w.set_pull(Pull::Pulldown);
+        w.set_pull(if pins::BUTTONS_ACTIVE_LOW {
+            Pull::Pullup
+        } else {
+            Pull::Pulldown
+        });
     });
 }
 
 pub fn init() {
-    init_pin(PIN_LEFT);
-    init_pin(PIN_RIGHT);
+    init_pin(pins::BUTTON_A);
+    init_pin(pins::BUTTON_B);
+}
+
+fn pressed(pin: Pin) -> bool {
+    pin.is_high() != pins::BUTTONS_ACTIVE_LOW
 }
 
 /// Raw state of A and B: `true` while pressed.
 pub fn raw() -> (bool, bool) {
-    let port = nrf_pac::P1.in_().read();
-    (port.pin(PIN_LEFT), port.pin(PIN_RIGHT))
+    (pressed(pins::BUTTON_A), pressed(pins::BUTTON_B))
 }

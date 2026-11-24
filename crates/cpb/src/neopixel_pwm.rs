@@ -10,7 +10,12 @@ pub const NUM_LEDS: usize = 10;
 
 const SEQ_LEN: usize = NUM_LEDS * 24 + 1;
 const T1H: u16 = 0x8000 | 13;
+/// A 0 bit: 437 ns high on the CPB NeoPixels (WS2812B). The WS2813 of the Grove LED stick
+/// allows at most 380 ns, so the XIAO sends 312 ns.
+#[cfg(not(feature = "xiao"))]
 const T0H: u16 = 0x8000 | 7;
+#[cfg(feature = "xiao")]
+const T0H: u16 = 0x8000 | 5;
 const RES: u16 = 0x8000;
 const END_DELAY: u32 = 799;
 
@@ -33,8 +38,11 @@ fn build_pixels(seq: &mut [u16; SEQ_LEN], colors: &[Rgb; NUM_LEDS]) {
     seq[i] = RES;
 }
 
+use crate::pins;
+
 fn configure_neo_pin() {
-    nrf_pac::P0.pin_cnf(13).write(|w| {
+    let pin = pins::NEOPIXEL;
+    pin.gpio().pin_cnf(pin.pin).write(|w| {
         w.set_dir(Dir::Output);
         w.set_input(Input::Disconnect);
         w.set_drive(Drive::H0h1);
@@ -55,8 +63,8 @@ fn init_pwm0() {
     pwm.events_seqend(1).write_value(0);
 
     pwm.psel().out(0).write(|w| {
-        w.set_pin(13);
-        w.set_port(false);
+        w.set_pin(pins::NEOPIXEL.pin as u8);
+        w.set_port(pins::NEOPIXEL.port1);
         w.set_connect(Connect::Connected);
     });
     for ch in 1..4 {
@@ -99,15 +107,18 @@ fn play_sequence(seq: &[u16; SEQ_LEN]) {
     pwm.enable().write(|w| w.set_enable(false));
 }
 
-/// NeoPixel-Stromversorgung einschalten (D35 / P0.06, LOW = an).
+/// Switch the NeoPixel power on (CPB: D35 / P0.06, low = on). The XIAO has no switch.
 pub fn power_on() {
-    nrf_pac::P0.pin_cnf(6).write(|w| {
+    let Some(pin) = pins::NEOPIXEL_POWER else {
+        return;
+    };
+    pin.gpio().pin_cnf(pin.pin).write(|w| {
         w.set_dir(Dir::Output);
         w.set_input(Input::Disconnect);
         w.set_drive(Drive::S0s1);
         w.set_pull(Pull::Disabled);
     });
-    nrf_pac::P0.outclr().write_value(nrf_pac::gpio::regs::Outclr(1 << 6));
+    pin.set_low();
 }
 
 /// Initialize PWM + NeoPixel pin once (after `power_on`).
@@ -116,7 +127,8 @@ pub fn init() {
     init_pwm0();
 }
 
-/// Show colors on all 10 NeoPixels (index 0 = left of USB, then CCW), as given.
+/// Show colors on all 10 NeoPixels (CPB: index 0 = left of USB, then CCW; XIAO: index 0 =
+/// the LED next to the Grove plug), as given.
 ///
 /// The driver does not dim. The board dims in `board.rs` (`color_hurry_shell::leds`).
 pub fn show_pixels(colors: &[Rgb; NUM_LEDS]) {

@@ -29,6 +29,13 @@ case "$layout" in
     ;;
 esac
 
+# BOARD=xiao builds the Seeed XIAO nRF52840 variant (feature `xiao`).
+board="${BOARD:-cpb}"
+if [[ "$board" == xiao ]]; then
+    features="$features,xiao"
+    zip="${zip%.zip}-xiao.zip"
+fi
+
 dfu_manual="${DFU_MANUAL:-0}"
 
 if ! command -v adafruit-nrfutil &>/dev/null; then
@@ -155,7 +162,11 @@ ls /dev/cu.usb* /dev/cu.usbmodem* 2>/dev/null || ls /dev/cu.* 2>/dev/null | head
 if [[ "$dfu_manual" == "1" ]]; then
     echo ""
     echo "=== Manual DFU mode ==="
-    echo "  Now: HOLD Button A (left) → Reset 1× → release A"
+    if [[ "$board" == xiao ]]; then
+        echo "  Now: press the XIAO reset button 2× quickly"
+    else
+        echo "  Now: HOLD Button A (left) → Reset 1× → release A"
+    fi
     echo "  You have 8 seconds …"
     sleep 8
 fi

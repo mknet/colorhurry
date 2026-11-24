@@ -127,13 +127,13 @@ board:
 
 # (internal) print v6 or v7 on stdout. sd is auto (read INFO_UF2.TXT on the board), v6 or v7.
 [script('bash')]
-_sd-layout sd="auto" report="":
+_sd-layout sd="auto" report="" boot_drive=drive:
     set -euo pipefail
     sd='{{ sd }}'
     if [ "$sd" = auto ]; then
-        info='{{ drive }}/INFO_UF2.TXT'
+        info='{{ boot_drive }}/INFO_UF2.TXT'
         if [ ! -f "$info" ]; then
-            echo '✗ {{ drive }} is not mounted: double-press the reset button, set CPB_DRIVE, or pass v6 or v7 as the sd argument' >&2
+            echo '✗ {{ boot_drive }} is not mounted: double-press the reset button, set the drive variable, or pass v6 or v7 as the sd argument' >&2
             exit 1
         fi
         line=$(grep -m1 '^SoftDevice:' "$info" || true)
@@ -195,6 +195,50 @@ flash-uf2 sd="auto": (uf2 sd)
     if [ '{{ os() }}' = macos ]; then cp -X {{ uf2_file }} '{{ drive }}/'; else cp {{ uf2_file }} '{{ drive }}/'; fi
     echo '✓ flashed; the board resets into the app'
     echo '→ If the app does not start: unplug USB for 5 s, plug in, Reset 1× (not 2×), no buttons'
+
+# --- Seeed XIAO nRF52840 (Grove RGB LED Stick on D0, Grove Dual Button on D1/D2) ---
+# The XIAO has the same chip and bootloader family as the CPB, so it runs the same firmware
+# with the `xiao` feature. Bootloader: double-press the reset button next to USB-C.
+
+# The XIAO's bootloader drive. Override with XIAO_DRIVE=/path/to/drive.
+xiao_drive := env("XIAO_DRIVE", if os() == "macos" { "/Volumes/XIAO-SENSE" } else { "/media/" + env("USER", "") + "/XIAO-SENSE" })
+xiao_uf2   := "target/color-hurry-xiao.uf2"
+
+# Build the XIAO firmware
+xiao-build:
+    cargo build --{{ profile }} -p color-hurry-cpb --target {{ target }} --features xiao
+
+# Make target/color-hurry-xiao.uf2. sd: auto reads the XIAO, or v6 or v7
+[script('bash')]
+xiao-uf2 sd="auto": _uf2-tools
+    set -euo pipefail
+    layout=$({{ just_executable() }} _sd-layout {{ sd }} report '{{ xiao_drive }}')
+    if [ "$layout" = v6 ]; then
+        base=0x26000
+        features='--no-default-features --features sd-v6,xiao'
+    else
+        base=0x27000
+        features='--no-default-features --features sd-v7,xiao'
+    fi
+    cargo build --{{ profile }} -p color-hurry-cpb --target {{ target }} $features
+    rust-objcopy -O binary {{ elf }} target/color-hurry-xiao.bin
+    echo "UF2 base $base ($layout)"
+    python3 -I {{ uf2_tools }}/uf2conv.py target/color-hurry-xiao.bin -c -b "$base" -f {{ uf2_family }} -o {{ xiao_uf2 }}
+
+# Make the XIAO UF2 and copy it to the XIAO (double-press reset first). sd: auto, v6 or v7
+[script('bash')]
+xiao-flash sd="auto": (xiao-uf2 sd)
+    set -euo pipefail
+    if [ ! -d '{{ xiao_drive }}' ]; then
+        echo '✗ {{ xiao_drive }} is not mounted: double-press the reset button, or set XIAO_DRIVE'
+        exit 1
+    fi
+    if [ '{{ os() }}' = macos ]; then cp -X {{ xiao_uf2 }} '{{ xiao_drive }}/'; else cp {{ xiao_uf2 }} '{{ xiao_drive }}/'; fi
+    echo '✓ flashed; the XIAO resets into the app'
+
+# Serial DFU for the XIAO, when macOS does not mount its UF2 drive (v7 layout, the XIAO ships S140 7.3.0)
+xiao-flash-serial:
+    DFU_MANUAL=1 BOARD=xiao CPB_MEMORY=v7 ./scripts/flash-serial.sh
 
 # Check whether the CPLAYBTBOOT drive / USB is visible (macOS)
 boot-check:

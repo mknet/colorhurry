@@ -1,10 +1,11 @@
 # Color Hurry
 
-Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit**, **Browser (WASM)** and **iOS / macOS / watchOS / Android** (FFI).
+Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit** and **Seeed XIAO nRF52840**, **Browser (WASM)** and **iOS / macOS / watchOS / Android** (FFI).
 
 ```text
 crates/core    Event / Model / Effect / update / view  (no_std)
-crates/cpb     Hardware shell (Embassy, Bluetooth, NeoPixels, Audio)
+crates/shell   Board shell (no_std), shared by every board through the Board trait
+crates/cpb     Hardware shell (Embassy, Bluetooth, NeoPixels, Audio); feature `xiao` for the XIAO
 crates/web     Browser shell (one caller board + experimental live BLE scan)
 crates/ffi     Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
 apps/apple     Native SwiftUI + CoreBluetooth shells (iOS, macOS, watchOS) on the Rust core
@@ -61,6 +62,8 @@ Details: [docs/BLE.md](docs/BLE.md)
 Audio (skip/apply tones): [docs/AUDIO.md](docs/AUDIO.md). Demo sequence: feature `speaker-demo`.
 
 **Solid green** = bootloader, app is not running → [docs/RECOVERY.md](docs/RECOVERY.md)
+
+**Seeed XIAO nRF52840** with the Grove LED stick and dual button → [docs/XIAO.md](docs/XIAO.md) (`just xiao-flash`)
 
 **macOS: no access to CPLAYBTBOOT** → [docs/FLASH-MACOS.md](docs/FLASH-MACOS.md) (`just flash-serial`)
 
