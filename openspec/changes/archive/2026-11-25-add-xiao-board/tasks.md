@@ -11,7 +11,7 @@
 - [x] 2.2 Add the `xiao` feature: LED stick pin, button pins and polarity, debug LED, device name, no speaker
 - [x] 2.3 Add `just xiao-uf2`, `just xiao-flash` and `just xiao-flash-serial`
 - [x] 2.4 Verify the CPB build (`sd-v6`, `sd-v7`) and the XIAO build
-- [ ] 2.5 Flash the XIAO and play mode select, Picker and Caller against a second board or app
+- [x] 2.5 Flash the XIAO and play mode select, Picker and Caller against a second board or app
 
 ## 3. Docs
 
