@@ -1,4 +1,5 @@
-//! D13 (P1.14, active high): BLE/layout diagnostics without serial.
+//! Debug LED (CPB: D13, XIAO: red on-board LED, see [`crate::pins`]): BLE/layout
+//! diagnostics without serial.
 //!
 //! The waits use `embassy-time` (RTC1), not the TIMER4 time base in `time.rs`. A blink
 //! therefore never disturbs a game delay, and it never blocks the radio tasks.
@@ -6,8 +7,11 @@
 use embassy_time::Timer;
 use nrf_pac::gpio::vals::{Dir, Input, Pull};
 
+use crate::pins;
+
 pub fn init() {
-    nrf_pac::P1.pin_cnf(14).write(|w| {
+    let pin = pins::DEBUG_LED;
+    pin.gpio().pin_cnf(pin.pin).write(|w| {
         w.set_dir(Dir::Output);
         w.set_input(Input::Disconnect);
         w.set_pull(Pull::Disabled);
@@ -16,11 +20,19 @@ pub fn init() {
 }
 
 fn on() {
-    nrf_pac::P1.outset().write_value(nrf_pac::gpio::regs::Outset(1 << 14));
+    if pins::DEBUG_LED_ACTIVE_LOW {
+        pins::DEBUG_LED.set_low();
+    } else {
+        pins::DEBUG_LED.set_high();
+    }
 }
 
 fn off() {
-    nrf_pac::P1.outclr().write_value(nrf_pac::gpio::regs::Outclr(1 << 14));
+    if pins::DEBUG_LED_ACTIVE_LOW {
+        pins::DEBUG_LED.set_high();
+    } else {
+        pins::DEBUG_LED.set_low();
+    }
 }
 
 async fn delay_ms(ms: u64) {

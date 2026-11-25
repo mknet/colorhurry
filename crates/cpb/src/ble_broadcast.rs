@@ -16,13 +16,15 @@ use nrf_sdc::SoftdeviceController;
 use trouble_host::prelude::*;
 use trouble_host::scan::LeAdvReportsIter;
 
-use color_hurry_core::{decode_color, encode_color, Color, CHANNELS, COMPANY_ID, PAYLOAD_LEN};
+use color_hurry_core::{encode_color, Color, CHANNELS, COMPANY_ID, PAYLOAD_LEN};
+use color_hurry_shell::radio::{parse_color_from_adv, SHORT_NAME};
 
 /// Visible BLE device name (scan response).
+#[cfg(not(feature = "xiao"))]
 pub const DEVICE_NAME: &str = "ColorHurry-CPB";
+#[cfg(feature = "xiao")]
+pub const DEVICE_NAME: &str = "ColorHurry-XIAO";
 
-/// Short name in the advertisement.
-const SHORT_NAME: &[u8] = b"ColHurry";
 
 static BLE_STACK_READY: AtomicBool = AtomicBool::new(false);
 
@@ -35,8 +37,6 @@ pub async fn wait_until_ready() {
         embassy_futures::yield_now().await;
     }
 }
-
-const AD_TYPE_MANUFACTURER: u8 = 0xFF;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum RadioMode {
@@ -119,30 +119,6 @@ pub fn set_radio_caller(_channel: usize) {
 
 pub fn take_color_received() -> Option<(u8, Color)> {
     with_ble(|s| s.received.take())
-}
-
-pub fn parse_color_from_adv(data: &[u8]) -> Option<(u8, Color)> {
-    let mut i = 0;
-    while i < data.len() {
-        let len = data[i] as usize;
-        if len == 0 {
-            break;
-        }
-        if i + 1 + len > data.len() {
-            break;
-        }
-        let typ = data[i + 1];
-        if typ == AD_TYPE_MANUFACTURER && len >= 2 + PAYLOAD_LEN {
-            let ad = &data[i + 2..i + 1 + len];
-            if ad.len() >= 2 + PAYLOAD_LEN
-                && u16::from_le_bytes([ad[0], ad[1]]) == COMPANY_ID
-            {
-                return decode_color(&ad[2..]);
-            }
-        }
-        i += len + 1;
-    }
-    None
 }
 
 /// Receives the advertising reports from the host runner.

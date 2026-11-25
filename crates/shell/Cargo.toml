@@ -1,0 +1,15 @@
+[package]
+name = "color-hurry-shell"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Color Hurry board shell, shared by the CPB firmware and the desktop simulator (no_std)"
+license.workspace = true
+
+[dependencies]
+color-hurry-core = { path = "../core" }
+crux_core = { workspace = true, features = ["crux_macros", "critical-section"] }
+
+[dev-dependencies]
+critical-section = { version = "1.2", features = ["std"] }
+embassy-futures = "0.1.2"

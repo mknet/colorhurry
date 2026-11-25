@@ -27,12 +27,17 @@ static HEAP: Heap = Heap::empty();
 
 const HEAP_SIZE: usize = 32 * 1024;
 
+#[cfg(all(feature = "xiao", feature = "speaker-demo"))]
+compile_error!("the XIAO has no speaker: `speaker-demo` needs the CPB");
+
 mod ble_broadcast;
+mod board;
 mod buttons;
 mod debug_led;
 mod game;
 mod neopixel_pwm;
-mod shell;
+mod pins;
+#[cfg(not(feature = "xiao"))]
 mod speaker;
 #[cfg(feature = "speaker-demo")]
 mod speaker_demo;
@@ -161,6 +166,7 @@ async fn main(spawner: Spawner) {
     neopixel_pwm::init();
     debug_led::init();
     debug_led::show_flash_layout().await;
+    #[cfg(not(feature = "xiao"))]
     speaker::init();
 
     spawner.spawn(ble_system(controller).unwrap());

@@ -3,21 +3,21 @@
 //! `main` starts the Bluetooth stack at boot. The radio stays off until the core selects a
 //! mode.
 
+use color_hurry_shell::{Board, Shell};
+
 use crate::ble_broadcast;
-use crate::shell::Shell;
-use crate::speaker;
+use crate::board::CpbBoard;
 
 pub async fn run() -> ! {
-    let mut shell = Shell::new();
+    let mut shell = Shell::new(CpbBoard::new());
     shell.run_mode_select().await;
 
-    speaker::stop_tone();
+    shell.board_mut().stop_tone();
 
     ble_broadcast::wait_until_ready().await;
     for _ in 0..16 {
         embassy_futures::yield_now().await;
     }
 
-    shell.mark_ble_ready();
     shell.run_game().await
 }
