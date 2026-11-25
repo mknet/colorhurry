@@ -180,7 +180,7 @@ Manual: needs the board.
 - **THEN** it sends no `CallerOnly`, and its game behavior does not change
 
 ### Requirement: Shells answer the time effects of crux_time
-The core SHALL request its timers with the `crux_time` operations `NotifyAfter` and `ClearTimer`. A shell SHALL answer a `NotifyAfter` with its timer id when its duration has elapsed. A shell SHALL answer a `ClearTimer` with the same id, and SHALL free the timer that the id names. The iOS, macOS and watchOS apps SHALL use the shipped `TaskTimeHandler`, and the Android app SHALL use the shipped `CoroutineTimeHandler`. The web shell, the board and the acceptance test harness SHALL answer the two operations themselves.
+The core SHALL request its timers with the `crux_time` operations `NotifyAfter` and `ClearTimer`. A shell SHALL answer a `NotifyAfter` with its timer id when its duration has elapsed. A shell SHALL answer a `ClearTimer` with the same id, and SHALL free the timer that the id names.
 
 #### Scenario: A timer fires
 - **GIVEN** the board in mode select
@@ -196,6 +196,14 @@ Manual: needs the board.
 Manual: needs a native shell.
 - **WHEN** a native shell answers a timer after the core cleared it
 - **THEN** the core ignores the answer, and the game does not change
+
+### Requirement: Native apps answer time effects with the shipped handlers
+The iOS, macOS and watchOS apps SHALL answer the `crux_time` operations with the shipped `TaskTimeHandler`, and the Android app SHALL use the shipped `CoroutineTimeHandler`. The web shell, the board and the acceptance test harness SHALL answer the two operations themselves.
+
+#### Scenario: A native app runs a round
+Manual: needs a native app.
+- **WHEN** a native app plays a round with timers
+- **THEN** the shipped handler answers each `NotifyAfter` and `ClearTimer`, and the app has no timer code of its own
 
 ### Requirement: Android Picker frees a failed advertiser
 When the Android advertiser fails to start, the Android app SHALL free the advertiser at once, so that the next start does not fail with `ADVERTISE_FAILED_ALREADY_STARTED`. Each stop SHALL free the advertiser, also when the start has not yet succeeded.
