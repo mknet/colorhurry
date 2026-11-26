@@ -6,6 +6,7 @@ members = [
     "crates/shell",
     "crates/web",
     "crates/ffi",
+    "crates/nodejs",
 ]
 default-members = ["crates/cpb"]
 

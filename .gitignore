@@ -8,6 +8,15 @@ Cargo.lock
 *.iml
 /logs/
 
+# Node.js shell (napi-rs)
+**/node_modules/
+crates/nodejs/*.node
+crates/nodejs/index.js
+crates/nodejs/index.d.ts
+crates/nodejs/package-lock.json
+server/nodejs/package-lock.json
+
+
 # Native Android
 apps/android/.gradle/
 apps/android/build/

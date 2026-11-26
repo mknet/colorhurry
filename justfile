@@ -30,6 +30,17 @@ web-serve:
 web-build:
     cd crates/web && RUSTFLAGS='--cfg=web_sys_unstable_apis' NO_COLOR=false trunk build --release
 
+# Node.js shell (napi-rs core + BLE + Web UI): http://127.0.0.1:4747
+# Needs Node 18+, Rust. BLE scan via noble; Picker advertise is Linux-only (bleno).
+node: node-build
+    cd server/nodejs && npm start
+
+node-build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    (cd crates/nodejs && npm install && npm run build)
+    (cd server/nodejs && npm install)
+
 # Rust core for the native apps: BoltFFI packages + generated Swift/Kotlin types
 # Needs `cargo install boltffi_cli --version '=0.30.1' --locked`
 ffi: ffi-apple ffi-android

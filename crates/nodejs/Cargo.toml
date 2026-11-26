@@ -1,0 +1,21 @@
+[package]
+name = "color-hurry-nodejs"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Color Hurry core over Node-API (napi-rs) for the Node.js server shell"
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+color-hurry-core = { path = "../core" }
+color-hurry-shell = { path = "../shell" }
+crux_core = { workspace = true, features = ["crux_macros", "critical-section"] }
+critical-section = { version = "1.2", features = ["std"] }
+napi = { version = "3", default-features = false, features = ["napi4", "dyn-symbols"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"

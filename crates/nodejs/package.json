@@ -1,0 +1,27 @@
+{
+  "name": "color-hurry-nodejs",
+  "version": "0.1.0",
+  "description": "Color Hurry Rust core bound for Node.js via napi-rs",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "binaryName": "color-hurry-nodejs",
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu"
+    ]
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.4.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT OR Apache-2.0"
+}

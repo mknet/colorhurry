@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Color Hurry · Node</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Color Hurry</h1>
+      <p>
+        Core on the Node server via napi-rs. Choose Picker or Caller with Skip / Apply
+        (same mode select as the board). Tones play in this tab.
+      </p>
+    </header>
+    <div class="ble-bar">
+      <div id="ble-status" class="ble-status">Connecting…</div>
+    </div>
+    <div class="stage">
+      <div class="board">
+        <h2 id="title">Mode select</h2>
+        <div id="meta" class="meta"></div>
+        <div class="board-face">
+          <div id="ring" class="ring"></div>
+        </div>
+        <div class="actions">
+          <button id="btn-a" class="secondary" type="button">Button A (skip)</button>
+          <button id="btn-b" type="button">Button B (apply)</button>
+          <button id="btn-mode" class="secondary" type="button">Mode</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "name": "color-hurry-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Color Hurry Node.js shell: napi core + BLE + Web UI",
+  "type": "module",
+  "main": "src/server.mjs",
+  "scripts": {
+    "build:native": "npm run build --prefix ../../crates/nodejs",
+    "build:native:debug": "npm run build:debug --prefix ../../crates/nodejs",
+    "start": "node src/server.mjs",
+    "dev": "npm run build:native:debug && node src/server.mjs"
+  },
+  "dependencies": {
+    "color-hurry-nodejs": "file:../../crates/nodejs",
+    "ws": "^8.18.3"
+  },
+  "optionalDependencies": {
+    "@abandonware/noble": "^1.9.2-26"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT OR Apache-2.0",
+  "allowScripts": {
+    "@abandonware/noble@1.9.2-26": true
+  }
+}

@@ -1,6 +1,6 @@
 # Color Hurry
 
-Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit** and **Seeed XIAO nRF52840**, **Browser (WASM)** and **iOS / macOS / watchOS / Android** (FFI).
+Cooperative 2-player game: shared logic in `crates/core` (Crux App), shells for **Circuit Playground Bluefruit** and **Seeed XIAO nRF52840**, **Browser (WASM)**, **iOS / macOS / watchOS / Android** (FFI) and **Node.js** (napi-rs + BLE).
 
 ```text
 crates/core    Event / Model / Effect / update / view  (no_std)
@@ -8,8 +8,10 @@ crates/shell   Board shell (no_std), shared by every board through the Board tra
 crates/cpb     Hardware shell (Embassy, Bluetooth, NeoPixels, Audio); feature `xiao` for the XIAO
 crates/web     Browser shell (one caller board + experimental live BLE scan)
 crates/ffi     Core over FFI for the native apps (Crux bridge + BoltFFI, facet typegen)
+crates/nodejs  Core over Node-API (napi-rs) for the Node.js server shell
 apps/apple     Native SwiftUI + CoreBluetooth shells (iOS, macOS, watchOS) on the Rust core
 apps/android   Native Kotlin Compose + Android BLE shell on the Rust core
+server/nodejs  Node shell: BLE on the host + Web UI (tones in the browser)
 ```
 
 Tests: `just test` runs the unit tests in `crates/core` and the scenarios in `openspec/specs`: the spec scenarios run as tests.
@@ -48,8 +50,11 @@ just board        # print the SoftDevice of the board and the matching layout
 just flash-uf2    # build, convert and copy the UF2 with the matching layout
 cargo test -p color-hurry-core
 just web-serve    # browser: http://127.0.0.1:8080
+just node         # Node.js shell (napi-rs + BLE): http://127.0.0.1:4747
 just apple / just android   # native apps (builds the core via `just ffi`, Xcode / JDK 17|21)
 ```
+
+**Node.js shell:** same core via napi-rs (not WASM). The server runs BLE on the notebook; the browser UI draws the ring and plays tones. Mode select chooses Picker or Caller. Caller scan works on macOS/Linux; Picker manufacturer advertise needs Linux. See [server/nodejs/README.md](server/nodejs/README.md).
 
 **Native apps (iOS, macOS, watchOS + Android):** same entry as on the board (Skip/Apply → Picker/Caller), UI like the web shell. The Mode button goes back to mode select. Demo: CPB as picker, phone, Mac or watch as caller. The Apple apps cannot be Picker, so their mode select offers only Caller. See [apps/README.md](apps/README.md).
 
